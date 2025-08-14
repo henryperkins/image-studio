@@ -14,11 +14,14 @@ export default function Toast({ message, type, onClose, duration = 3000 }: Toast
   const timerRef = useRef<NodeJS.Timeout>();
   const startTimeRef = useRef<number>();
   const remainingTimeRef = useRef<number>(duration);
+  const toastRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    // Don't steal focus - use ARIA live regions instead
+
     const startTimer = () => {
       startTimeRef.current = Date.now();
-      timerRef.current = setTimeout(onClose, remainingTimeRef.current);
+      timerRef.current = setTimeout(handleClose, remainingTimeRef.current);
     };
 
     const pauseTimer = () => {
@@ -39,20 +42,25 @@ export default function Toast({ message, type, onClose, duration = 3000 }: Toast
         clearTimeout(timerRef.current);
       }
     };
-  }, [isPaused, onClose]);
+  }, [isPaused]);
+
+  const handleClose = () => {
+    onClose();
+  };
 
   return (
     <div
+      ref={toastRef}
       className={`toast ${type === "success" ? "toast-success" : "toast-error"} transition-all duration-300 ease-out animate-slide-in-right`}
-      role="status"
-      aria-live="polite"
+      role="alert"
+      aria-live="assertive"
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
     >
       <div className="flex items-center gap-3">
         <span className="text-sm">{message}</span>
         <button
-          onClick={onClose}
+          onClick={handleClose}
           className="text-white/70 hover:text-white transition-colors"
           aria-label="Close notification"
         >

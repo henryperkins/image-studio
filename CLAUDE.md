@@ -71,3 +71,80 @@ The server requires Azure OpenAI environment variables:
 - **CORS**: Server configured for web client on port 5173
 - **Error handling**: Zod validation with structured error responses
 - **Logging**: Fastify built-in logging for debugging
+
+## UI/UX Design Patterns
+
+### Accessibility (WCAG 2.1 Compliance)
+- **Keyboard Navigation**: Full keyboard support with arrow keys for tabs, Ctrl+Enter for form submission
+- **ARIA Patterns**: Proper roles, labels, and live regions for screen readers
+- **Focus Management**: Logical focus flow, no focus stealing by notifications
+- **Touch Targets**: Minimum 48x48px on mobile devices via `min-h-[48px]` classes
+
+### Responsive Design
+- **Mobile-First**: Collapsible library drawer on mobile with toggle button
+- **Breakpoints**: 
+  - `sm:` (640px) - Form layout adjustments
+  - `md:` (768px) - Desktop grid layout, reduced touch targets
+  - `lg:` (1024px) - Three-column form layouts
+- **Grid Layouts**: `grid-cols-1 sm:grid-cols-2 lg:grid-cols-3` pattern
+
+### Error Handling & Recovery
+- **Retry Mechanism**: Exponential backoff with max 3 retries
+- **Error Classification**: Network vs rate limit vs general errors
+- **User Feedback**: Detailed error messages with actionable recovery options
+- **Loading States**: Skeleton loaders and progress indicators
+
+### Form Validation & Feedback
+- **Inline Validation**: Real-time feedback below inputs
+- **Helper Text**: Dynamic hints based on input state
+- **Disabled State Explanations**: `aria-describedby` for context
+- **Visual Indicators**: Border colors, icons for validation states
+
+### Component Patterns
+
+#### Toast Notifications (non-intrusive)
+- Uses ARIA live regions (`role="alert"`)
+- Doesn't steal focus from current task
+- Auto-dismiss with pause on hover
+- Success/error type differentiation
+
+#### Loading States
+- Skeleton components for content placeholders
+- Progress bars for long operations
+- Animated spinners in buttons during actions
+- `animate-pulse` for skeleton effects
+
+#### Interactive Elements
+- Hover states with `hover:` modifiers
+- Focus rings for keyboard navigation
+- Disabled states with reduced opacity
+- Transitions for smooth interactions (`transition-all duration-200`)
+
+### State Management
+- URL-based routing for deep linking (`?view=images|sora`)
+- Local state for UI controls
+- Loading states for async operations
+- Optimistic UI updates where appropriate
+
+### CSS Utilities & Classes
+- **Custom classes**:
+  - `.btn` - Base button styles with touch target support
+  - `.input` - Form input styles with consistent padding
+  - `.card` - Container with dark theme styling
+  - `.skeleton` - Loading placeholder animation
+  - `.fade-in` - Smooth appearance animation
+- **Dark Theme**: Neutral color palette (`neutral-800`, `neutral-600`, etc.)
+- **Spacing**: Consistent use of Tailwind spacing scale
+- **Animation**: Custom keyframes for slide-in, fade-in effects
+
+### Mobile Optimizations
+- Collapsible panels to save screen space
+- Stacked layouts on small screens
+- Larger touch targets for interactive elements
+- Simplified navigation with drawer pattern
+
+### Performance Considerations
+- Lazy loading images with `loading="lazy"`
+- Debounced/throttled interactions where needed
+- Optimistic UI updates for better perceived performance
+- Request animation frame for focus management

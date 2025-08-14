@@ -8,6 +8,10 @@
   @apply focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:ring-offset-2 focus:ring-offset-neutral-900;
 }
 
+.btn-primary {
+  @apply bg-blue-600 hover:bg-blue-500 text-white;
+}
+
 .input { 
   @apply w-full rounded-xl bg-neutral-900 border border-neutral-700 p-3 text-sm;
   @apply transition-all duration-200 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20;

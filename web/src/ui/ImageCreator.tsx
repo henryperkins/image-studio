@@ -19,7 +19,7 @@ type Resp = {
 };
 
 type ImageCreatorProps = {
-  onSaved?: () => void;
+  onSaved?: (id: string) => void;
   promptInputRef?: React.RefObject<HTMLTextAreaElement>;
 };
 
@@ -30,24 +30,46 @@ export default function ImageCreator({ onSaved, promptInputRef }: ImageCreatorPr
   const [format, setFormat] = useState<"png" | "jpeg">("png");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
   const [result, setResult] = useState<Resp | null>(null);
   const [isImageLoading, setIsImageLoading] = useState(false);
   const { showToast } = useToast();
 
-  const generate = async () => {
+  const generate = async (isRetry = false) => {
     setBusy(true); setError(null); setResult(null); setIsImageLoading(true);
     try {
       const data = await generateImage(prompt, size, quality, format);
       setResult(data);
+      setRetryCount(0);
       showToast("Image generated successfully!", "success");
-      onSaved && onSaved();
+      onSaved && onSaved(data.library_item.id);
     } catch (e: any) {
-      const errorMsg = e.message || "Failed";
-      setError(errorMsg);
-      showToast(errorMsg, "error");
+      const errorMsg = e.message || "Failed to generate image";
+      const isRateLimit = errorMsg.toLowerCase().includes('rate') || errorMsg.toLowerCase().includes('limit');
+      const isNetworkError = errorMsg.toLowerCase().includes('network') || errorMsg.toLowerCase().includes('fetch');
+      
+      let detailedError = errorMsg;
+      if (isRateLimit) {
+        detailedError = `${errorMsg}. Please wait a moment before retrying.`;
+      } else if (isNetworkError) {
+        detailedError = `Network error: ${errorMsg}. Check your connection and try again.`;
+      }
+      
+      setError(detailedError);
+      if (isRetry) {
+        setRetryCount(prev => prev + 1);
+      }
+      showToast(detailedError, "error");
     } finally {
       setBusy(false);
       setIsImageLoading(false);
+    }
+  };
+
+  const retry = async () => {
+    if (retryCount < 3) {
+      await new Promise(resolve => setTimeout(resolve, Math.pow(2, retryCount) * 1000));
+      await generate(true);
     }
   };
 
@@ -63,21 +85,32 @@ export default function ImageCreator({ onSaved, promptInputRef }: ImageCreatorPr
   return (
     <div className="space-y-3">
       <h2 className="text-lg font-medium">Create Image (gpt-image-1)</h2>
-      <textarea
-        id="image-prompt"
-        className="input h-32 resize-none"
-        placeholder="Describe the image…"
-        value={prompt}
-        ref={promptInputRef}
-        onChange={e=>setPrompt(e.target.value)}
-        onKeyDown={e => {
-          if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && !busy && prompt.trim()) {
-            e.preventDefault();
-            generate();
-          }
-        }}
-      />
-      <div className="grid grid-cols-2 gap-2">
+      <div className="relative">
+        <textarea
+          id="image-prompt"
+          className="input h-32 resize-none"
+          placeholder="Describe the image…"
+          value={prompt}
+          ref={promptInputRef}
+          onChange={e=>setPrompt(e.target.value)}
+          onKeyDown={e => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && !busy && prompt.trim()) {
+              e.preventDefault();
+              generate();
+            }
+          }}
+          aria-label="Image description prompt"
+          aria-required="true"
+          aria-invalid={error ? "true" : undefined}
+          aria-describedby="prompt-help"
+        />
+        <div id="prompt-help" className="text-xs text-neutral-400 mt-1">
+          {prompt.length === 0 && "Prompt is required"}
+          {prompt.length > 0 && prompt.length < 10 && "Consider adding more detail for better results"}
+          {prompt.length >= 10 && "Press Ctrl+Enter to generate"}
+        </div>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
         <label className="text-sm">Size
           <select className="input mt-1" value={size} onChange={e=>setSize(e.target.value)}>
             <option>1024x1024</option>
@@ -98,9 +131,10 @@ export default function ImageCreator({ onSaved, promptInputRef }: ImageCreatorPr
       </div>
       <div className="flex gap-2">
         <button
-          className={`btn ${busy ? 'pulse' : ''}`}
+          className={`btn min-w-[48px] min-h-[48px] md:min-h-0 ${busy ? 'pulse' : ''}`}
           disabled={busy || !prompt.trim()}
-          onClick={generate}
+          onClick={() => generate()}
+          aria-describedby={!prompt.trim() ? "prompt-required" : undefined}
         >
           {busy ? (
             <span className="flex items-center gap-2">
@@ -112,9 +146,25 @@ export default function ImageCreator({ onSaved, promptInputRef }: ImageCreatorPr
             </span>
           ) : "Generate & Save"}
         </button>
-        <button className="btn" disabled={!result} onClick={download}>Download</button>
+        {!prompt.trim() && (
+          <span id="prompt-required" className="sr-only">Enter a prompt to generate an image</span>
+        )}
+        <button className="btn min-w-[48px] min-h-[48px] md:min-h-0" disabled={!result} onClick={download}>Download</button>
       </div>
-      {error && <div className="text-red-400 text-sm fade-in">{error}</div>}
+      {error && (
+        <div className="text-red-400 text-sm fade-in space-y-2">
+          <div>{error}</div>
+          {retryCount < 3 && (
+            <button
+              className="btn btn-sm text-xs"
+              onClick={retry}
+              disabled={busy}
+            >
+              Retry {retryCount > 0 && `(${retryCount}/3)`}
+            </button>
+          )}
+        </div>
+      )}
       {(busy && !result) && (
         <div className="mt-2 space-y-2">
           <div className={`skeleton rounded-xl aspect-square w-full`} style={{ aspectRatio: size.replace('x', '/') }} />
@@ -125,7 +175,7 @@ export default function ImageCreator({ onSaved, promptInputRef }: ImageCreatorPr
         <div className="mt-2 fade-in">
           <img
             className="rounded-xl border border-neutral-800 image-hover"
-            alt="result"
+            alt={result.library_item.prompt}
             src={`data:image/${result.format};base64,${result.image_base64}`}
             onLoad={() => setIsImageLoading(false)}
           />
@@ -135,9 +185,8 @@ export default function ImageCreator({ onSaved, promptInputRef }: ImageCreatorPr
             </div>
             <button
               className="btn btn-primary text-xs px-4 py-2 ml-2"
-              style={{ fontSize: "1rem", fontWeight: 600 }}
               autoFocus
-              onClick={() => onSaved && onSaved()}
+              onClick={() => onSaved && result && onSaved(result.library_item.id)}
               aria-label="Switch to Sora and use this image"
             >
               Use in Sora →

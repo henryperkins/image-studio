@@ -19,6 +19,7 @@ export default function SoraCreator({
   const [aspectRatio, setAspectRatio] = useState(1);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string|null>(null);
+  const [retryCount, setRetryCount] = useState(0);
   const [videoUrl, setVideoUrl] = useState<string|null>(null);
   const [analysis, setAnalysis] = useState<string>("");
   const [progress, setProgress] = useState(0);
@@ -47,7 +48,7 @@ export default function SoraCreator({
     }
   }
 
-  async function generate() {
+  async function generate(isRetry = false) {
     setBusy(true); setError(null); setVideoUrl(null); setProgress(0);
 
     // Simulate progress for long operations
@@ -59,11 +60,25 @@ export default function SoraCreator({
       const data = await generateVideo(finalPrompt, width, height, seconds, selectedUrls);
       setVideoUrl(`data:video/mp4;base64,${data.video_base64}`);
       setProgress(100);
+      setRetryCount(0);
       showToast("Video generated successfully!", "success");
     } catch (e:any) {
-      const errorMsg = e.message || "Failed";
-      setError(errorMsg);
-      showToast(errorMsg, "error");
+      const errorMsg = e.message || "Failed to generate video";
+      const isRateLimit = errorMsg.toLowerCase().includes('rate') || errorMsg.toLowerCase().includes('limit');
+      const isNetworkError = errorMsg.toLowerCase().includes('network') || errorMsg.toLowerCase().includes('fetch');
+      
+      let detailedError = errorMsg;
+      if (isRateLimit) {
+        detailedError = `${errorMsg}. Please wait a moment before retrying.`;
+      } else if (isNetworkError) {
+        detailedError = `Network error: ${errorMsg}. Check your connection and try again.`;
+      }
+      
+      setError(detailedError);
+      if (isRetry) {
+        setRetryCount(prev => prev + 1);
+      }
+      showToast(detailedError, "error");
     } finally {
       clearInterval(progressInterval);
       setBusy(false);
@@ -71,13 +86,20 @@ export default function SoraCreator({
     }
   }
 
+  const retry = async () => {
+    if (retryCount < 3) {
+      await new Promise(resolve => setTimeout(resolve, Math.pow(2, retryCount) * 1000));
+      await generate(true);
+    }
+  };
+
   return (
     <div className="space-y-3">
       <h2 className="text-lg font-medium">Create Video (Sora on Azure)</h2>
 
-      <div className="flex gap-2">
+      <div className="flex flex-col sm:flex-row gap-2">
         <button
-          className={`btn ${busy ? 'pulse' : ''}`}
+          className={`btn min-h-[48px] sm:min-h-0 ${busy ? 'pulse' : ''}`}
           disabled={!selectedIds.length || busy}
           onClick={analyze}
         >
@@ -91,7 +113,7 @@ export default function SoraCreator({
             </span>
           ) : `Analyze ${selectedIds.length || ""} image${selectedIds.length>1?"s":""} (GPT-4.1)`}
         </button>
-        <button className="btn" onClick={() => setPrompt(p => p + (p ? "\n\n" : "") + (analysis || "").replace(/^Suggested prompt:\s*/i, ""))} disabled={!analysis}>
+        <button className="btn min-h-[48px] sm:min-h-0" onClick={() => setPrompt(p => p + (p ? "\n\n" : "") + (analysis || "").replace(/^Suggested prompt:\s*/i, ""))} disabled={!analysis}>
           Insert analysis into prompt
         </button>
       </div>
@@ -102,18 +124,29 @@ export default function SoraCreator({
         </pre>
       )}
 
-      <textarea
-        className="input h-28 resize-none"
-        placeholder="Describe your video…"
-        value={prompt}
-        onChange={e=>setPrompt(e.target.value)}
-        onKeyDown={e => {
-          if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && !busy && prompt.trim()) {
-            e.preventDefault();
-            generate();
-          }
-        }}
-      />
+      <div className="relative">
+        <textarea
+          className="input h-28 resize-none"
+          placeholder="Describe your video…"
+          value={prompt}
+          onChange={e=>setPrompt(e.target.value)}
+          onKeyDown={e => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && !busy && prompt.trim()) {
+              e.preventDefault();
+              generate();
+            }
+          }}
+          aria-label="Video description prompt"
+          aria-required="true"
+          aria-invalid={error ? "true" : undefined}
+          aria-describedby="video-prompt-help"
+        />
+        <div id="video-prompt-help" className="text-xs text-neutral-400 mt-1">
+          {prompt.length === 0 && "Prompt is required"}
+          {prompt.length > 0 && prompt.length < 10 && "Consider adding more detail for better results"}
+          {prompt.length >= 10 && "Press Ctrl+Enter to generate"}
+        </div>
+      </div>
 
       {selectedUrls.length > 0 && (
         <div className="space-y-2">
@@ -147,25 +180,25 @@ export default function SoraCreator({
       )}
 
       <div className="space-y-2">
-        <div className="flex gap-2">
+        <div className="flex flex-col sm:flex-row gap-2">
           <button
             type="button"
-            className="btn text-xs"
+            className="btn text-xs min-h-[48px] sm:min-h-0"
             onClick={() => { setWidth(1080); setHeight(1080); setAspectRatio(1); }}
           >Square 1080×1080</button>
           <button
             type="button"
-            className="btn text-xs"
+            className="btn text-xs min-h-[48px] sm:min-h-0"
             onClick={() => { setWidth(1080); setHeight(1920); setAspectRatio(9/16); }}
           >Portrait 1080×1920</button>
           <button
             type="button"
-            className="btn text-xs"
+            className="btn text-xs min-h-[48px] sm:min-h-0"
             onClick={() => { setWidth(1920); setHeight(1080); setAspectRatio(16/9); }}
           >Landscape 1920×1080</button>
         </div>
         
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
           <label className="text-sm">Width
             <input 
               className="input mt-1" 
@@ -228,9 +261,10 @@ export default function SoraCreator({
       </div>
 
       <button
-        className={`btn ${busy ? 'pulse' : ''}`}
+        className={`btn min-w-[48px] min-h-[48px] md:min-h-0 ${busy ? 'pulse' : ''}`}
         disabled={busy || !prompt.trim()}
-        onClick={generate}
+        onClick={() => generate()}
+        aria-describedby={!prompt.trim() ? "video-prompt-required" : undefined}
       >
         {busy ? (
           <span className="flex items-center gap-2">
@@ -242,6 +276,9 @@ export default function SoraCreator({
           </span>
         ) : "Generate"}
       </button>
+      {!prompt.trim() && (
+        <span id="video-prompt-required" className="sr-only">Enter a prompt to generate a video</span>
+      )}
 
       {busy && progress > 0 && (
         <div className="space-y-1">
@@ -257,7 +294,20 @@ export default function SoraCreator({
           </div>
         </div>
       )}
-      {error && <div className="text-red-400 text-sm fade-in">{error}</div>}
+      {error && (
+        <div className="text-red-400 text-sm fade-in space-y-2">
+          <div>{error}</div>
+          {retryCount < 3 && (
+            <button
+              className="btn btn-sm text-xs"
+              onClick={retry}
+              disabled={busy}
+            >
+              Retry {retryCount > 0 && `(${retryCount}/3)`}
+            </button>
+          )}
+        </div>
+      )}
       {busy && !videoUrl && (
         <div className="space-y-2">
           <div className="skeleton rounded-xl aspect-square w-full" />

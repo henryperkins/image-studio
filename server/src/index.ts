@@ -9,7 +9,8 @@ import crypto from "node:crypto";
 
 const app = Fastify({ logger: true });
 
-const ORIGIN = process.env.CORS_ORIGIN || "http://localhost:5174";
+const ORIGIN = /http:\/\/localhost:[0-9]+/;
+app.log.info(`CORS origin set to: ${ORIGIN}`);
 await app.register(cors, { origin: ORIGIN });
 
 const AZ = {
@@ -145,7 +146,7 @@ app.delete("/api/library/images/:id", async (req, reply) => {
 
 // ---------- Vision describe (GPT-4.1 on Azure chat/completions) ----------
 const VisionReq = z.object({
-  library_ids: z.array(z.string()).optional(),
+  library_ids: z.array(z.string().nullable()).transform(arr => arr?.filter(id => id !== null) || []).optional(),
   image_urls: z.array(z.string().url()).optional(),
   detail: z.enum(["auto", "low", "high"]).default("high"),
   style: z.enum(["concise", "detailed"]).default("concise")

@@ -1,5 +1,23 @@
 [
   {
+    "id": "902a5e2d-a254-4f91-9c24-071fd1181f67",
+    "filename": "902a5e2d-a254-4f91-9c24-071fd1181f67.png",
+    "url": "/static/images/902a5e2d-a254-4f91-9c24-071fd1181f67.png",
+    "prompt": "Another picture of a valley with some trees and a pretty sky",
+    "size": "1024x1024",
+    "format": "png",
+    "createdAt": "2025-08-14T05:29:36.985Z"
+  },
+  {
+    "id": "390046aa-3f70-478b-967c-da22fbfbedc9",
+    "filename": "390046aa-3f70-478b-967c-da22fbfbedc9.png",
+    "url": "/static/images/390046aa-3f70-478b-967c-da22fbfbedc9.png",
+    "prompt": "Sunny day with clouds looming...",
+    "size": "1024x1024",
+    "format": "png",
+    "createdAt": "2025-08-14T05:22:00.721Z"
+  },
+  {
     "id": "ea6f8e8e-6aa8-4285-ae7e-808861e6362e",
     "filename": "ea6f8e8e-6aa8-4285-ae7e-808861e6362e.png",
     "url": "/static/images/ea6f8e8e-6aa8-4285-ae7e-808861e6362e.png",

@@ -15,11 +15,18 @@ export default function App() {
   const [view, setView] = useState<View>(() => getViewFromURL());
   const [library, setLibrary] = useState<LibraryItem[]>([]);
   const [selected, setSelected] = useState<string[]>([]); // selected library ids
+  const [libraryLoading, setLibraryLoading] = useState(true);
+  const [mobileLibraryOpen, setMobileLibraryOpen] = useState(false);
   const promptInputRef = useRef<HTMLTextAreaElement>(null);
 
   async function refreshLibrary() {
-    const items = await listLibrary();
-    setLibrary(items);
+    setLibraryLoading(true);
+    try {
+      const items = await listLibrary();
+      setLibrary(items);
+    } finally {
+      setLibraryLoading(false);
+    }
   }
   useEffect(() => { refreshLibrary().catch(() => {}); }, []);
 
@@ -30,15 +37,26 @@ export default function App() {
       q.set("view", view);
       window.history.replaceState(null, '', `?${q}`);
     }
-    // Optional: focus the tab panel on switch for a11y
-    const panelId = view === "images" ? "panel-images" : "panel-sora";
-    const panel = document.getElementById(panelId);
-    if (panel) panel.focus();
+    // Focus management: Move focus to the active panel after view change
+    requestAnimationFrame(() => {
+      const panelId = view === "images" ? "panel-images" : "panel-sora";
+      const panel = document.getElementById(panelId);
+      if (panel) {
+        // Find first focusable element in the panel
+        const focusable = panel.querySelector<HTMLElement>('button:not([disabled]), textarea, input:not([disabled]), select');
+        if (focusable) {
+          focusable.focus();
+        } else {
+          panel.focus();
+        }
+      }
+    });
     // eslint-disable-next-line
   }, [view]);
 
-  const onImagesSaved = async () => {
+  const onImagesSaved = async (id: string) => {
     await refreshLibrary();
+    setSelected([id]);
     setView("sora");
   };
 
@@ -67,6 +85,22 @@ export default function App() {
             tabIndex={view === "images" ? 0 : -1}
             className={`px-4 py-2 relative z-10 transition-colors duration-300 ${view === "images" ? "text-white" : "text-neutral-400 hover:text-white"}`}
             onClick={() => setView("images")}
+            onKeyDown={(e) => {
+              if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+                e.preventDefault();
+                setView('sora');
+                setTimeout(() => document.getElementById('tab-sora')?.focus(), 0);
+              }
+              if (e.key === 'Home') {
+                e.preventDefault();
+                setView('images');
+              }
+              if (e.key === 'End') {
+                e.preventDefault();
+                setView('sora');
+                setTimeout(() => document.getElementById('tab-sora')?.focus(), 0);
+              }
+            }}
           >Images</button>
           <button
             id="tab-sora"
@@ -76,11 +110,27 @@ export default function App() {
             tabIndex={view === "sora" ? 0 : -1}
             className={`px-4 py-2 relative z-10 transition-colors duration-300 ${view === "sora" ? "text-white" : "text-neutral-400 hover:text-white"}`}
             onClick={() => setView("sora")}
+            onKeyDown={(e) => {
+              if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+                e.preventDefault();
+                setView('images');
+                setTimeout(() => document.getElementById('tab-images')?.focus(), 0);
+              }
+              if (e.key === 'Home') {
+                e.preventDefault();
+                setView('images');
+                setTimeout(() => document.getElementById('tab-images')?.focus(), 0);
+              }
+              if (e.key === 'End') {
+                e.preventDefault();
+                setView('sora');
+              }
+            }}
           >Sora</button>
         </div>
       </header>
 
-      <div className="grid md:grid-cols-3 gap-4">
+      <div className="flex flex-col md:grid md:grid-cols-3 gap-4">
         <div className="md:col-span-2">
           <div className="card transition-all duration-300">
             <div className="relative overflow-hidden">
@@ -120,13 +170,44 @@ export default function App() {
           </div>
         </div>
 
+        {/* Mobile library toggle button */}
+        <button
+          className="md:hidden btn w-full mb-2"
+          onClick={() => setMobileLibraryOpen(!mobileLibraryOpen)}
+          aria-expanded={mobileLibraryOpen}
+          aria-controls="library-panel"
+        >
+          <span className="flex items-center justify-between w-full">
+            <span>Image Library ({library.length})</span>
+            <svg
+              className={`w-5 h-5 transition-transform ${mobileLibraryOpen ? 'rotate-180' : ''}`}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </span>
+        </button>
+
         {/* Library panel */}
-        <div className="card">
+        <div
+          id="library-panel"
+          className={`card transition-all duration-300 ${
+            mobileLibraryOpen ? 'block' : 'hidden md:block'
+          }`}
+        >
           <h2 className="text-lg font-medium mb-2">Image Library</h2>
           <p className="text-xs text-neutral-400 mb-2">
             Select images to use as references or analyze with GPT-4.1 to improve your Sora prompt.
           </p>
-          {library.length === 0 ? (
+          {libraryLoading ? (
+            <div className="grid grid-cols-3 gap-2">
+              {[...Array(6)].map((_, i) => (
+                <div key={i} className="aspect-square rounded-lg bg-neutral-800 animate-pulse" />
+              ))}
+            </div>
+          ) : library.length === 0 ? (
             <div className="py-12 text-center space-y-3">
               <div className="text-neutral-500">
                 <svg className="w-12 h-12 mx-auto mb-3 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -146,7 +227,7 @@ export default function App() {
               </button>
             </div>
           ) : (
-          <div className="grid grid-cols-3 gap-2 max-h-[520px] overflow-auto fade-in">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-[320px] md:max-h-[520px] overflow-auto fade-in">
             {library.map((item, index) => (
               <label
                 key={item.id}
@@ -157,20 +238,22 @@ export default function App() {
               >
                 <input
                   type="checkbox"
-                  className="absolute top-2 left-2 z-10 w-5 h-5 rounded cursor-pointer appearance-none bg-neutral-800/80 border-2 border-neutral-600 checked:bg-blue-500 checked:border-blue-500 transition-all duration-200 hover:border-neutral-400 checked:hover:bg-blue-400"
+                  className="absolute top-1 left-1 md:top-2 md:left-2 z-10 w-6 h-6 md:w-5 md:h-5 rounded cursor-pointer appearance-none bg-neutral-800/80 border-2 border-neutral-600 checked:bg-blue-500 checked:border-blue-500 transition-all duration-200 hover:border-neutral-400 checked:hover:bg-blue-400"
                   checked={selected.includes(item.id)}
                   onChange={e => {
                     setSelected(prev => e.target.checked ? [...prev, item.id] : prev.filter(x => x !== item.id));
                   }}
+                  aria-label={`Select image: ${item.prompt || `Image ${index + 1}`}`}
                 />
                 {selected.includes(item.id) && (
-                  <svg className="absolute top-2 left-2 w-5 h-5 text-white pointer-events-none z-20" viewBox="0 0 20 20">
+                  <svg className="absolute top-1 left-1 md:top-2 md:left-2 w-6 h-6 md:w-5 md:h-5 text-white pointer-events-none z-20" viewBox="0 0 20 20">
                     <path fill="currentColor" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/>
                   </svg>
                 )}
                 <img
                   src={`${API_BASE_URL}${item.url}`}
-                  alt={item.prompt}
+                  alt={item.prompt || `Generated image ${index + 1}`}
+                  loading="lazy"
                   className={`rounded-lg border border-neutral-800 transition-all duration-200 ${selected.includes(item.id) ? "outline outline-2 outline-blue-400 scale-95" : "hover:scale-105"}`}
                 />
               </label>
@@ -179,7 +262,7 @@ export default function App() {
           )}
           <div className="flex gap-2 mt-3">
             <button
-              className="btn group relative overflow-hidden"
+              className="btn group relative overflow-hidden min-w-[48px] min-h-[48px] md:min-h-0"
               onClick={() => setSelected([])}
               disabled={selected.length === 0}
               aria-disabled={selected.length === 0}
@@ -193,8 +276,11 @@ export default function App() {
               )}
             </button>
             <button
-              className="btn group relative overflow-hidden"
-              onClick={() => setView("sora")}
+              className="btn group relative overflow-hidden min-w-[48px] min-h-[48px] md:min-h-0"
+              onClick={() => {
+                setView("sora");
+                setMobileLibraryOpen(false);
+              }}
               disabled={selected.length === 0}
               aria-disabled={selected.length === 0}
             >
