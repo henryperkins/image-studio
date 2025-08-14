@@ -9,7 +9,7 @@ import crypto from "node:crypto";
 
 const app = Fastify({ logger: true });
 
-const ORIGIN = process.env.CORS_ORIGIN || "http://localhost:5173";
+const ORIGIN = process.env.CORS_ORIGIN || "http://localhost:5174";
 await app.register(cors, { origin: ORIGIN });
 
 const AZ = {
