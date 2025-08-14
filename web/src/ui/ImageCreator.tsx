@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { useToast } from "../hooks/useToast";
+import { useToast } from "../contexts/ToastContext";
+import { generateImage } from "../lib/api";
 
 type Resp = {
   image_base64: string;
@@ -17,7 +18,12 @@ type Resp = {
   };
 };
 
-export default function ImageCreator({ onSaved }: { onSaved?: () => void }) {
+type ImageCreatorProps = {
+  onSaved?: () => void;
+  promptInputRef?: React.RefObject<HTMLTextAreaElement>;
+};
+
+export default function ImageCreator({ onSaved, promptInputRef }: ImageCreatorProps) {
   const [prompt, setPrompt] = useState("");
   const [size, setSize] = useState("1024x1024");
   const [quality, setQuality] = useState("high");
@@ -26,18 +32,12 @@ export default function ImageCreator({ onSaved }: { onSaved?: () => void }) {
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<Resp | null>(null);
   const [isImageLoading, setIsImageLoading] = useState(false);
-  const { showToast, ToastContainer } = useToast();
+  const { showToast } = useToast();
 
   const generate = async () => {
     setBusy(true); setError(null); setResult(null); setIsImageLoading(true);
     try {
-      const r = await fetch("http://localhost:8787/api/images/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt, size, quality, output_format: format, n: 1 })
-      });
-      if (!r.ok) throw new Error(await r.text());
-      const data = await r.json();
+      const data = await generateImage(prompt, size, quality, format);
       setResult(data);
       showToast("Image generated successfully!", "success");
       onSaved && onSaved();
@@ -45,7 +45,7 @@ export default function ImageCreator({ onSaved }: { onSaved?: () => void }) {
       const errorMsg = e.message || "Failed";
       setError(errorMsg);
       showToast(errorMsg, "error");
-    } finally { 
+    } finally {
       setBusy(false);
       setIsImageLoading(false);
     }
@@ -61,15 +61,21 @@ export default function ImageCreator({ onSaved }: { onSaved?: () => void }) {
   };
 
   return (
-    <>
-      <ToastContainer />
-      <div className="space-y-3">
+    <div className="space-y-3">
       <h2 className="text-lg font-medium">Create Image (gpt-image-1)</h2>
-      <textarea 
-        className="input h-32 resize-none" 
-        placeholder="Describe the image…" 
-        value={prompt} 
-        onChange={e=>setPrompt(e.target.value)} 
+      <textarea
+        id="image-prompt"
+        className="input h-32 resize-none"
+        placeholder="Describe the image…"
+        value={prompt}
+        ref={promptInputRef}
+        onChange={e=>setPrompt(e.target.value)}
+        onKeyDown={e => {
+          if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && !busy && prompt.trim()) {
+            e.preventDefault();
+            generate();
+          }
+        }}
       />
       <div className="grid grid-cols-2 gap-2">
         <label className="text-sm">Size
@@ -91,9 +97,9 @@ export default function ImageCreator({ onSaved }: { onSaved?: () => void }) {
         </label>
       </div>
       <div className="flex gap-2">
-        <button 
-          className={`btn ${busy ? 'pulse' : ''}`} 
-          disabled={busy || !prompt.trim()} 
+        <button
+          className={`btn ${busy ? 'pulse' : ''}`}
+          disabled={busy || !prompt.trim()}
           onClick={generate}
         >
           {busy ? (
@@ -123,12 +129,22 @@ export default function ImageCreator({ onSaved }: { onSaved?: () => void }) {
             src={`data:image/${result.format};base64,${result.image_base64}`}
             onLoad={() => setIsImageLoading(false)}
           />
-          <div className="text-xs text-neutral-400 mt-1">
-            Saved to library: <code className="text-neutral-300">{result.library_item.filename}</code>
+          <div className="flex items-center justify-between mt-2">
+            <div className="text-xs text-neutral-400">
+              Saved to library: <code className="text-neutral-300">{result.library_item.filename}</code>
+            </div>
+            <button
+              className="btn btn-primary text-xs px-4 py-2 ml-2"
+              style={{ fontSize: "1rem", fontWeight: 600 }}
+              autoFocus
+              onClick={() => onSaved && onSaved()}
+              aria-label="Switch to Sora and use this image"
+            >
+              Use in Sora →
+            </button>
           </div>
         </div>
       )}
-      </div>
-    </>
+    </div>
   );
 }
