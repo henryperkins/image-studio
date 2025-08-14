@@ -1,7 +1,7 @@
 // Centralized API configuration
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8787";
 
-export type LibraryItem = {
+export type ImageLibraryItem = {
   id: string;
   url: string;
   filename: string;
@@ -10,6 +10,26 @@ export type LibraryItem = {
   format: "png" | "jpeg";
   createdAt: string;
 };
+
+export type VideoLibraryItem = {
+  id: string;
+  url: string;
+  filename: string;
+  prompt: string;
+  width: number;
+  height: number;
+  duration: number;
+  format: "mp4";
+  jobId: string;
+  generationId: string;
+  createdAt: string;
+};
+
+export type LibraryItem = ImageLibraryItem | VideoLibraryItem;
+
+export function isVideoItem(item: LibraryItem): item is VideoLibraryItem {
+  return 'duration' in item;
+}
 
 // Helper function for API requests
 async function apiRequest(endpoint: string, options?: RequestInit) {
@@ -21,15 +41,51 @@ async function apiRequest(endpoint: string, options?: RequestInit) {
   return response;
 }
 
-export async function listLibrary(): Promise<LibraryItem[]> {
+export async function listImageLibrary(): Promise<ImageLibraryItem[]> {
   const response = await apiRequest("/api/library/images");
   const data = await response.json();
-  return data.items as LibraryItem[];
+  return data.items as ImageLibraryItem[];
 }
 
-export async function deleteLibraryItem(id: string) {
+export async function listVideoLibrary(): Promise<VideoLibraryItem[]> {
+  const response = await apiRequest("/api/library/videos");
+  const data = await response.json();
+  return data.items as VideoLibraryItem[];
+}
+
+export async function listLibrary(): Promise<LibraryItem[]> {
+  const [images, videos] = await Promise.all([
+    listImageLibrary(),
+    listVideoLibrary()
+  ]);
+  
+  // Combine and sort by creation date
+  const combined = [...images, ...videos];
+  combined.sort((a, b) => {
+    const dateA = new Date(a.createdAt).getTime();
+    const dateB = new Date(b.createdAt).getTime();
+    return dateB - dateA; // Newest first
+  });
+  
+  return combined;
+}
+
+export async function deleteImageLibraryItem(id: string) {
   await apiRequest(`/api/library/images/${id}`, { method: "DELETE" });
   return true;
+}
+
+export async function deleteVideoLibraryItem(id: string) {
+  await apiRequest(`/api/library/videos/${id}`, { method: "DELETE" });
+  return true;
+}
+
+export async function deleteLibraryItem(id: string, isVideo: boolean) {
+  if (isVideo) {
+    return deleteVideoLibraryItem(id);
+  } else {
+    return deleteImageLibraryItem(id);
+  }
 }
 
 export async function describeImagesByIds(

@@ -30,9 +30,11 @@ if (!AZ.endpoint) throw new Error("Missing AZURE_OPENAI_ENDPOINT");
 // ---------- library paths ----------
 const DATA_DIR = path.resolve(process.cwd(), "data");
 const IMG_DIR = path.join(DATA_DIR, "images");
-const MANIFEST = path.join(IMG_DIR, "manifest.json");
+const VIDEO_DIR = path.join(DATA_DIR, "videos");
+const IMG_MANIFEST = path.join(IMG_DIR, "manifest.json");
+const VIDEO_MANIFEST = path.join(VIDEO_DIR, "manifest.json");
 
-type LibraryItem = {
+type ImageLibraryItem = {
   id: string;
   url: string;
   filename: string;
@@ -42,21 +44,47 @@ type LibraryItem = {
   createdAt: string;
 };
 
+type VideoLibraryItem = {
+  id: string;
+  url: string;
+  filename: string;
+  prompt: string;
+  width: number;
+  height: number;
+  duration: number;
+  format: "mp4";
+  jobId: string;
+  generationId: string;
+  createdAt: string;
+};
+
 async function ensureDirs() {
   await fs.mkdir(IMG_DIR, { recursive: true });
-  try { await fs.access(MANIFEST); } catch { await fs.writeFile(MANIFEST, "[]"); }
+  await fs.mkdir(VIDEO_DIR, { recursive: true });
+  try { await fs.access(IMG_MANIFEST); } catch { await fs.writeFile(IMG_MANIFEST, "[]"); }
+  try { await fs.access(VIDEO_MANIFEST); } catch { await fs.writeFile(VIDEO_MANIFEST, "[]"); }
 }
 await ensureDirs();
 
-async function readManifest(): Promise<LibraryItem[]> {
-  try { return JSON.parse(await fs.readFile(MANIFEST, "utf-8")); } catch { return []; }
+async function readImageManifest(): Promise<ImageLibraryItem[]> {
+  try { return JSON.parse(await fs.readFile(IMG_MANIFEST, "utf-8")); } catch { return []; }
 }
-async function writeManifest(items: LibraryItem[]) {
-  await fs.writeFile(MANIFEST, JSON.stringify(items, null, 2));
+async function writeImageManifest(items: ImageLibraryItem[]) {
+  await fs.writeFile(IMG_MANIFEST, JSON.stringify(items, null, 2));
+}
+
+async function readVideoManifest(): Promise<VideoLibraryItem[]> {
+  try { return JSON.parse(await fs.readFile(VIDEO_MANIFEST, "utf-8")); } catch { return []; }
+}
+async function writeVideoManifest(items: VideoLibraryItem[]) {
+  await fs.writeFile(VIDEO_MANIFEST, JSON.stringify(items, null, 2));
 }
 
 // Serve /static/images/<file>
 await app.register(fstatic, { root: IMG_DIR, prefix: "/static/images/", decorateReply: false });
+
+// Serve /static/videos/<file>
+await app.register(fstatic, { root: VIDEO_DIR, prefix: "/static/videos/", decorateReply: false });
 
 // ---------- Images (gpt-image-1 on Azure) ----------
 const ImageReq = z.object({
@@ -99,7 +127,7 @@ app.post("/api/images/generate", async (req, reply) => {
     const filename = `${id}.${ext}`;
     await fs.writeFile(path.join(IMG_DIR, filename), Buffer.from(b64, "base64"));
 
-    const item: LibraryItem = {
+    const item: ImageLibraryItem = {
       id,
       filename,
       url: `/static/images/${filename}`,
@@ -108,9 +136,9 @@ app.post("/api/images/generate", async (req, reply) => {
       format: body.output_format,
       createdAt: new Date().toISOString()
     };
-    const items = await readManifest();
+    const items = await readImageManifest();
     items.unshift(item);
-    await writeManifest(items);
+    await writeImageManifest(items);
 
     return reply.send({
       image_base64: b64,
@@ -127,7 +155,7 @@ app.post("/api/images/generate", async (req, reply) => {
 
 // ---------- Library endpoints ----------
 app.get("/api/library/images", async (_req, reply) => {
-  const items = await readManifest();
+  const items = await readImageManifest();
   items.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
   return reply.send({ items });
 });
@@ -135,12 +163,31 @@ app.get("/api/library/images", async (_req, reply) => {
 app.delete("/api/library/images/:id", async (req, reply) => {
   const id = (req.params as any)?.id as string;
   if (!id) return reply.status(400).send({ error: "Missing id" });
-  const items = await readManifest();
+  const items = await readImageManifest();
   const idx = items.findIndex((x) => x.id === id);
   if (idx === -1) return reply.status(404).send({ error: "Not found" });
   const [removed] = items.splice(idx, 1);
-  await writeManifest(items);
+  await writeImageManifest(items);
   try { await fs.unlink(path.join(IMG_DIR, removed.filename)); } catch {}
+  return reply.send({ ok: true });
+});
+
+// ---------- Video library endpoints ----------
+app.get("/api/library/videos", async (_req, reply) => {
+  const items = await readVideoManifest();
+  items.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+  return reply.send({ items });
+});
+
+app.delete("/api/library/videos/:id", async (req, reply) => {
+  const id = (req.params as any)?.id as string;
+  if (!id) return reply.status(400).send({ error: "Missing id" });
+  const items = await readVideoManifest();
+  const idx = items.findIndex((x) => x.id === id);
+  if (idx === -1) return reply.status(404).send({ error: "Not found" });
+  const [removed] = items.splice(idx, 1);
+  await writeVideoManifest(items);
+  try { await fs.unlink(path.join(VIDEO_DIR, removed.filename)); } catch {}
   return reply.send({ ok: true });
 });
 
@@ -173,7 +220,7 @@ app.post("/api/vision/describe", async (req, reply) => {
   // Collect image parts: prefer library ids → base64 data URLs (guaranteed accessible); optionally accept direct URLs.
   const parts: Array<{ type: "image_url"; image_url: { url: string; detail?: string } }> = [];
   if (body.library_ids?.length) {
-    const items = await readManifest();
+    const items = await readImageManifest();
     for (const id of body.library_ids) {
       const hit = items.find(x => x.id === id);
       if (!hit) continue;
@@ -311,7 +358,35 @@ app.post("/api/videos/sora/generate", async (req, reply) => {
     const ab = await vRes.arrayBuffer();
     const b64 = Buffer.from(ab).toString("base64");
 
-    return reply.send({ job_id: jobId, generation_id: generationId, content_type: "video/mp4", video_base64: b64 });
+    // Save video to library
+    const videoId = crypto.randomUUID();
+    const videoFilename = `${videoId}.mp4`;
+    await fs.writeFile(path.join(VIDEO_DIR, videoFilename), Buffer.from(ab));
+
+    const videoItem: VideoLibraryItem = {
+      id: videoId,
+      filename: videoFilename,
+      url: `/static/videos/${videoFilename}`,
+      prompt: body.prompt,
+      width: body.width,
+      height: body.height,
+      duration: body.n_seconds,
+      format: "mp4",
+      jobId,
+      generationId,
+      createdAt: new Date().toISOString()
+    };
+    const videoItems = await readVideoManifest();
+    videoItems.unshift(videoItem);
+    await writeVideoManifest(videoItems);
+
+    return reply.send({ 
+      job_id: jobId, 
+      generation_id: generationId, 
+      content_type: "video/mp4", 
+      video_base64: b64,
+      library_item: videoItem
+    });
   } catch (e: any) {
     req.log.error(e);
     return reply.status(400).send({ error: e.message || "Sora generation failed" });

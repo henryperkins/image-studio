@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import ImageCreator from "./ImageCreator";
 import SoraCreator from "./SoraCreator";
-import { listLibrary, type LibraryItem, API_BASE_URL } from "../lib/api";
+import { listLibrary, type LibraryItem, API_BASE_URL, isVideoItem } from "../lib/api";
 import { Heading, Text } from "./typography";
 import { TypographySpecimen } from "./TypographySpecimen";
 
@@ -18,7 +18,7 @@ export default function App() {
   }
   const [view, setView] = useState<View>(() => getViewFromURL());
   const [library, setLibrary] = useState<LibraryItem[]>([]);
-  const [selected, setSelected] = useState<string[]>([]); // selected library ids
+  const [selected, setSelected] = useState<string[]>([]); // selected image library ids (videos not selectable for Sora)
   const [libraryLoading, setLibraryLoading] = useState(true);
   const [mobileLibraryOpen, setMobileLibraryOpen] = useState(false);
   const promptInputRef = useRef<HTMLTextAreaElement>(null);
@@ -185,7 +185,7 @@ export default function App() {
               >
                 <SoraCreator
                   selectedIds={selected}
-                  selectedUrls={library.filter(i => selected.includes(i.id)).map(i => `${API_BASE_URL}${i.url}`)}
+                  selectedUrls={library.filter(i => !isVideoItem(i) && selected.includes(i.id)).map(i => `${API_BASE_URL}${i.url}`)}
                   onRemoveImage={(id) => setSelected(prev => prev.filter(x => x !== id))}
                 />
               </div>
@@ -201,7 +201,7 @@ export default function App() {
           aria-controls="library-panel"
         >
           <span className="flex items-center justify-between w-full">
-            <span>Image Library ({library.length})</span>
+            <span>Media Library ({library.length})</span>
             <svg
               className={`w-5 h-5 transition-transform ${mobileLibraryOpen ? 'rotate-180' : ''}`}
               fill="none"
@@ -220,9 +220,9 @@ export default function App() {
             mobileLibraryOpen ? 'block' : 'hidden md:block'
           }`}
         >
-          <Heading level={4} className="mb-2">Image Library</Heading>
+          <Heading level={4} className="mb-2">Media Library</Heading>
           <Text size="xs" tone="muted" className="mb-2">
-            Select images to use as references or analyze with GPT-4.1 to improve your Sora prompt.
+            Your generated images and videos. Select images to use as references for Sora.
           </Text>
           {libraryLoading ? (
             <div className="grid grid-cols-3 gap-2">
@@ -236,8 +236,8 @@ export default function App() {
                 <svg className="w-12 h-12 mx-auto mb-3 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
-                <Text weight="medium" size="sm">No images yet</Text>
-                <Text size="xs" tone="muted" className="mt-1">Generate your first image to get started</Text>
+                <Text weight="medium" size="sm">No media yet</Text>
+                <Text size="xs" tone="muted" className="mt-1">Generate your first image or video to get started</Text>
               </div>
               <button
                 className="btn-primary mx-auto"
@@ -259,26 +259,51 @@ export default function App() {
                   animation: `fadeIn 0.3s ease-out ${index * 0.05}s both`
                 }}
               >
-                <input
-                  type="checkbox"
-                  className="absolute top-1 left-1 md:top-2 md:left-2 z-10 w-6 h-6 md:w-5 md:h-5 rounded cursor-pointer appearance-none bg-neutral-800/80 border-2 border-neutral-600 checked:bg-blue-500 checked:border-blue-500 transition-all duration-200 hover:border-neutral-400 checked:hover:bg-blue-400"
-                  checked={selected.includes(item.id)}
-                  onChange={e => {
-                    setSelected(prev => e.target.checked ? [...prev, item.id] : prev.filter(x => x !== item.id));
-                  }}
-                  aria-label={`Select image: ${item.prompt || `Image ${index + 1}`}`}
-                />
-                {selected.includes(item.id) && (
+                {!isVideoItem(item) && (
+                  <input
+                    type="checkbox"
+                    className="absolute top-1 left-1 md:top-2 md:left-2 z-10 w-6 h-6 md:w-5 md:h-5 rounded cursor-pointer appearance-none bg-neutral-800/80 border-2 border-neutral-600 checked:bg-blue-500 checked:border-blue-500 transition-all duration-200 hover:border-neutral-400 checked:hover:bg-blue-400"
+                    checked={selected.includes(item.id)}
+                    onChange={e => {
+                      setSelected(prev => e.target.checked ? [...prev, item.id] : prev.filter(x => x !== item.id));
+                    }}
+                    aria-label={`Select image: ${item.prompt || `Image ${index + 1}`}`}
+                  />
+                )}
+                {!isVideoItem(item) && selected.includes(item.id) && (
                   <svg className="absolute top-1 left-1 md:top-2 md:left-2 w-6 h-6 md:w-5 md:h-5 text-white pointer-events-none z-20" viewBox="0 0 20 20">
                     <path fill="currentColor" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/>
                   </svg>
                 )}
-                <img
-                  src={`${API_BASE_URL}${item.url}`}
-                  alt={item.prompt || `Generated image ${index + 1}`}
-                  loading="lazy"
-                  className={`rounded-lg border border-neutral-800 transition-all duration-200 ${selected.includes(item.id) ? "outline outline-2 outline-blue-400 scale-95" : "hover:scale-105"}`}
-                />
+                {isVideoItem(item) && (
+                  <div className="absolute top-1 left-1 md:top-2 md:left-2 z-10 bg-neutral-800/90 backdrop-blur-sm rounded px-1 py-0.5 flex items-center gap-1">
+                    <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                      <path d="M2 6a2 2 0 012-2h6a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V6zM14.553 7.106A1 1 0 0014 8v4a1 1 0 00.553.894l2 1A1 1 0 0018 13V7a1 1 0 00-1.447-.894l-2 1z" />
+                    </svg>
+                    <span className="text-xs text-white font-medium">{item.duration}s</span>
+                  </div>
+                )}
+                {isVideoItem(item) ? (
+                  <video
+                    src={`${API_BASE_URL}${item.url}`}
+                    className={`rounded-lg border border-neutral-800 transition-all duration-200 hover:scale-105 w-full h-full object-cover`}
+                    muted
+                    loop
+                    playsInline
+                    onMouseEnter={(e) => e.currentTarget.play()}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.pause();
+                      e.currentTarget.currentTime = 0;
+                    }}
+                  />
+                ) : (
+                  <img
+                    src={`${API_BASE_URL}${item.url}`}
+                    alt={item.prompt || `Generated image ${index + 1}`}
+                    loading="lazy"
+                    className={`rounded-lg border border-neutral-800 transition-all duration-200 ${selected.includes(item.id) ? "outline outline-2 outline-blue-400 scale-95" : "hover:scale-105"}`}
+                  />
+                )}
               </label>
             ))}
           </div>

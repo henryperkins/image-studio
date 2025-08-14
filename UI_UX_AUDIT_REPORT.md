@@ -5,24 +5,38 @@ This audit identifies critical usability flaws, accessibility barriers, and desi
 
 ## Critical Issues (P0 - Immediate Action Required)
 
-### 1. Missing Keyboard Navigation Support
-**Location:** `web/src/ui/App.tsx:63-81`, `web/src/ui/ImageCreator.tsx:100-115`
-**Root Cause:** Tab controls lack proper keyboard event handlers (arrow keys, Enter/Space)
-**Severity:** Critical
-**Impact:** 
-- Screen reader users cannot navigate between tabs
-- Keyboard-only users must use Tab key repeatedly instead of arrow keys
-- Violates WCAG 2.1 Level A criteria 2.1.1 (Keyboard)
+### 1. Keyboard Navigation (Updated)
+**Location:** `web/src/ui/App.tsx:103-151`
+**Status:** Partially Resolved – arrow-key, Home/End handlers now follow the ARIA Tabs pattern.
+
+**Remaining Gaps:**
+- Enter/Space activation not explicitly wired (relies on click)
+- Focus ring visibility inconsistent across browsers
+- No live-region announcement on panel change for screen-reader users
+
+**Severity:** High (downgraded from Critical)
+
+**Impact:**
+- Keyboard users can move between tabs but lack clear activation affordance
+- Screen-reader users may not be notified of the newly displayed panel
+- Focus outline may fail WCAG 2.4.7 *Focus Visible* in Safari
 
 **Recommendation:**
 ```typescript
-// Add keyboard handlers for ARIA tab pattern
+// Add key handling for activation
 onKeyDown={(e) => {
-  if (e.key === 'ArrowRight') setView('sora');
-  if (e.key === 'ArrowLeft') setView('images');
+  if (e.key === 'Enter' || e.key === ' ') {
+    e.preventDefault();
+    onClick();           // invoke same handler
+  }
 }}
 ```
-**Success Criteria:** Arrow keys navigate tabs, Enter/Space activate tabs, 100% keyboard accessible
+Add `aria-live="polite"` region that announces the active panel heading. Ensure `:focus-visible` ring meets 3:1 contrast against background.
+
+**Success Criteria:**
+- Enter/Space activate tabs
+- Live region announces “Images panel” or “Sora panel” within 500 ms
+- Focus ring passes WCAG AA contrast
 
 ### 2. No Error Recovery Mechanism
 **Location:** `web/src/ui/ImageCreator.tsx:44-47`, `web/src/ui/SoraCreator.tsx:40-43`
@@ -66,25 +80,32 @@ onKeyDown={(e) => {
 
 **Success Criteria:** 100% viewport contained, all touch targets ≥ 48px
 
-### 5. Insufficient Form Validation Feedback
-**Location:** `web/src/ui/ImageCreator.tsx:102`, `web/src/ui/SoraCreator.tsx:232`
-**Root Cause:** Buttons disable silently without explaining why
-**Severity:** High
+### 5. Form Validation Feedback (Updated)
+**Location:** `web/src/ui/ImageCreator.tsx:86-113`, `web/src/ui/SoraCreator.tsx:215-235`
+**Status:** Partially Resolved – helper text and `aria-describedby` now implemented.
+
+**Remaining Gaps:**
+- Disabled **Generate** buttons still lack tooltip or inline reason (screen-reader gets message via `sr-only`, sighted users might miss it)
+- Character limit guidance absent for video prompt
+- Error messages not linked via `aria-describedby` after generation failure
+
+**Severity:** Medium (downgraded from High)
+
 **Impact:**
-- Users don't know prompt is required
-- No character limits communicated
-- Disabled state lacks explanation
+- Some users still uncertain why actions are blocked
+- Screen-reader users receive message, but cognitive load remains for sighted keyboard users
+- Errors may not be announced consistently to assistive tech
 
 **Recommendation:**
-```typescript
-// Add helper text and aria-describedby
-<button 
-  disabled={!prompt.trim()}
-  aria-describedby="prompt-required-message"
->
-{!prompt.trim() && <span id="prompt-required-message">Enter a prompt to continue</span>}
-```
-**Success Criteria:** 100% of form validations have visible explanations
+1. Display inline helper text beside disabled buttons (e.g. “Enter a prompt to continue”).
+2. Attach failure text IDs to controls with `aria-describedby`.
+3. Announce error via toast **and** polite live region tied to the control.
+4. Add character count and limit indication (e.g. 0/200 chars).
+
+**Success Criteria:**
+- 100% controls expose visible helper or tooltip when disabled
+- Error text is programmatically associated and announced
+- Prompts show remaining characters; user error rate reduced by 50 %
 
 ### 6. Missing Focus Management
 **Location:** `web/src/ui/App.tsx:35-36`, `web/src/ui/Toast.tsx:21-22`
