@@ -1,0 +1,12 @@
+{
+  "name": "ai-media-studio",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently -n WEB,API -c blue,green \"pnpm --dir web dev\" \"pnpm --dir server dev\"",
+    "build": "pnpm --dir web build && pnpm --dir server build",
+    "start": "pnpm --dir server start"
+  },
+  "devDependencies": {
+    "concurrently": "9.0.1"
+  }
+}
