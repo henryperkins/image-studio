@@ -1,5 +1,32 @@
 [
   {
+    "id": "969a0ad4-a70e-4e99-bdc0-4aa035d3cd89",
+    "filename": "969a0ad4-a70e-4e99-bdc0-4aa035d3cd89.png",
+    "url": "/static/images/969a0ad4-a70e-4e99-bdc0-4aa035d3cd89.png",
+    "prompt": "test",
+    "size": "1024x1024",
+    "format": "png",
+    "createdAt": "2025-08-14T08:08:10.478Z"
+  },
+  {
+    "id": "7fbd5817-4ba6-47a4-bdc5-91149ea9fce9",
+    "filename": "7fbd5817-4ba6-47a4-bdc5-91149ea9fce9.png",
+    "url": "/static/images/7fbd5817-4ba6-47a4-bdc5-91149ea9fce9.png",
+    "prompt": "Rainy day at the pub",
+    "size": "1024x1024",
+    "format": "png",
+    "createdAt": "2025-08-14T07:38:49.408Z"
+  },
+  {
+    "id": "05d30f0f-d8a3-479a-9d57-588e7e51d0c9",
+    "filename": "05d30f0f-d8a3-479a-9d57-588e7e51d0c9.png",
+    "url": "/static/images/05d30f0f-d8a3-479a-9d57-588e7e51d0c9.png",
+    "prompt": "An image of a church",
+    "size": "1024x1024",
+    "format": "png",
+    "createdAt": "2025-08-14T07:23:50.114Z"
+  },
+  {
     "id": "902a5e2d-a254-4f91-9c24-071fd1181f67",
     "filename": "902a5e2d-a254-4f91-9c24-071fd1181f67.png",
     "url": "/static/images/902a5e2d-a254-4f91-9c24-071fd1181f67.png",

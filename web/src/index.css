@@ -1,6 +1,114 @@
 @import "tailwindcss";
 
-:root { color-scheme: dark; }
+/* === Typography System Tokens === */
+
+:root { 
+  color-scheme: dark;
+  
+  /* Font Families (primary first, fallbacks broad coverage) */
+  --font-sans: "InterVariable", "Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  --font-serif: "SourceSerif4Variable", "Source Serif 4", Georgia, "Times New Roman", Times, serif, "Noto Serif", "Noto Serif CJK SC", "Noto Serif CJK JP";
+  --font-mono: "JetBrainsMonoVariable", "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", "Courier New", monospace;
+
+  /* Variable axes (fallback values) */
+  --w-thin: 100;
+  --w-light: 300;
+  --w-regular: 400;
+  --w-medium: 500;
+  --w-semibold: 600;
+  --w-bold: 700;
+  --w-extrabold: 800;
+
+  /* Scale (Perfect Fourth) */
+  --font-size-xs: 0.75rem;   /* 12 */
+  --font-size-sm: 0.875rem;  /* 14 */
+  --font-size-base: 1rem;    /* 16 */
+  --font-size-md: 1.125rem;  /* 18 (added midpoint) */
+  --font-size-lg: 1.333rem;  /* 21.33 */
+  --font-size-xl: 1.75rem;   /* 28 */
+  --font-size-2xl: 2.375rem; /* 38 */
+  --font-size-3xl: 3.125rem; /* 50 */
+  --font-size-4xl: 4.2rem;   /* 67.2 */
+
+  /* Line Heights (px values converted to unitless multiples for reliability) */
+  --lh-tight: 1.1;
+  --lh-snug: 1.2;
+  --lh-heading: 1.14;
+  --lh-display: 1.18;
+  --lh-body: 1.5;
+  --lh-longform: 1.58;
+  --lh-small: 1.43;
+  
+  /* Letter Spacing (em) */
+  --track-tight-2: -0.02em;
+  --track-tight: -0.01em;
+  --track-normal: 0;
+  --track-wide: 0.02em;
+  --track-wide-2: 0.04em;
+
+  /* Feature Presets */
+  --ff-ui: "kern","liga","calt";
+  --ff-longform: "kern","liga","clig","onum";
+  --ff-numeric: "tnum","lnum","zero";
+  --ff-mono: "kern","zero";
+  --ff-caps: "kern","liga","case";
+
+  /* Variation Settings (Example if future axes added) */
+  --font-opsz: 0; /* 0 => auto for fonts with opsz axis (set via font-optical-sizing) */
+
+  /* Misc */
+  --focus-ring: 2px;
+}
+
+/* === Font Face (self-host example placeholders) === */
+/* Host fonts locally after downloading/subsetting; below are illustrative */
+@font-face {
+  font-family: "InterVariable";
+  src: url("https://fonts.gstatic.com/s/inter/v13/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuLyfAZ9hiA.woff2") format("woff2-variations");
+  font-weight: 100 900;
+  font-display: swap;
+  font-style: normal;
+  font-named-instance: "Regular";
+  unicode-range: U+0000-00FF, U+0100-024F, U+0259, U+1E00-1EFF, U+2000-206F, U+20AC;
+}
+
+@font-face {
+  font-family: "SourceSerif4Variable";
+  src: url("https://fonts.gstatic.com/s/sourceserif4/v8/vEFy2_tTDB4M7-auWDN0ahZJW3IX2ih5nk3AucvUHf6OAVIJmeUDygwjipdqrhxXD-wGvjU.woff2") format("woff2-variations");
+  font-weight: 200 900;
+  font-display: swap;
+  font-style: normal;
+  unicode-range: U+0000-00FF, U+0100-024F, U+1E00-1EFF, U+2000-206F, U+20AC;
+}
+
+@font-face {
+  font-family: "JetBrainsMonoVariable";
+  src: url("https://cdn.jsdelivr.net/npm/@fontsource-variable/jetbrains-mono@5.0.3/files/jetbrains-mono-latin-wght-normal.woff2") format("woff2-variations");
+  font-weight: 100 800;
+  font-display: swap;
+  font-style: normal;
+  unicode-range: U+0000-00FF, U+0100-024F, U+2000-206F;
+}
+
+/* === Base Resets & Rendering === */
+html {
+  font-family: var(--font-sans);
+  font-size: 100%; /* 16px base */
+  -webkit-text-size-adjust: 100%;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: var(--ff-ui);
+  font-variation-settings: "wght" var(--w-regular);
+  font-optical-sizing: auto;
+}
+
+body {
+  font-size: var(--font-size-base);
+  line-height: var(--lh-body);
+  letter-spacing: var(--track-normal);
+  font-weight: var(--w-regular);
+  background: #0d0d0f;
+  color: #f5f6f7;
+}
 
 .btn { 
   @apply rounded-2xl px-4 py-2 bg-neutral-800 hover:bg-neutral-700 transition-all duration-200 ease-out;
@@ -86,3 +194,149 @@
 .pulse {
   animation: pulse 2s infinite;
 }
+
+/* === Heading Classes === */
+.display, .heading-1 {
+  font-family: var(--font-serif);
+  font-size: clamp(2.8rem, 5vw, var(--font-size-4xl));
+  line-height: var(--lh-heading);
+  font-weight: var(--w-semibold);
+  letter-spacing: var(--track-tight);
+  font-feature-settings: var(--ff-ui);
+}
+.heading-2 {
+  font-size: var(--font-size-3xl);
+  line-height: var(--lh-heading);
+  font-weight: var(--w-semibold);
+  letter-spacing: var(--track-tight);
+}
+.heading-3 {
+  font-size: var(--font-size-2xl);
+  line-height: var(--lh-snug);
+  font-weight: var(--w-semibold);
+}
+.heading-4 {
+  font-size: var(--font-size-xl);
+  line-height: var(--lh-snug);
+  font-weight: var(--w-semibold);
+}
+.heading-5 {
+  font-size: var(--font-size-lg);
+  line-height: var(--lh-snug);
+  font-weight: var(--w-medium);
+}
+.heading-6 {
+  font-size: var(--font-size-md);
+  line-height: var(--lh-snug);
+  font-weight: var(--w-medium);
+  letter-spacing: var(--track-normal);
+}
+
+/* Body variants */
+.text-body { font-size: var(--font-size-base); line-height: var(--lh-body); }
+.text-longform {
+  font-family: var(--font-serif);
+  font-size: var(--font-size-base);
+  line-height: var(--lh-longform);
+  font-feature-settings: var(--ff-longform);
+}
+.text-small { font-size: var(--font-size-sm); line-height: var(--lh-small); letter-spacing: var(--track-normal); }
+.text-caption { font-size: var(--font-size-xs); line-height: var(--lh-small); letter-spacing: var(--track-wide); }
+
+/* Code */
+.code, code {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+  line-height: var(--lh-small);
+  font-feature-settings: "zero","kern";
+  background: #181a1f;
+  padding: 0.15em 0.35em;
+  border-radius: 4px;
+}
+
+/* Preformatted blocks */
+pre {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+  line-height: var(--lh-small);
+  overflow-x: auto;
+  padding: 1rem;
+  background: #111315;
+  border: 1px solid #1f2328;
+  border-radius: 12px;
+  font-feature-settings: "zero","tnum";
+}
+
+/* Numeric */
+.numerical, .numeric {
+  font-feature-settings: var(--ff-numeric);
+  font-variant-numeric: tabular-nums slashed-zero lining-nums;
+  font-family: var(--font-sans);
+}
+
+/* Longform container */
+.longform {
+  max-width: 68ch;
+  font-family: var(--font-serif);
+  font-feature-settings: var(--ff-longform);
+  font-size: var(--font-size-base);
+  line-height: var(--lh-longform);
+  hyphens: auto;
+  hanging-punctuation: first last;
+}
+
+/* Capitals / Label */
+.label, .caps {
+  text-transform: uppercase;
+  letter-spacing: var(--track-wide-2);
+  font-size: var(--font-size-sm);
+  font-weight: var(--w-medium);
+  font-feature-settings: var(--ff-caps);
+}
+
+/* Truncation utilities */
+.truncate-1 {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.truncate-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Contrast helper for muted text */
+.text-muted { color: #9ca3af; }
+
+/* Avoid synthetic bold/italics in mono */
+.mono {
+  font-family: var(--font-mono);
+  font-feature-settings: "zero";
+  font-style: normal;
+}
+
+/* Accessibility minimum for small text on dark BG */
+small, .text-caption {
+  font-weight: var(--w-medium);
+}
+
+/* Table numeric alignment */
+table td.numeric {
+  font-feature-settings: var(--ff-numeric);
+  text-align: right;
+  font-variant-numeric: tabular-nums slashed-zero;
+}
+
+/* Link styling */
+a {
+  color: #60a5fa;
+  text-decoration: none;
+  text-underline-offset: 3px;
+}
+a:hover { text-decoration: underline; }
+
+/* Inline emphasis */
+em { font-style: italic; }
+strong { font-weight: var(--w-semibold); }

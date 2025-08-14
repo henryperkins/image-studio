@@ -149,7 +149,8 @@ const VisionReq = z.object({
   library_ids: z.array(z.string().nullable()).transform(arr => arr?.filter(id => id !== null) || []).optional(),
   image_urls: z.array(z.string().url()).optional(),
   detail: z.enum(["auto", "low", "high"]).default("high"),
-  style: z.enum(["concise", "detailed"]).default("concise")
+  style: z.enum(["concise", "detailed"]).default("concise"),
+  mode: z.enum(["describe", "video_ideas"]).default("describe")
 });
 function chatHeaders(): Record<string, string> {
   const h: Record<string, string> = { "Content-Type": "application/json" };
@@ -190,9 +191,29 @@ app.post("/api/vision/describe", async (req, reply) => {
 
   try {
     const url = `${AZ.endpoint}/openai/deployments/${encodeURIComponent(AZ.visionDeployment)}/chat/completions?api-version=${AZ.chatApiVersion}`;
-    const system = body.style === "concise"
-      ? "You are an expert visual describer for video prompt engineering. Summarize key content, composition, color palette, lighting, and style in 3–6 bullets, then produce ONE final improved prompt line that starts with 'Suggested prompt:'. Avoid speculation."
-      : "You are an expert visual describer for video prompt engineering. Provide a thorough description of subject, composition, palette, lighting, camera/lens, mood, and notable textures. End with a line starting 'Suggested prompt:' with an improved prompt. Avoid speculation.";
+    
+    let system: string;
+    if (body.mode === "video_ideas") {
+      system = body.style === "concise"
+        ? `You are a cinematic director expert in Sora AI video generation. Analyze the image and provide:
+1. Scene Analysis (2-3 bullets): Key elements, composition, lighting, mood
+2. Camera Movements: Suggest 2-3 specific techniques (pan, dolly, tracking, crane, handheld)
+3. Video Concept: A brief narrative arc with transitions
+4. Sora Prompt: Start with 'Suggested Sora prompt:' followed by a cinematic prompt including camera movements, transitions, and visual style (e.g., "shot on 35mm film", specific lighting).
+Keep total response under 200 words.`
+        : `You are a cinematic director expert in Sora AI video generation. Provide detailed analysis:
+1. Scene Analysis: Subject, composition, color palette, lighting, depth, textures
+2. Camera Techniques: 3-4 specific movements with timing (e.g., "slow dolly in over 3 seconds")
+3. Transitions: Creative scene connections (whip pan, fade, match cut)
+4. Narrative Flow: Beginning, middle, end with pacing suggestions
+5. Technical Specs: Film type, depth of field, color grading recommendations
+6. Sora Prompt: Start with 'Suggested Sora prompt:' followed by a comprehensive cinematic prompt.
+Focus on dynamic movement and storytelling.`;
+    } else {
+      system = body.style === "concise"
+        ? "You are an expert visual describer for video prompt engineering. Summarize key content, composition, color palette, lighting, and style in 3–6 bullets, then produce ONE final improved prompt line that starts with 'Suggested prompt:'. Avoid speculation."
+        : "You are an expert visual describer for video prompt engineering. Provide a thorough description of subject, composition, palette, lighting, camera/lens, mood, and notable textures. End with a line starting 'Suggested prompt:' with an improved prompt. Avoid speculation.";
+    }
     const payload = {
       messages: [
         { role: "system", content: system },

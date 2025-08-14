@@ -2,15 +2,19 @@ import { useState, useEffect, useRef } from "react";
 import ImageCreator from "./ImageCreator";
 import SoraCreator from "./SoraCreator";
 import { listLibrary, type LibraryItem, API_BASE_URL } from "../lib/api";
+import { Heading, Text } from "./typography";
+import { TypographySpecimen } from "./TypographySpecimen";
 
-type View = "images" | "sora";
+type View = "images" | "sora" | "typography";
 
 export default function App() {
   // Setup for accessible tabs + deep-linking
   function getViewFromURL(): View {
     const q = new URLSearchParams(window.location.search);
     const v = q.get("view");
-    return v === "sora" ? "sora" : "images";
+    if (v === "sora") return "sora";
+    if (v === "typography") return "typography";
+    return "images";
   }
   const [view, setView] = useState<View>(() => getViewFromURL());
   const [library, setLibrary] = useState<LibraryItem[]>([]);
@@ -33,13 +37,14 @@ export default function App() {
   // Keep view <-> URL in sync
   useEffect(() => {
     const q = new URLSearchParams(window.location.search);
-    if (view !== (q.get("view") === "sora" ? "sora" : "images")) {
+    const currentView = q.get("view");
+    if (view !== currentView) {
       q.set("view", view);
       window.history.replaceState(null, '', `?${q}`);
     }
     // Focus management: Move focus to the active panel after view change
     requestAnimationFrame(() => {
-      const panelId = view === "images" ? "panel-images" : "panel-sora";
+      const panelId = view === "images" ? "panel-images" : view === "sora" ? "panel-sora" : "panel-typography";
       const panel = document.getElementById(panelId);
       if (panel) {
         // Find first focusable element in the panel
@@ -59,11 +64,29 @@ export default function App() {
     setSelected([id]);
     setView("sora");
   };
+  
+  // Add check for typography view
+  if (view === "typography") {
+    return (
+      <div className="mx-auto max-w-7xl p-4">
+        <header className="flex items-center justify-between mb-4">
+          <Heading level={1} serif={false} className="!text-2xl">Typography System</Heading>
+          <button
+            className="btn btn-primary"
+            onClick={() => setView("images")}
+          >
+            Back to Studio
+          </button>
+        </header>
+        <TypographySpecimen />
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-6xl p-4 space-y-4">
       <header className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">AI Media Studio</h1>
+        <Heading level={1} serif={false} className="!text-2xl">AI Media Studio</Heading>
         <div
           className="inline-flex rounded-2xl border border-neutral-800 overflow-hidden relative"
           role="tablist"
@@ -197,10 +220,10 @@ export default function App() {
             mobileLibraryOpen ? 'block' : 'hidden md:block'
           }`}
         >
-          <h2 className="text-lg font-medium mb-2">Image Library</h2>
-          <p className="text-xs text-neutral-400 mb-2">
+          <Heading level={4} className="mb-2">Image Library</Heading>
+          <Text size="xs" tone="muted" className="mb-2">
             Select images to use as references or analyze with GPT-4.1 to improve your Sora prompt.
-          </p>
+          </Text>
           {libraryLoading ? (
             <div className="grid grid-cols-3 gap-2">
               {[...Array(6)].map((_, i) => (
@@ -213,8 +236,8 @@ export default function App() {
                 <svg className="w-12 h-12 mx-auto mb-3 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
-                <p className="text-sm font-medium">No images yet</p>
-                <p className="text-xs text-neutral-500 mt-1">Generate your first image to get started</p>
+                <Text weight="medium" size="sm">No images yet</Text>
+                <Text size="xs" tone="muted" className="mt-1">Generate your first image to get started</Text>
               </div>
               <button
                 className="btn-primary mx-auto"
@@ -296,7 +319,7 @@ export default function App() {
         </div>
       </div>
 
-      <footer className="text-xs text-neutral-400">
+      <footer className="text-caption text-muted">
         Images: Azure OpenAI <code>gpt-image-1</code>. Vision: Azure OpenAI <code>gpt-4.1</code>. Videos: Azure OpenAI Sora (preview).
       </footer>
     </div>

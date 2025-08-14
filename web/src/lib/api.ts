@@ -32,11 +32,16 @@ export async function deleteLibraryItem(id: string) {
   return true;
 }
 
-export async function describeImagesByIds(ids: string[], detail: "auto"|"low"|"high" = "high") {
+export async function describeImagesByIds(
+  ids: string[], 
+  detail: "auto"|"low"|"high" = "high",
+  mode: "describe"|"video_ideas" = "describe",
+  style: "concise"|"detailed" = "concise"
+) {
   const response = await apiRequest("/api/vision/describe", {
     method: "POST",
     headers: {"Content-Type":"application/json"},
-    body: JSON.stringify({ library_ids: ids, detail })
+    body: JSON.stringify({ library_ids: ids, detail, mode, style })
   });
   return (await response.json()) as { description: string };
 }

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useRef, useEffect } from "react";
 import { describeImagesByIds, generateVideo } from "../lib/api";
 import { useToast } from "../contexts/ToastContext";
 
@@ -23,6 +23,11 @@ export default function SoraCreator({
   const [videoUrl, setVideoUrl] = useState<string|null>(null);
   const [analysis, setAnalysis] = useState<string>("");
   const [progress, setProgress] = useState(0);
+  const [analysisMode, setAnalysisMode] = useState<"describe"|"video_ideas">("describe");
+  const [analysisStyle, setAnalysisStyle] = useState<"concise"|"detailed">("concise");
+  const [analyzingImages, setAnalyzingImages] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const videoDataRef = useRef<string|null>(null);
   const { showToast } = useToast();
 
   const finalPrompt = useMemo(() => {
@@ -31,25 +36,43 @@ export default function SoraCreator({
     return `${base}${refs}`;
   }, [prompt, selectedUrls]);
 
+  // Cleanup blob URLs on unmount
+  useEffect(() => {
+    return () => {
+      if (videoDataRef.current) {
+        URL.revokeObjectURL(videoDataRef.current);
+      }
+    };
+  }, []);
+
   async function analyze() {
     if (!selectedIds.length) return;
-    setBusy(true); setError(null); setProgress(0);
+    setAnalyzingImages(true); setError(null);
     try {
-      const { description } = await describeImagesByIds(selectedIds, "high");
+      const { description } = await describeImagesByIds(selectedIds, "high", analysisMode, analysisStyle);
       setAnalysis(description);
-      showToast("Images analyzed successfully!", "success");
+      const successMsg = analysisMode === "video_ideas" 
+        ? "Video ideas generated successfully!" 
+        : "Images analyzed successfully!";
+      showToast(successMsg, "success");
     } catch (e:any) {
       const errorMsg = e.message || "Analyze failed";
       setError(errorMsg);
       showToast(errorMsg, "error");
     } finally {
-      setBusy(false);
-      setProgress(0);
+      setAnalyzingImages(false);
     }
   }
 
   async function generate(isRetry = false) {
-    setBusy(true); setError(null); setVideoUrl(null); setProgress(0);
+    setBusy(true); setError(null); setProgress(0);
+    
+    // Clean up previous video URL to prevent memory leaks
+    if (videoDataRef.current) {
+      URL.revokeObjectURL(videoDataRef.current);
+      videoDataRef.current = null;
+    }
+    setVideoUrl(null);
 
     // Simulate progress for long operations
     const progressInterval = setInterval(() => {
@@ -58,7 +81,19 @@ export default function SoraCreator({
 
     try {
       const data = await generateVideo(finalPrompt, width, height, seconds, selectedUrls);
-      setVideoUrl(`data:video/mp4;base64,${data.video_base64}`);
+      
+      // Create a blob from the base64 data to avoid issues with large data URLs
+      const byteCharacters = atob(data.video_base64);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+      const blob = new Blob([byteArray], { type: 'video/mp4' });
+      const blobUrl = URL.createObjectURL(blob);
+      
+      videoDataRef.current = blobUrl;
+      setVideoUrl(blobUrl);
       setProgress(100);
       setRetryCount(0);
       showToast("Video generated successfully!", "success");
@@ -97,28 +132,81 @@ export default function SoraCreator({
     <div className="space-y-3">
       <h2 className="text-lg font-medium">Create Video (Sora on Azure)</h2>
 
+      {selectedIds.length > 0 && (
+        <div className="flex flex-col sm:flex-row gap-2">
+          <div className="flex gap-1">
+            <button
+              className={`btn text-xs min-h-[48px] sm:min-h-0 ${analysisMode === 'describe' ? 'bg-blue-600 hover:bg-blue-500' : ''}`}
+              onClick={() => setAnalysisMode('describe')}
+            >
+              Describe for Prompt
+            </button>
+            <button
+              className={`btn text-xs min-h-[48px] sm:min-h-0 ${analysisMode === 'video_ideas' ? 'bg-blue-600 hover:bg-blue-500' : ''}`}
+              onClick={() => setAnalysisMode('video_ideas')}
+            >
+              Get Video Ideas
+            </button>
+          </div>
+          <div className="flex gap-1">
+            <button
+              className={`btn text-xs min-h-[48px] sm:min-h-0 ${analysisStyle === 'concise' ? 'bg-neutral-700 hover:bg-neutral-600' : ''}`}
+              onClick={() => setAnalysisStyle('concise')}
+            >
+              Concise
+            </button>
+            <button
+              className={`btn text-xs min-h-[48px] sm:min-h-0 ${analysisStyle === 'detailed' ? 'bg-neutral-700 hover:bg-neutral-600' : ''}`}
+              onClick={() => setAnalysisStyle('detailed')}
+            >
+              Detailed
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-col sm:flex-row gap-2">
         <button
-          className={`btn min-h-[48px] sm:min-h-0 ${busy ? 'pulse' : ''}`}
-          disabled={!selectedIds.length || busy}
+          className={`btn min-h-[48px] sm:min-h-0 ${analyzingImages ? 'pulse' : ''}`}
+          disabled={!selectedIds.length || analyzingImages || busy}
           onClick={analyze}
         >
-          {busy ? (
+          {analyzingImages ? (
             <span className="flex items-center gap-2">
               <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
               </svg>
-              Analyzing…
+              {analysisMode === 'video_ideas' ? 'Generating ideas…' : 'Analyzing…'}
             </span>
-          ) : `Analyze ${selectedIds.length || ""} image${selectedIds.length>1?"s":""} (GPT-4.1)`}
+          ) : analysisMode === 'video_ideas' 
+            ? `Get Video Ideas for ${selectedIds.length || ""} image${selectedIds.length>1?"s":""}`
+            : `Analyze ${selectedIds.length || ""} image${selectedIds.length>1?"s":""} (GPT-4.1)`}
         </button>
-        <button className="btn min-h-[48px] sm:min-h-0" onClick={() => setPrompt(p => p + (p ? "\n\n" : "") + (analysis || "").replace(/^Suggested prompt:\s*/i, ""))} disabled={!analysis}>
-          Insert analysis into prompt
+        <button 
+          className="btn min-h-[48px] sm:min-h-0" 
+          onClick={() => {
+            const promptToInsert = analysisMode === 'video_ideas'
+              ? (analysis || "").replace(/^Suggested Sora prompt:\s*/im, "")
+              : (analysis || "").replace(/^Suggested prompt:\s*/im, "");
+            setPrompt(p => p + (p ? "\n\n" : "") + promptToInsert);
+          }} 
+          disabled={!analysis || analyzingImages}
+        >
+          Insert {analysisMode === 'video_ideas' ? 'video prompt' : 'analysis'} into prompt
         </button>
       </div>
 
-      {!!analysis && (
+      {analyzingImages && !analysis && (
+        <div className="rounded-xl bg-neutral-950 border border-neutral-800 p-3 space-y-2">
+          <div className="skeleton h-4 w-3/4 rounded" />
+          <div className="skeleton h-4 w-full rounded" />
+          <div className="skeleton h-4 w-5/6 rounded" />
+          <div className="skeleton h-4 w-2/3 rounded" />
+        </div>
+      )}
+
+      {!!analysis && !analyzingImages && (
         <pre className="rounded-xl bg-neutral-950 border border-neutral-800 p-3 text-xs whitespace-pre-wrap fade-in">
 {analysis}
         </pre>
@@ -318,9 +406,16 @@ export default function SoraCreator({
       {videoUrl && (
         <div className="space-y-2 fade-in">
           <video
+            key={videoUrl}
+            ref={videoRef}
             className="w-full rounded-xl border border-neutral-800 image-hover"
             src={videoUrl}
             controls
+            preload="metadata"
+            onError={(e) => {
+              console.error("Video playback error:", e);
+              setError("Video playback failed. The file may be corrupted.");
+            }}
           />
           <a
             className="btn inline-block"

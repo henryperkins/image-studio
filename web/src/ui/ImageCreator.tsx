@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useToast } from "../contexts/ToastContext";
 import { generateImage } from "../lib/api";
+import { Heading, Text, Label, Mono } from "./typography";
 
 type Resp = {
   image_base64: string;
@@ -84,7 +85,7 @@ export default function ImageCreator({ onSaved, promptInputRef }: ImageCreatorPr
 
   return (
     <div className="space-y-3">
-      <h2 className="text-lg font-medium">Create Image (gpt-image-1)</h2>
+      <Heading level={4}>Create Image (gpt-image-1)</Heading>
       <div className="relative">
         <textarea
           id="image-prompt"
@@ -104,30 +105,30 @@ export default function ImageCreator({ onSaved, promptInputRef }: ImageCreatorPr
           aria-invalid={error ? "true" : undefined}
           aria-describedby="prompt-help"
         />
-        <div id="prompt-help" className="text-xs text-neutral-400 mt-1">
+        <Text size="xs" tone="muted" className="mt-1" id="prompt-help">
           {prompt.length === 0 && "Prompt is required"}
           {prompt.length > 0 && prompt.length < 10 && "Consider adding more detail for better results"}
           {prompt.length >= 10 && "Press Ctrl+Enter to generate"}
-        </div>
+        </Text>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-        <label className="text-sm">Size
+        <Label size="sm">Size
           <select className="input mt-1" value={size} onChange={e=>setSize(e.target.value)}>
             <option>1024x1024</option>
             <option>1536x1024</option>
             <option>1024x1536</option>
           </select>
-        </label>
-        <label className="text-sm">Quality
+        </Label>
+        <Label size="sm">Quality
           <select className="input mt-1" value={quality} onChange={e=>setQuality(e.target.value)}>
             <option>low</option><option>medium</option><option>high</option>
           </select>
-        </label>
-        <label className="text-sm">Format
+        </Label>
+        <Label size="sm">Format
           <select className="input mt-1" value={format} onChange={e=>setFormat(e.target.value as any)}>
             <option>png</option><option>jpeg</option>
           </select>
-        </label>
+        </Label>
       </div>
       <div className="flex gap-2">
         <button
@@ -152,8 +153,8 @@ export default function ImageCreator({ onSaved, promptInputRef }: ImageCreatorPr
         <button className="btn min-w-[48px] min-h-[48px] md:min-h-0" disabled={!result} onClick={download}>Download</button>
       </div>
       {error && (
-        <div className="text-red-400 text-sm fade-in space-y-2">
-          <div>{error}</div>
+        <div className="fade-in space-y-2">
+          <Text size="sm" tone="danger">{error}</Text>
           {retryCount < 3 && (
             <button
               className="btn btn-sm text-xs"
@@ -180,9 +181,9 @@ export default function ImageCreator({ onSaved, promptInputRef }: ImageCreatorPr
             onLoad={() => setIsImageLoading(false)}
           />
           <div className="flex items-center justify-between mt-2">
-            <div className="text-xs text-neutral-400">
-              Saved to library: <code className="text-neutral-300">{result.library_item.filename}</code>
-            </div>
+            <Text size="xs" tone="muted">
+              Saved to library: <Mono tone="default">{result.library_item.filename}</Mono>
+            </Text>
             <button
               className="btn btn-primary text-xs px-4 py-2 ml-2"
               autoFocus
