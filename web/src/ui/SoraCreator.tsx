@@ -1,6 +1,7 @@
 import { useMemo, useState, useRef, useEffect } from "react";
-import { describeImagesByIds, generateVideo } from "../lib/api";
+import { describeImagesByIds, generateVideo, generateSoraPrompt } from "../lib/api";
 import { useToast } from "../contexts/ToastContext";
+import EnhancedVisionAnalysis from "./EnhancedVisionAnalysis";
 
 export default function SoraCreator({
   selectedIds = [] as string[],
@@ -26,6 +27,7 @@ export default function SoraCreator({
   const [analysisMode, setAnalysisMode] = useState<"describe"|"video_ideas">("describe");
   const [analysisStyle, setAnalysisStyle] = useState<"concise"|"detailed">("concise");
   const [analyzingImages, setAnalyzingImages] = useState(false);
+  const [showEnhancedAnalysis, setShowEnhancedAnalysis] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const videoDataRef = useRef<string|null>(null);
   const { showToast } = useToast();
@@ -51,8 +53,8 @@ export default function SoraCreator({
     try {
       const { description } = await describeImagesByIds(selectedIds, "high", analysisMode, analysisStyle);
       setAnalysis(description);
-      const successMsg = analysisMode === "video_ideas" 
-        ? "Video ideas generated successfully!" 
+      const successMsg = analysisMode === "video_ideas"
+        ? "Video ideas generated successfully!"
         : "Images analyzed successfully!";
       showToast(successMsg, "success");
     } catch (e:any) {
@@ -63,6 +65,31 @@ export default function SoraCreator({
       setAnalyzingImages(false);
     }
   }
+
+  // Quick Sora prompt generation using enhanced API
+  async function quickSoraPrompt() {
+    if (!selectedIds.length) return;
+    setAnalyzingImages(true); setError(null);
+    try {
+      const soraPrompt = await generateSoraPrompt(selectedIds, {
+        detail: 'detailed',
+        tone: 'creative'
+      });
+      setPrompt(prev => prev + (prev ? '\n\n' : '') + soraPrompt);
+      showToast("Enhanced Sora prompt generated!", "success");
+    } catch (e: any) {
+      const errorMsg = e.message || "Enhanced analysis failed";
+      setError(errorMsg);
+      showToast(errorMsg, "error");
+    } finally {
+      setAnalyzingImages(false);
+    }
+  }
+
+  const handleEnhancedPromptGenerated = (generatedPrompt: string) => {
+    setPrompt(prev => prev + (prev ? '\n\n' : '') + generatedPrompt);
+    showToast("Prompt added from enhanced analysis!", "success");
+  };
 
   async function generate(isRetry = false) {
     setBusy(true); setError(null); setProgress(0);
@@ -130,72 +157,101 @@ export default function SoraCreator({
 
   return (
     <div className="space-y-3">
-      <h2 className="text-lg font-medium">Create Video (Sora on Azure)</h2>
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-medium">Create Video (Sora on Azure)</h2>
+        <button
+          className="btn btn-sm text-xs"
+          onClick={() => setShowEnhancedAnalysis(!showEnhancedAnalysis)}
+        >
+          {showEnhancedAnalysis ? 'Simple Analysis' : 'Enhanced Analysis'}
+        </button>
+      </div>
 
-      {selectedIds.length > 0 && (
-        <div className="flex flex-col sm:flex-row gap-2">
-          <div className="flex gap-1">
-            <button
-              className={`btn text-xs min-h-[48px] sm:min-h-0 ${analysisMode === 'describe' ? 'bg-blue-600 hover:bg-blue-500' : ''}`}
-              onClick={() => setAnalysisMode('describe')}
-            >
-              Describe for Prompt
-            </button>
-            <button
-              className={`btn text-xs min-h-[48px] sm:min-h-0 ${analysisMode === 'video_ideas' ? 'bg-blue-600 hover:bg-blue-500' : ''}`}
-              onClick={() => setAnalysisMode('video_ideas')}
-            >
-              Get Video Ideas
-            </button>
-          </div>
-          <div className="flex gap-1">
-            <button
-              className={`btn text-xs min-h-[48px] sm:min-h-0 ${analysisStyle === 'concise' ? 'bg-neutral-700 hover:bg-neutral-600' : ''}`}
-              onClick={() => setAnalysisStyle('concise')}
-            >
-              Concise
-            </button>
-            <button
-              className={`btn text-xs min-h-[48px] sm:min-h-0 ${analysisStyle === 'detailed' ? 'bg-neutral-700 hover:bg-neutral-600' : ''}`}
-              onClick={() => setAnalysisStyle('detailed')}
-            >
-              Detailed
-            </button>
-          </div>
+      {/* Enhanced Vision Analysis */}
+      {showEnhancedAnalysis && selectedIds.length > 0 && (
+        <div className="border border-neutral-700 rounded-lg p-4">
+          <EnhancedVisionAnalysis
+            selectedIds={selectedIds}
+            onPromptGenerated={handleEnhancedPromptGenerated}
+            mode="sora"
+          />
         </div>
       )}
 
-      <div className="flex flex-col sm:flex-row gap-2">
-        <button
-          className={`btn min-h-[48px] sm:min-h-0 ${analyzingImages ? 'pulse' : ''}`}
-          disabled={!selectedIds.length || analyzingImages || busy}
-          onClick={analyze}
-        >
-          {analyzingImages ? (
-            <span className="flex items-center gap-2">
-              <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-              </svg>
-              {analysisMode === 'video_ideas' ? 'Generating ideas…' : 'Analyzing…'}
-            </span>
-          ) : analysisMode === 'video_ideas' 
-            ? `Get Video Ideas for ${selectedIds.length || ""} image${selectedIds.length>1?"s":""}`
-            : `Analyze ${selectedIds.length || ""} image${selectedIds.length>1?"s":""} (GPT-4.1)`}
-        </button>
-        <button 
-          className="btn min-h-[48px] sm:min-h-0" 
-          onClick={() => {
-            const promptToInsert = analysisMode === 'video_ideas'
-              ? (analysis || "").replace(/^Suggested Sora prompt:\s*/im, "")
-              : (analysis || "").replace(/^Suggested prompt:\s*/im, "");
-            setPrompt(p => p + (p ? "\n\n" : "") + promptToInsert);
-          }} 
-          disabled={!analysis || analyzingImages}
-        >
-          Insert {analysisMode === 'video_ideas' ? 'video prompt' : 'analysis'} into prompt
-        </button>
-      </div>
+      {/* Legacy Analysis Controls */}
+      {!showEnhancedAnalysis && selectedIds.length > 0 && (
+        <>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <div className="flex gap-1">
+              <button
+                className={`btn text-xs min-h-[48px] sm:min-h-0 ${analysisMode === 'describe' ? 'bg-blue-600 hover:bg-blue-500' : ''}`}
+                onClick={() => setAnalysisMode('describe')}
+              >
+                Describe for Prompt
+              </button>
+              <button
+                className={`btn text-xs min-h-[48px] sm:min-h-0 ${analysisMode === 'video_ideas' ? 'bg-blue-600 hover:bg-blue-500' : ''}`}
+                onClick={() => setAnalysisMode('video_ideas')}
+              >
+                Get Video Ideas
+              </button>
+            </div>
+            <div className="flex gap-1">
+              <button
+                className={`btn text-xs min-h-[48px] sm:min-h-0 ${analysisStyle === 'concise' ? 'bg-neutral-700 hover:bg-neutral-600' : ''}`}
+                onClick={() => setAnalysisStyle('concise')}
+              >
+                Concise
+              </button>
+              <button
+                className={`btn text-xs min-h-[48px] sm:min-h-0 ${analysisStyle === 'detailed' ? 'bg-neutral-700 hover:bg-neutral-600' : ''}`}
+                onClick={() => setAnalysisStyle('detailed')}
+              >
+                Detailed
+              </button>
+            </div>
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-2">
+            <button
+              className={`btn min-h-[48px] sm:min-h-0 ${analyzingImages ? 'pulse' : ''}`}
+              disabled={!selectedIds.length || analyzingImages || busy}
+              onClick={analyze}
+            >
+              {analyzingImages ? (
+                <span className="flex items-center gap-2">
+                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                  {analysisMode === 'video_ideas' ? 'Generating ideas…' : 'Analyzing…'}
+                </span>
+              ) : analysisMode === 'video_ideas'
+                ? `Get Video Ideas for ${selectedIds.length || ""} image${selectedIds.length>1?"s":""}`
+                : `Analyze ${selectedIds.length || ""} image${selectedIds.length>1?"s":""} (GPT-4.1)`}
+            </button>
+            <button
+              className={`btn min-h-[48px] sm:min-h-0 ${analyzingImages ? 'pulse' : ''}`}
+              disabled={!selectedIds.length || analyzingImages || busy}
+              onClick={quickSoraPrompt}
+            >
+              Quick Enhanced Prompt
+            </button>
+            <button
+              className="btn min-h-[48px] sm:min-h-0"
+              onClick={() => {
+                const promptToInsert = analysisMode === 'video_ideas'
+                  ? (analysis || "").replace(/^Suggested Sora prompt:\s*/im, "")
+                  : (analysis || "").replace(/^Suggested prompt:\s*/im, "");
+                setPrompt(p => p + (p ? "\n\n" : "") + promptToInsert);
+              }}
+              disabled={!analysis || analyzingImages}
+            >
+              Insert {analysisMode === 'video_ideas' ? 'video prompt' : 'analysis'} into prompt
+            </button>
+          </div>
+        </>
+      )}
 
       {analyzingImages && !analysis && (
         <div className="rounded-xl bg-neutral-950 border border-neutral-800 p-3 space-y-2">

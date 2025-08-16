@@ -238,62 +238,175 @@ app.delete("/api/library/media/:id", async (req, reply) => {
   return reply.send({ ok: true });
 });
 
-// ----------------- VISION describe (GPT-4.1) -----------------
+// ----------------- VISION Analysis (Enhanced GPT-4.1) -----------------
+import { createVisionService } from './lib/vision-service.js';
+
+// Initialize vision service
+const visionService = createVisionService({
+  azureEndpoint: AZ.endpoint,
+  visionDeployment: AZ.visionDeployment,
+  chatApiVersion: AZ.chatApiVersion,
+  authHeaders: authHeaders(),
+  imagePath: IMG_DIR,
+  cachingEnabled: true,
+  moderationEnabled: true,
+  maxTokens: 1500
+});
+
+// Legacy endpoint for backward compatibility
 const VisionReq = z.object({
   library_ids: z.array(z.string()).optional(),
   image_urls: z.array(z.string().url()).optional(),
   detail: z.enum(["auto", "low", "high"]).default("high"),
   style: z.enum(["concise", "detailed"]).default("concise")
 });
-function chatHeaders(): Record<string, string> {
-  const h: Record<string, string> = { "Content-Type": "application/json" };
-  if (AZ.key) h["api-key"] = AZ.key;
-  return h;
-}
-function guessMime(ext: string) {
-  return ext === "jpg" || ext === "jpeg" ? "image/jpeg" : "image/png";
-}
-async function fileToDataUrl(filePath: string) {
-  const b = await fs.readFile(filePath);
-  const ext = path.extname(filePath).slice(1).toLowerCase();
-  const mime = guessMime(ext);
-  return `data:${mime};base64,${b.toString("base64")}`;
-}
+
 app.post("/api/vision/describe", async (req, reply) => {
   const body = VisionReq.parse(req.body);
   if (!AZ.visionDeployment) return reply.status(400).send({ error: "Missing AZURE_OPENAI_VISION_DEPLOYMENT" });
-  const parts: Array<{ type: "image_url"; image_url: { url: string; detail?: string } }> = [];
-
-  if (body.library_ids?.length) {
-    const items = await readManifest();
-    for (const id of body.library_ids) {
-      const hit = items.find(x => x.kind === "image" && x.id === id) as ImageItem | undefined;
-      if (!hit) continue;
-      const dataUrl = await fileToDataUrl(path.join(IMG_DIR, hit.filename));
-      parts.push({ type: "image_url", image_url: { url: dataUrl, detail: body.detail } });
+  
+  try {
+    if (!body.library_ids?.length && !body.image_urls?.length) {
+      return reply.status(400).send({ error: "No images provided" });
     }
+
+    // Convert to new format for backward compatibility
+    if (body.library_ids?.length) {
+      const result = await visionService.processImageDescription(body.library_ids, {
+        detail: body.detail === "high" ? "detailed" : body.detail === "low" ? "brief" : "standard",
+        purpose: "video prompt engineering",
+        tone: "technical"
+      });
+
+      // Return legacy format
+      return reply.send({
+        description: `${result.content.scene_description}\n\nSuggested prompt: ${result.generation_guidance.suggested_prompt}`
+      });
+    }
+
+    // Handle external URLs (fallback to old implementation)
+    if (body.image_urls?.length) {
+      // Keep old implementation for external URLs for now
+      const parts = body.image_urls.map(u => ({ type: "image_url" as const, image_url: { url: u, detail: body.detail } }));
+      const url = `${AZ.endpoint}/openai/deployments/${encodeURIComponent(AZ.visionDeployment)}/chat/completions?api-version=${AZ.chatApiVersion}`;
+      const system = body.style === "concise"
+        ? "You are an expert visual describer for video prompt engineering. Summarize key content, composition, palette, lighting, and style in 3–6 bullets. End with 'Suggested prompt:' line."
+        : "You are an expert visual describer for video prompt engineering. Provide thorough description (subject, composition, palette, lighting, camera, mood, textures). End with 'Suggested prompt:' line.";
+
+      const r = await fetch(url, {
+        method: "POST",
+        headers: { ...authHeaders(), "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messages: [
+            { role: "system", content: system },
+            { role: "user", content: [{ type: "text", text: "Analyze the following image(s)." }, ...parts] }
+          ],
+          max_tokens: 400,
+          temperature: 0.2
+        })
+      });
+      
+      if (!r.ok) return reply.status(400).send({ error: await r.text() });
+      const j = await r.json() as any;
+      return reply.send({ description: j?.choices?.[0]?.message?.content ?? "" });
+    }
+
+  } catch (e: any) {
+    req.log.error(e);
+    return reply.status(400).send({ error: e.message || "Vision analysis failed" });
   }
-  if (body.image_urls?.length) for (const u of body.image_urls) parts.push({ type: "image_url", image_url: { url: u, detail: body.detail } });
-  if (!parts.length) return reply.status(400).send({ error: "No images provided" });
+});
 
-  const url = `${AZ.endpoint}/openai/deployments/${encodeURIComponent(AZ.visionDeployment)}/chat/completions?api-version=${AZ.chatApiVersion}`;
-  const system = body.style === "concise"
-    ? "You are an expert visual describer for video prompt engineering. Summarize key content, composition, palette, lighting, and style in 3–6 bullets. End with 'Suggested prompt:' line."
-    : "You are an expert visual describer for video prompt engineering. Provide thorough description (subject, composition, palette, lighting, camera, mood, textures). End with 'Suggested prompt:' line.";
+// Enhanced vision analysis endpoint
+const EnhancedVisionReq = z.object({
+  library_ids: z.array(z.string()).min(1).max(10),
+  purpose: z.string().optional(),
+  audience: z.enum(["general", "technical", "child", "academic"]).optional(),
+  language: z.string().regex(/^[a-z]{2}$/).optional(),
+  detail: z.enum(["brief", "standard", "detailed", "comprehensive"]).optional(),
+  tone: z.enum(["formal", "casual", "technical", "creative"]).optional(),
+  focus: z.array(z.string()).optional(),
+  specific_questions: z.string().optional(),
+  enable_moderation: z.boolean().default(true),
+  target_age: z.number().int().min(5).max(100).optional(),
+  force_refresh: z.boolean().default(false)
+});
 
-  const r = await fetch(url, {
-    method: "POST", headers: chatHeaders(),
-    body: JSON.stringify({
-      messages: [
-        { role: "system", content: system },
-        { role: "user", content: [{ type: "text", text: "Analyze the following image(s)." }, ...parts] }
-      ],
-      max_tokens: 400, temperature: 0.2
-    })
-  });
-  if (!r.ok) return reply.status(400).send({ error: await r.text() });
-  const j = await r.json() as any;
-  return reply.send({ description: j?.choices?.[0]?.message?.content ?? "" });
+app.post("/api/vision/analyze", async (req, reply) => {
+  if (!AZ.visionDeployment) return reply.status(400).send({ error: "Missing AZURE_OPENAI_VISION_DEPLOYMENT" });
+  
+  try {
+    const body = EnhancedVisionReq.parse(req.body);
+    
+    const result = await visionService.processImageDescription(body.library_ids, {
+      purpose: body.purpose,
+      audience: body.audience,
+      language: body.language,
+      detail: body.detail,
+      tone: body.tone,
+      focus: body.focus,
+      specific_questions: body.specific_questions,
+      enableModeration: body.enable_moderation,
+      targetAge: body.target_age,
+      force: body.force_refresh
+    });
+
+    return reply.send(result);
+  } catch (e: any) {
+    req.log.error(e);
+    return reply.status(400).send({ error: e.message || "Enhanced vision analysis failed" });
+  }
+});
+
+// Vision service health check
+app.get("/api/vision/health", async (req, reply) => {
+  try {
+    const health = await visionService.healthCheck();
+    return reply.send(health);
+  } catch (e: any) {
+    req.log.error(e);
+    return reply.status(500).send({ healthy: false, error: e.message });
+  }
+});
+
+// Accessibility-focused analysis endpoint
+const AccessibilityReq = z.object({
+  library_ids: z.array(z.string()).min(1).max(5),
+  screen_reader_optimized: z.boolean().default(true),
+  include_color_info: z.boolean().default(true),
+  reading_level: z.number().int().min(1).max(12).default(8)
+});
+
+app.post("/api/vision/accessibility", async (req, reply) => {
+  if (!AZ.visionDeployment) return reply.status(400).send({ error: "Missing AZURE_OPENAI_VISION_DEPLOYMENT" });
+  
+  try {
+    const body = AccessibilityReq.parse(req.body);
+    
+    const result = await visionService.processImageDescription(body.library_ids, {
+      purpose: "accessibility compliance",
+      audience: "general",
+      detail: "comprehensive",
+      tone: "casual",
+      focus: ["accessibility", "spatial_relationships", "text_content"],
+      enableModeration: false, // Less restrictive for accessibility
+      force: false
+    });
+
+    // Return accessibility-focused response
+    return reply.send({
+      alt_text: result.accessibility.alt_text,
+      long_description: result.accessibility.long_description,
+      reading_level: result.accessibility.reading_level,
+      color_accessibility: result.accessibility.color_accessibility,
+      spatial_layout: result.content.spatial_layout,
+      text_content: result.content.text_content,
+      processing_notes: result.metadata.processing_notes
+    });
+  } catch (e: any) {
+    req.log.error(e);
+    return reply.status(400).send({ error: e.message || "Accessibility analysis failed" });
+  }
 });
 
 // ----------------- SORA: generate (and save to library) -----------------
