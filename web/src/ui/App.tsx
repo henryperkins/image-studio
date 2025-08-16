@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from "react";
 import ImageCreator from "./ImageCreator";
 import SoraCreator from "./SoraCreator";
 import { listLibrary, type LibraryItem, API_BASE_URL, isVideoItem } from "../lib/api";
+import ImageEditor from "./ImageEditor";
+import VideoEditor from "./VideoEditor";
 import { Heading, Text } from "./typography";
 import { TypographySpecimen } from "./TypographySpecimen";
 
@@ -21,6 +23,8 @@ export default function App() {
   const [selected, setSelected] = useState<string[]>([]); // selected image library ids (videos not selectable for Sora)
   const [libraryLoading, setLibraryLoading] = useState(true);
   const [mobileLibraryOpen, setMobileLibraryOpen] = useState(false);
+  const [editImageId, setEditImageId] = useState<string|null>(null);
+  const [editVideoId, setEditVideoId] = useState<string|null>(null);
   const promptInputRef = useRef<HTMLTextAreaElement>(null);
 
   async function refreshLibrary() {
@@ -82,6 +86,9 @@ export default function App() {
       </div>
     );
   }
+
+  const imgToEdit = editImageId ? library.find(i => i.id === editImageId && !isVideoItem(i)) as any : null;
+  const vidToEdit = editVideoId ? library.find(i => i.id === editVideoId && isVideoItem(i)) as any : null;
 
   return (
     <div className="mx-auto max-w-6xl p-4 space-y-4">
@@ -270,6 +277,14 @@ export default function App() {
                     aria-label={`Select image: ${item.prompt || `Image ${index + 1}`}`}
                   />
                 )}
+
+                {/* Edit button */}
+                <button
+                  className="absolute top-1 right-1 md:top-2 md:right-2 z-10 bg-black/70 text-white text-xs rounded px-2 py-1 opacity-0 group-hover:opacity-100 transition"
+                  onClick={() => isVideoItem(item) ? setEditVideoId(item.id) : setEditImageId(item.id)}
+                  title="Edit"
+                  aria-label="Edit"
+                >✎ Edit</button>
                 {!isVideoItem(item) && selected.includes(item.id) && (
                   <svg className="absolute top-1 left-1 md:top-2 md:left-2 w-6 h-6 md:w-5 md:h-5 text-white pointer-events-none z-20" viewBox="0 0 20 20">
                     <path fill="currentColor" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/>
@@ -347,6 +362,24 @@ export default function App() {
       <footer className="text-caption text-muted">
         Images: Azure OpenAI <code>gpt-image-1</code>. Vision: Azure OpenAI <code>gpt-4.1</code>. Videos: Azure OpenAI Sora (preview).
       </footer>
+
+      {/* Modals */}
+      {imgToEdit && (
+        <ImageEditor
+          item={imgToEdit}
+          onClose={() => setEditImageId(null)}
+          onEdited={async (newId) => { setEditImageId(null); await refreshLibrary(); setSelected([newId]); setView("sora"); }}
+          baseUrl={API_BASE_URL}
+        />
+      )}
+      {vidToEdit && (
+        <VideoEditor
+          item={vidToEdit}
+          onClose={() => setEditVideoId(null)}
+          onEdited={async (newId) => { setEditVideoId(null); await refreshLibrary(); }}
+          baseUrl={API_BASE_URL}
+        />
+      )}
     </div>
   );
 }

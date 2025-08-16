@@ -184,7 +184,7 @@ import { Numeric } from './typography';
 ## Testing
 
 1. Run build to check TypeScript: `pnpm build`
-2. View specimen page: `http://localhost:5173/?view=typography`
+2. View specimen page: `http://localhost:5174/?view=typography`
 3. Test responsive breakpoints: 320px, 768px, 1024px, 1440px
 4. Verify tabular numerals in data tables
 5. Check font loading performance in Network tab

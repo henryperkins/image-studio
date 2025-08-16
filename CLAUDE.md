@@ -19,7 +19,7 @@ AI Media Studio is a full-stack application for generating images and videos usi
 - `pnpm start` - Start production server from `dist/index.js`
 
 ### Web (`/web`)
-- `pnpm dev` - Start Vite development server on port 5173
+- `pnpm dev` - Start Vite development server on port 5174
 - `pnpm build` - Build web app for production using Vite
 - `pnpm preview` - Preview production build
 
@@ -30,29 +30,40 @@ AI Media Studio is a full-stack application for generating images and videos usi
 - **Port**: 8787 (configurable via PORT env var)
 - **Main routes**:
   - `/api/images/generate` - Generate images using Azure OpenAI gpt-image-1
+  - `/api/images/edit` - Edit images with prompts and optional masks (Azure OpenAI v1 preview)
   - `/api/vision/describe` - Analyze images using Azure OpenAI GPT-4.1 vision
   - `/api/videos/sora/generate` - Generate videos using Azure OpenAI Sora (preview)
-  - `/api/library/images` - Library management (list/delete images)
+  - `/api/videos/edit/trim` - Trim videos using FFmpeg (server-side)
+  - `/api/library/media` - Unified library management (list/delete images and videos)
   - `/static/images/` - Serve generated images
-- **Data storage**: Local filesystem (`data/images/` directory with `manifest.json`)
-- **Key dependencies**: `fastify`, `@fastify/cors`, `@fastify/static`, `zod`, `dotenv`
+  - `/static/videos/` - Serve generated videos
+- **Data storage**: Local filesystem with unified manifest
+  - `data/images/` - Image files
+  - `data/videos/` - Video files  
+  - `data/manifest.json` - Unified metadata for all media
+- **Key dependencies**: `fastify`, `@fastify/cors`, `@fastify/static`, `@fastify/multipart`, `zod`, `dotenv`, `ffmpeg-static`
 
 ### Web Architecture (React + Vite)
 - **Framework**: React 19 with TypeScript
 - **Styling**: TailwindCSS 4.x
 - **Build tool**: Vite 7.x
 - **Main components**:
-  - `App.tsx` - Main layout with image/video mode switching and library panel
+  - `App.tsx` - Main layout with image/video mode switching, library panel, and edit modals
   - `ImageCreator.tsx` - Image generation interface
   - `SoraCreator.tsx` - Video generation interface
-- **API communication**: Hardcoded to `http://localhost:8787`
+  - `ImageEditor.tsx` - Canvas-based image editing with mask painting
+  - `VideoEditor.tsx` - Video trimming controls
+- **API communication**: Configurable via `VITE_API_BASE_URL` env var (defaults to `http://localhost:8787`)
 
 ### Data Flow
-1. Images generated via Azure OpenAI are saved to `server/data/images/`
-2. Metadata stored in `manifest.json` with unique IDs
-3. Images served via static file endpoint `/static/images/`
-4. Library panel allows selecting images for Sora video references
-5. Vision API analyzes selected images to improve Sora prompts
+1. Images and videos generated via Azure OpenAI are saved to `server/data/`
+2. Unified metadata stored in `data/manifest.json` with `kind: "image" | "video"`
+3. Media served via static endpoints `/static/images/` and `/static/videos/`
+4. Library panel displays all media with "✎ Edit" buttons for editing
+5. Image editing creates new images with mask-based inpainting
+6. Video trimming creates new clips using FFmpeg
+7. Selected images can be used as Sora video references
+8. Vision API analyzes selected images to improve Sora prompts
 
 ## Environment Configuration
 
@@ -65,10 +76,12 @@ The server requires Azure OpenAI environment variables:
 
 ## Key Technical Details
 
-- **File types**: Supports PNG and JPEG image formats
+- **File types**: Supports PNG and JPEG image formats, MP4 video format
 - **Image sizes**: 1024x1024, 1536x1024, 1024x1536
 - **Video constraints**: Sora generates up to 20 seconds, max 1920x1920 resolution
-- **CORS**: Server configured for web client on port 5173
+- **Image editing**: Uses Azure OpenAI v1 preview `/images/edits` endpoint with multipart form data
+- **Video editing**: FFmpeg-based trimming with lossless copy codec when possible
+- **CORS**: Server configured for web client (configurable via CORS_ORIGIN env var)
 - **Error handling**: Zod validation with structured error responses
 - **Logging**: Fastify built-in logging for debugging
 
@@ -119,6 +132,12 @@ The server requires Azure OpenAI environment variables:
 - Focus rings for keyboard navigation
 - Disabled states with reduced opacity
 - Transitions for smooth interactions (`transition-all duration-200`)
+
+#### Edit Modals
+- **ImageEditor**: Canvas-based mask painting, brush size control, format/size selection
+- **VideoEditor**: Start/duration inputs for trimming, video preview with controls
+- Modal overlays with proper focus management
+- "✎ Edit" buttons appear on hover for library items
 
 ### State Management
 - URL-based routing for deep linking (`?view=images|sora`)

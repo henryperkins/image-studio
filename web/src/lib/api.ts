@@ -1,7 +1,7 @@
-// Centralized API configuration
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8787";
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8787";
 
-export type ImageLibraryItem = {
+export type ImageItem = {
+  kind: "image";
   id: string;
   url: string;
   filename: string;
@@ -11,7 +11,8 @@ export type ImageLibraryItem = {
   createdAt: string;
 };
 
-export type VideoLibraryItem = {
+export type VideoItem = {
+  kind: "video";
   id: string;
   url: string;
   filename: string;
@@ -19,112 +20,65 @@ export type VideoLibraryItem = {
   width: number;
   height: number;
   duration: number;
-  format: "mp4";
-  jobId: string;
-  generationId: string;
   createdAt: string;
 };
 
-export type LibraryItem = ImageLibraryItem | VideoLibraryItem;
-
-export function isVideoItem(item: LibraryItem): item is VideoLibraryItem {
-  return 'duration' in item;
-}
-
-// Helper function for API requests
-async function apiRequest(endpoint: string, options?: RequestInit) {
-  const url = `${API_BASE_URL}${endpoint}`;
-  const response = await fetch(url, options);
-  if (!response.ok) {
-    throw new Error(await response.text());
-  }
-  return response;
-}
-
-export async function listImageLibrary(): Promise<ImageLibraryItem[]> {
-  const response = await apiRequest("/api/library/images");
-  const data = await response.json();
-  return data.items as ImageLibraryItem[];
-}
-
-export async function listVideoLibrary(): Promise<VideoLibraryItem[]> {
-  const response = await apiRequest("/api/library/videos");
-  const data = await response.json();
-  return data.items as VideoLibraryItem[];
-}
+export type LibraryItem = ImageItem | VideoItem;
+export const isVideoItem = (i: LibraryItem): i is VideoItem => i.kind === "video";
 
 export async function listLibrary(): Promise<LibraryItem[]> {
-  const [images, videos] = await Promise.all([
-    listImageLibrary(),
-    listVideoLibrary()
-  ]);
-  
-  // Combine and sort by creation date
-  const combined = [...images, ...videos];
-  combined.sort((a, b) => {
-    const dateA = new Date(a.createdAt).getTime();
-    const dateB = new Date(b.createdAt).getTime();
-    return dateB - dateA; // Newest first
-  });
-  
-  return combined;
+  const r = await fetch(`${API_BASE_URL}/api/library/media`);
+  if (!r.ok) throw new Error(await r.text());
+  return (await r.json()).items as LibraryItem[];
 }
 
-export async function deleteImageLibraryItem(id: string) {
-  await apiRequest(`/api/library/images/${id}`, { method: "DELETE" });
+export async function deleteLibraryItem(id: string) {
+  const r = await fetch(`${API_BASE_URL}/api/library/media/${id}`, { method: "DELETE" });
+  if (!r.ok) throw new Error(await r.text());
   return true;
 }
 
-export async function deleteVideoLibraryItem(id: string) {
-  await apiRequest(`/api/library/videos/${id}`, { method: "DELETE" });
-  return true;
-}
-
-export async function deleteLibraryItem(id: string, isVideo: boolean) {
-  if (isVideo) {
-    return deleteVideoLibraryItem(id);
-  } else {
-    return deleteImageLibraryItem(id);
-  }
-}
-
-export async function describeImagesByIds(
-  ids: string[], 
-  detail: "auto"|"low"|"high" = "high",
-  mode: "describe"|"video_ideas" = "describe",
-  style: "concise"|"detailed" = "concise"
-) {
-  const response = await apiRequest("/api/vision/describe", {
-    method: "POST",
-    headers: {"Content-Type":"application/json"},
-    body: JSON.stringify({ library_ids: ids, detail, mode, style })
-  });
-  return (await response.json()) as { description: string };
-}
-
-export async function generateImage(prompt: string, size: string, quality: string, format: "png" | "jpeg") {
-  const response = await apiRequest("/api/images/generate", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
+export async function generateImage(prompt: string, size: string, quality: string, format: "png"|"jpeg") {
+  const r = await fetch(`${API_BASE_URL}/api/images/generate`, {
+    method: "POST", headers: {"Content-Type":"application/json"},
     body: JSON.stringify({ prompt, size, quality, output_format: format, n: 1 })
   });
-  return response.json();
+  if (!r.ok) throw new Error(await r.text());
+  return await r.json();
 }
 
-export async function generateVideo(prompt: string, width: number, height: number, seconds: number, referenceUrls: string[]) {
-  const response = await apiRequest("/api/videos/sora/generate", {
-    method: "POST",
-    headers: {"Content-Type":"application/json"},
-    body: JSON.stringify({
-      prompt,
-      width,
-      height,
-      n_seconds: seconds,
-      reference_image_urls: referenceUrls
-    })
+export async function editImage(image_id: string, prompt: string, mask_data_url?: string, size: string = "1024x1024", output_format: "png"|"jpeg" = "png") {
+  const r = await fetch(`${API_BASE_URL}/api/images/edit`, {
+    method: "POST", headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({ image_id, prompt, mask_data_url, size, output_format })
   });
-  return response.json();
+  if (!r.ok) throw new Error(await r.text());
+  return await r.json();
 }
 
-// Export the base URL for constructing image URLs
-export { API_BASE_URL };
+export async function describeImagesByIds(ids: string[], detail: "auto"|"low"|"high" = "high", mode: "describe"|"video_ideas" = "describe", style: "concise"|"detailed" = "concise") {
+  const r = await fetch(`${API_BASE_URL}/api/vision/describe`, {
+    method: "POST", headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({ library_ids: ids, detail, style })
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return (await r.json()) as { description: string };
+}
+
+export async function generateVideo(prompt: string, width: number, height: number, n_seconds: number, reference_image_urls: string[]) {
+  const r = await fetch(`${API_BASE_URL}/api/videos/sora/generate`, {
+    method: "POST", headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({ prompt, width, height, n_seconds, reference_image_urls })
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return await r.json();
+}
+
+export async function trimVideo(video_id: string, start: number, duration: number) {
+  const r = await fetch(`${API_BASE_URL}/api/videos/edit/trim`, {
+    method: "POST", headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({ video_id, start, duration })
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return await r.json();
+}

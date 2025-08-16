@@ -9,7 +9,7 @@ NC='\033[0m' # No Color
 
 # Configuration
 SERVER_PORT=8787
-WEB_PORT=5173
+WEB_PORT=5174
 SERVER_DIR="./server"
 WEB_DIR="./web"
 PID_FILE="/tmp/image-studio-pids"
