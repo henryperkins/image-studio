@@ -234,7 +234,7 @@ app.delete("/api/library/media/:id", async (req, reply) => {
   try {
     const dir = removed.kind === "video" ? VID_DIR : IMG_DIR;
     await fs.unlink(path.join(dir, removed.filename));
-  } catch {}
+  } catch { }
   return reply.send({ ok: true });
 });
 
@@ -385,6 +385,12 @@ app.post("/api/videos/edit/trim", async (req, reply) => {
   const src = items.find(i => i.kind === "video" && i.id === body.video_id) as VideoItem | undefined;
   if (!src) return reply.status(404).send({ error: "Source video not found" });
 
+  // Clamp to valid ranges based on known source duration
+  const start = Math.max(0, body.start);
+  if (start >= src.duration) return reply.status(400).send({ error: "Start is beyond video duration" });
+  const maxDur = Math.max(0.1, src.duration - start);
+  const duration = Math.max(0.1, Math.min(body.duration, maxDur));
+
   const inPath = path.join(VID_DIR, src.filename);
   const id = crypto.randomUUID();
   const outName = `${id}.mp4`;
@@ -392,9 +398,22 @@ app.post("/api/videos/edit/trim", async (req, reply) => {
 
   const ffmpegPath = (ffmpegStatic as string);
   await new Promise<void>((resolve, reject) => {
-    const args = ["-ss", String(body.start), "-t", String(body.duration), "-i", inPath, "-c", "copy", outPath, "-y"];
+    // Re-encode for accurate trimming independent of keyframes
+    const args = [
+      "-i", inPath,
+      "-ss", String(start),
+      "-t", String(duration),
+      "-c:v", "libx264",
+      "-preset", "veryfast",
+      "-crf", "18",
+      "-c:a", "aac",
+      "-movflags", "+faststart",
+      outPath,
+      "-y"
+    ];
     const p = child_process.spawn(ffmpegPath, args);
     p.on("error", reject);
+    p.stderr.on("data", (d) => req.log.debug({ ffmpeg: d.toString() }));
     p.on("close", (code) => code === 0 ? resolve() : reject(new Error(`ffmpeg exited ${code}`)));
   });
 
@@ -403,9 +422,9 @@ app.post("/api/videos/edit/trim", async (req, reply) => {
     id,
     filename: outName,
     url: `/static/videos/${outName}`,
-    prompt: `${src.prompt} (trim ${body.start}s +${body.duration}s)`,
+    prompt: `${src.prompt} (trim ${start}s +${duration}s)`,
     width: src.width, height: src.height,
-    duration: body.duration,
+    duration,
     createdAt: new Date().toISOString()
   };
   const all = await readManifest();
@@ -413,6 +432,331 @@ app.post("/api/videos/edit/trim", async (req, reply) => {
   await writeManifest(all);
 
   // stream back base64 (for immediate preview)
+  const b64 = (await fs.readFile(outPath)).toString("base64");
+  return reply.send({ video_base64: b64, library_item: item, content_type: "video/mp4" });
+});
+
+// ---------- Video Edits: CROP ----------
+const CropReq = z.object({ 
+  video_id: z.string(), 
+  x: z.number().int().min(0), 
+  y: z.number().int().min(0), 
+  width: z.number().int().min(16), 
+  height: z.number().int().min(16) 
+});
+app.post("/api/videos/edit/crop", async (req, reply) => {
+  const b = CropReq.parse(req.body);
+  const lib = await readManifest(); 
+  const src = lib.find(i => i.kind === "video" && i.id === b.video_id) as VideoItem | undefined;
+  if (!src) return reply.status(404).send({ error: "Video not found" });
+  
+  const inPath = path.join(VID_DIR, src.filename);
+  const id = crypto.randomUUID();
+  const out = `${id}.mp4`;
+  const outPath = path.join(VID_DIR, out);
+  const vf = `crop=${b.width}:${b.height}:${b.x}:${b.y}`;
+  
+  const ffmpegPath = ffmpegStatic as string;
+  await new Promise<void>((resolve, reject) => {
+    const args = ["-i", inPath, "-filter:v", vf, "-c:a", "copy", outPath, "-y"];
+    const p = child_process.spawn(ffmpegPath, args);
+    p.on("error", reject);
+    p.stderr.on("data", d => req.log.debug({ ffmpeg: d.toString() }));
+    p.on("close", code => code === 0 ? resolve() : reject(new Error(`ffmpeg exited ${code}`)));
+  });
+  
+  const item: VideoItem = { 
+    kind: "video", id, filename: out, url: `/static/videos/${out}`, 
+    prompt: `${src.prompt} (crop ${b.width}x${b.height}+${b.x}+${b.y})`, 
+    width: b.width, height: b.height, duration: src.duration, 
+    createdAt: new Date().toISOString() 
+  };
+  const all = await readManifest(); 
+  all.unshift(item); 
+  await writeManifest(all);
+  const b64 = (await fs.readFile(outPath)).toString("base64");
+  return reply.send({ video_base64: b64, library_item: item, content_type: "video/mp4" });
+});
+
+// ---------- Video Edits: RESIZE / FIT ----------
+const ResizeReq = z.object({ 
+  video_id: z.string(), 
+  width: z.number().int().min(16), 
+  height: z.number().int().min(16), 
+  fit: z.enum(["contain", "cover", "stretch"]).default("contain"), 
+  bg: z.string().default("black") 
+});
+app.post("/api/videos/edit/resize", async (req, reply) => {
+  const b = ResizeReq.parse(req.body);
+  const lib = await readManifest(); 
+  const src = lib.find(i => i.kind === "video" && i.id === b.video_id) as VideoItem | undefined;
+  if (!src) return reply.status(404).send({ error: "Video not found" });
+  
+  const inPath = path.join(VID_DIR, src.filename);
+  const id = crypto.randomUUID();
+  const out = `${id}.mp4`;
+  const outPath = path.join(VID_DIR, out);
+  const vf = b.fit === "contain"
+    ? `scale=${b.width}:${b.height}:force_original_aspect_ratio=decrease,pad=${b.width}:${b.height}:(ow-iw)/2:(oh-ih)/2:color=${b.bg}`
+    : b.fit === "cover"
+      ? `scale=${b.width}:${b.height}:force_original_aspect_ratio=increase,crop=${b.width}:${b.height}`
+      : `scale=${b.width}:${b.height}`;
+  
+  const ffmpegPath = ffmpegStatic as string;
+  await new Promise<void>((resolve, reject) => {
+    const args = ["-i", inPath, "-vf", vf, "-c:a", "copy", outPath, "-y"];
+    const p = child_process.spawn(ffmpegPath, args);
+    p.on("error", reject);
+    p.stderr.on("data", d => req.log.debug({ ffmpeg: d.toString() }));
+    p.on("close", code => code === 0 ? resolve() : reject(new Error(`ffmpeg exited ${code}`)));
+  });
+  
+  const item: VideoItem = { 
+    kind: "video", id, filename: out, url: `/static/videos/${out}`, 
+    prompt: `${src.prompt} (resize ${b.width}x${b.height} ${b.fit})`, 
+    width: b.width, height: b.height, duration: src.duration, 
+    createdAt: new Date().toISOString() 
+  };
+  const all = await readManifest(); 
+  all.unshift(item); 
+  await writeManifest(all);
+  const b64 = (await fs.readFile(outPath)).toString("base64");
+  return reply.send({ video_base64: b64, library_item: item, content_type: "video/mp4" });
+});
+
+// ---------- Video Edits: SPEED (with audio) ----------
+const SpeedReq = z.object({ 
+  video_id: z.string(), 
+  speed: z.number().min(0.25).max(4) 
+});
+function atempoChain(speed: number) { 
+  const parts: string[] = []; 
+  let s = speed;
+  while (s < 0.5) { parts.push("atempo=0.5"); s /= 0.5; }
+  while (s > 2.0) { parts.push("atempo=2.0"); s /= 2.0; }
+  parts.push(`atempo=${s.toFixed(3)}`);
+  return parts.join(",");
+}
+app.post("/api/videos/edit/speed", async (req, reply) => {
+  const b = SpeedReq.parse(req.body);
+  const lib = await readManifest(); 
+  const src = lib.find(i => i.kind === "video" && i.id === b.video_id) as VideoItem | undefined;
+  if (!src) return reply.status(404).send({ error: "Video not found" });
+  
+  const inPath = path.join(VID_DIR, src.filename);
+  const id = crypto.randomUUID();
+  const out = `${id}.mp4`;
+  const outPath = path.join(VID_DIR, out);
+  const vset = `setpts=${(1 / b.speed).toFixed(6)}*PTS`;
+  const aset = atempoChain(b.speed);
+  
+  const ffmpegPath = ffmpegStatic as string;
+  await new Promise<void>((resolve, reject) => {
+    const args = ["-i", inPath, "-filter:v", vset, "-filter:a", aset, outPath, "-y"];
+    const p = child_process.spawn(ffmpegPath, args);
+    p.on("error", reject);
+    p.stderr.on("data", d => req.log.debug({ ffmpeg: d.toString() }));
+    p.on("close", code => code === 0 ? resolve() : reject(new Error(`ffmpeg exited ${code}`)));
+  });
+  
+  const dur = Number((src.duration / b.speed).toFixed(3));
+  const item: VideoItem = { 
+    kind: "video", id, filename: out, url: `/static/videos/${out}`, 
+    prompt: `${src.prompt} (speed x${b.speed})`, 
+    width: src.width, height: src.height, duration: dur, 
+    createdAt: new Date().toISOString() 
+  };
+  const all = await readManifest(); 
+  all.unshift(item); 
+  await writeManifest(all);
+  const b64 = (await fs.readFile(outPath)).toString("base64");
+  return reply.send({ video_base64: b64, library_item: item, content_type: "video/mp4" });
+});
+
+// ---------- Video Edits: MUTE / VOLUME ----------
+const MuteReq = z.object({ video_id: z.string() });
+app.post("/api/videos/edit/mute", async (req, reply) => {
+  const b = MuteReq.parse(req.body);
+  const lib = await readManifest(); 
+  const src = lib.find(i => i.kind === "video" && i.id === b.video_id) as VideoItem | undefined;
+  if (!src) return reply.status(404).send({ error: "Video not found" });
+  
+  const inPath = path.join(VID_DIR, src.filename);
+  const id = crypto.randomUUID();
+  const out = `${id}.mp4`;
+  const outPath = path.join(VID_DIR, out);
+  
+  const ffmpegPath = ffmpegStatic as string;
+  await new Promise<void>((resolve, reject) => {
+    const args = ["-i", inPath, "-an", "-c:v", "copy", outPath, "-y"];
+    const p = child_process.spawn(ffmpegPath, args);
+    p.on("error", reject);
+    p.stderr.on("data", d => req.log.debug({ ffmpeg: d.toString() }));
+    p.on("close", code => code === 0 ? resolve() : reject(new Error(`ffmpeg exited ${code}`)));
+  });
+  
+  const item: VideoItem = { 
+    kind: "video", id, filename: out, url: `/static/videos/${out}`, 
+    prompt: `${src.prompt} (muted)`, 
+    width: src.width, height: src.height, duration: src.duration, 
+    createdAt: new Date().toISOString() 
+  };
+  const all = await readManifest(); 
+  all.unshift(item); 
+  await writeManifest(all);
+  const b64 = (await fs.readFile(outPath)).toString("base64");
+  return reply.send({ video_base64: b64, library_item: item, content_type: "video/mp4" });
+});
+
+const VolumeReq = z.object({ 
+  video_id: z.string(), 
+  gain_db: z.number().min(-30).max(30).default(0) 
+});
+app.post("/api/videos/edit/volume", async (req, reply) => {
+  const b = VolumeReq.parse(req.body);
+  const lib = await readManifest(); 
+  const src = lib.find(i => i.kind === "video" && i.id === b.video_id) as VideoItem | undefined;
+  if (!src) return reply.status(404).send({ error: "Video not found" });
+  
+  const inPath = path.join(VID_DIR, src.filename);
+  const id = crypto.randomUUID();
+  const out = `${id}.mp4`;
+  const outPath = path.join(VID_DIR, out);
+  
+  const ffmpegPath = ffmpegStatic as string;
+  await new Promise<void>((resolve, reject) => {
+    const args = ["-i", inPath, "-filter:a", `volume=${b.gain_db}dB`, outPath, "-y"];
+    const p = child_process.spawn(ffmpegPath, args);
+    p.on("error", reject);
+    p.stderr.on("data", d => req.log.debug({ ffmpeg: d.toString() }));
+    p.on("close", code => code === 0 ? resolve() : reject(new Error(`ffmpeg exited ${code}`)));
+  });
+  
+  const item: VideoItem = { 
+    kind: "video", id, filename: out, url: `/static/videos/${out}`, 
+    prompt: `${src.prompt} (vol ${b.gain_db}dB)`, 
+    width: src.width, height: src.height, duration: src.duration, 
+    createdAt: new Date().toISOString() 
+  };
+  const all = await readManifest(); 
+  all.unshift(item); 
+  await writeManifest(all);
+  const b64 = (await fs.readFile(outPath)).toString("base64");
+  return reply.send({ video_base64: b64, library_item: item, content_type: "video/mp4" });
+});
+
+// ---------- Video Edits: OVERLAY IMAGE (watermark/logo) ----------
+const OverlayReq = z.object({
+  video_id: z.string(),
+  image_id: z.string(),
+  x: z.string().default("10"),
+  y: z.string().default("10"),
+  overlay_width: z.number().int().min(1).optional(),
+  overlay_height: z.number().int().min(1).optional(),
+  opacity: z.number().min(0).max(1).default(0.85)
+});
+app.post("/api/videos/edit/overlay", async (req, reply) => {
+  const b = OverlayReq.parse(req.body);
+  const lib = await readManifest();
+  const src = lib.find(i => i.kind === "video" && i.id === b.video_id) as VideoItem | undefined;
+  const img = lib.find(i => i.kind === "image" && i.id === b.image_id) as ImageItem | undefined;
+  if (!src || !img) return reply.status(404).send({ error: "Video or image not found" });
+
+  const inVideo = path.join(VID_DIR, src.filename);
+  const inImage = path.join(IMG_DIR, img.filename);
+  const id = crypto.randomUUID();
+  const out = `${id}.mp4`;
+  const outPath = path.join(VID_DIR, out);
+
+  const scalePart = b.overlay_width || b.overlay_height
+    ? `scale=${b.overlay_width ?? -1}:${b.overlay_height ?? -1},`
+    : "";
+
+  const ovChain = `[1:v]${scalePart}format=rgba,colorchannelmixer=aa=${b.opacity}[ov];[0:v][ov]overlay=${b.x}:${b.y}[v]`;
+  
+  const ffmpegPath = ffmpegStatic as string;
+  await new Promise<void>((resolve, reject) => {
+    const args = [
+      "-i", inVideo,
+      "-loop", "1", "-i", inImage,
+      "-filter_complex", ovChain,
+      "-map", "[v]", "-map", "0:a?", "-shortest",
+      "-c:a", "copy", outPath, "-y"
+    ];
+    const p = child_process.spawn(ffmpegPath, args);
+    p.on("error", reject);
+    p.stderr.on("data", d => req.log.debug({ ffmpeg: d.toString() }));
+    p.on("close", code => code === 0 ? resolve() : reject(new Error(`ffmpeg exited ${code}`)));
+  });
+
+  const item: VideoItem = { 
+    kind: "video", id, filename: out, url: `/static/videos/${out}`, 
+    prompt: `${src.prompt} (overlay ${img.filename})`, 
+    width: src.width, height: src.height, duration: src.duration, 
+    createdAt: new Date().toISOString() 
+  };
+  const all = await readManifest(); 
+  all.unshift(item); 
+  await writeManifest(all);
+  const b64 = (await fs.readFile(outPath)).toString("base64");
+  return reply.send({ video_base64: b64, library_item: item, content_type: "video/mp4" });
+});
+
+// ---------- Video Edits: CONCAT ----------
+const ConcatReq = z.object({
+  video_ids: z.array(z.string()).min(2),
+  target_width: z.number().int().min(16).optional(),
+  target_height: z.number().int().min(16).optional()
+});
+app.post("/api/videos/edit/concat", async (req, reply) => {
+  const b = ConcatReq.parse(req.body);
+  const lib = await readManifest();
+  const vids = b.video_ids.map(id => lib.find(i => i.kind === "video" && i.id === id) as VideoItem | undefined);
+  if (vids.some(v => !v)) return reply.status(404).send({ error: "One or more videos not found" });
+  
+  const inputs: string[] = [];
+  vids.forEach(v => inputs.push(path.join(VID_DIR, v!.filename)));
+  const id = crypto.randomUUID();
+  const out = `${id}.mp4`;
+  const outPath = path.join(VID_DIR, out);
+
+  const n = vids.length;
+  const maps: string[] = [];
+  const pre: string[] = [];
+  for (let i = 0; i < n; i++) {
+    const vLabel = `[v${i}]`;
+    const aLabel = `[a${i}]`;
+    const scale = (b.target_width && b.target_height)
+      ? `scale=${b.target_width}:${b.target_height}:force_original_aspect_ratio=decrease,pad=${b.target_width}:${b.target_height}:(ow-iw)/2:(oh-ih)/2:color=black`
+      : "null";
+    pre.push(`[${i}:v]${scale}${vLabel};[${i}:a]anull${aLabel}`);
+    maps.push(vLabel, aLabel);
+  }
+  const fc = `${pre.join("")}${maps.join("")}concat=n=${n}:v=1:a=1[v][a]`;
+  
+  const ffmpegPath = ffmpegStatic as string;
+  await new Promise<void>((resolve, reject) => {
+    const args = inputs.flatMap(f => ["-i", f]).concat([
+      "-filter_complex", fc, "-map", "[v]", "-map", "[a]",
+      "-c:v", "libx264", "-c:a", "aac", "-shortest", outPath, "-y"
+    ]);
+    const p = child_process.spawn(ffmpegPath, args);
+    p.on("error", reject);
+    p.stderr.on("data", d => req.log.debug({ ffmpeg: d.toString() }));
+    p.on("close", code => code === 0 ? resolve() : reject(new Error(`ffmpeg exited ${code}`)));
+  });
+
+  const item: VideoItem = {
+    kind: "video", id, filename: out, url: `/static/videos/${out}`,
+    prompt: `concat(${n})`,
+    width: b.target_width ?? vids[0]!.width,
+    height: b.target_height ?? vids[0]!.height,
+    duration: vids.reduce((s, v) => s + v!.duration, 0),
+    createdAt: new Date().toISOString()
+  };
+  const all = await readManifest(); 
+  all.unshift(item); 
+  await writeManifest(all);
   const b64 = (await fs.readFile(outPath)).toString("base64");
   return reply.send({ video_base64: b64, library_item: item, content_type: "video/mp4" });
 });

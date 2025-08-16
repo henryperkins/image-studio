@@ -13,7 +13,8 @@ out/
 .next/
 .nuxt/
 .vuepress/dist/
-
+server/data/images/
+server/data/videos/
 # Environment variables
 .env
 .env.local

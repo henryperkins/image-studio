@@ -1,1 +1,23 @@
-[]
+[
+  {
+    "kind": "video",
+    "id": "ac8a173a-c5b3-4746-a234-1951c7e12247",
+    "filename": "ac8a173a-c5b3-4746-a234-1951c7e12247.mp4",
+    "url": "/static/videos/ac8a173a-c5b3-4746-a234-1951c7e12247.mp4",
+    "prompt": "- Content: A deserted cobblestone street flanked by old stone buildings, leading to a prominent Gothic-style church with a tall spire at the vanishing point.\n- Composition: Strong central perspective with the street curving gently towards the church, creating depth and drawing the viewer’s eye to the architectural focal point.\n- Palette: Muted, desaturated earth tones—grays, browns, and dark blues—contributing to a somber, moody atmosphere.\n- Lighting: Overcast, dramatic sky with heavy clouds; diffuse, low-contrast lighting that enhances the sense of gloom and quiet.\n- Style: Cinematic, atmospheric realism with a touch of Victorian or Gothic influence; evokes feelings of solitude and historical mystery.\n\nSuggested prompt: \n“Deserted cobblestone street lined with old stone buildings, leading to a Gothic church with a tall spire under a dramatic, overcast sky; muted earth tones, cinematic realism, atmospheric and moody lighting, Victorian Gothic style.”\n\n[Reference images]\nhttp://localhost:8787/static/images/0fa60b66-5937-47a2-ab82-58d78ffd0489.png",
+    "width": 1080,
+    "height": 1080,
+    "duration": 10,
+    "createdAt": "2025-08-16T10:17:06.884Z"
+  },
+  {
+    "kind": "image",
+    "id": "0fa60b66-5937-47a2-ab82-58d78ffd0489",
+    "filename": "0fa60b66-5937-47a2-ab82-58d78ffd0489.png",
+    "url": "/static/images/0fa60b66-5937-47a2-ab82-58d78ffd0489.png",
+    "prompt": "Cloudy day in an old city",
+    "size": "1024x1024",
+    "format": "png",
+    "createdAt": "2025-08-16T10:12:30.353Z"
+  }
+]

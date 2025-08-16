@@ -82,3 +82,66 @@ export async function trimVideo(video_id: string, start: number, duration: numbe
   if (!r.ok) throw new Error(await r.text());
   return await r.json();
 }
+
+export async function cropVideo(video_id: string, x: number, y: number, width: number, height: number) {
+  const r = await fetch(`${API_BASE_URL}/api/videos/edit/crop`, {
+    method: "POST", headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({ video_id, x, y, width, height })
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return await r.json();
+}
+
+export async function resizeVideo(video_id: string, width: number, height: number, fit: "contain"|"cover"|"stretch" = "contain", bg = "black") {
+  const r = await fetch(`${API_BASE_URL}/api/videos/edit/resize`, {
+    method: "POST", headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({ video_id, width, height, fit, bg })
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return await r.json();
+}
+
+export async function speedVideo(video_id: string, speed: number) {
+  const r = await fetch(`${API_BASE_URL}/api/videos/edit/speed`, {
+    method: "POST", headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({ video_id, speed })
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return await r.json();
+}
+
+export async function muteVideo(video_id: string) {
+  const r = await fetch(`${API_BASE_URL}/api/videos/edit/mute`, {
+    method: "POST", headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({ video_id })
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return await r.json();
+}
+
+export async function volumeVideo(video_id: string, gain_db: number) {
+  const r = await fetch(`${API_BASE_URL}/api/videos/edit/volume`, {
+    method: "POST", headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({ video_id, gain_db })
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return await r.json();
+}
+
+export async function overlayImageOnVideo(video_id: string, image_id: string, opts: { x?: string; y?: string; overlay_width?: number; overlay_height?: number; opacity?: number } = {}) {
+  const r = await fetch(`${API_BASE_URL}/api/videos/edit/overlay`, {
+    method: "POST", headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({ video_id, image_id, ...opts })
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return await r.json();
+}
+
+export async function concatVideos(video_ids: string[], target_width?: number, target_height?: number) {
+  const r = await fetch(`${API_BASE_URL}/api/videos/edit/concat`, {
+    method: "POST", headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({ video_ids, target_width, target_height })
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return await r.json();
+}
