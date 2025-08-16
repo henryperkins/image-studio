@@ -243,6 +243,7 @@ export default function EnhancedVisionAnalysis({
           className="w-full flex items-center justify-between p-3 hover:bg-neutral-800/50 rounded-t-lg"
           onClick={() => toggleSection('basic')}
           aria-expanded={expandedSections.basic}
+          aria-controls="basic-settings-panel"
         >
           <span className="font-medium">Basic Settings</span>
           <svg 
@@ -254,7 +255,7 @@ export default function EnhancedVisionAnalysis({
         </button>
         
         {expandedSections.basic && (
-          <div className="p-3 border-t border-neutral-700 space-y-4">
+          <div id="basic-settings-panel" className="p-3 border-t border-neutral-700 space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm font-medium mb-2">Purpose</label>
@@ -341,6 +342,7 @@ export default function EnhancedVisionAnalysis({
           className="w-full flex items-center justify-between p-3 hover:bg-neutral-800/50 rounded-t-lg"
           onClick={() => toggleSection('advanced')}
           aria-expanded={expandedSections.advanced}
+          aria-controls="advanced-settings-panel"
         >
           <span className="font-medium">Advanced Options</span>
           <svg 
@@ -352,7 +354,7 @@ export default function EnhancedVisionAnalysis({
         </button>
         
         {expandedSections.advanced && (
-          <div className="p-3 border-t border-neutral-700 space-y-4">
+          <div id="advanced-settings-panel" className="p-3 border-t border-neutral-700 space-y-4">
             <div>
               <label className="block text-sm font-medium mb-2">Focus Areas</label>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
@@ -437,8 +439,8 @@ export default function EnhancedVisionAnalysis({
           disabled={analyzing}
         >
           {analyzing ? (
-            <span className="flex items-center gap-2">
-              <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+            <span className="flex items-center gap-2" role="status" aria-live="polite">
+              <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" aria-hidden="true">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
               </svg>
@@ -452,7 +454,7 @@ export default function EnhancedVisionAnalysis({
 
       {/* Analysis Results */}
       {(result || accessibilityResult || error || warnings.length > 0) && (
-        <div className="space-y-4">
+        <div className="space-y-4" aria-live="polite" aria-atomic="true">
           {/* Warnings */}
           {warnings.length > 0 && (
             <div className="bg-amber-900/20 border border-amber-600/50 rounded-lg p-4">

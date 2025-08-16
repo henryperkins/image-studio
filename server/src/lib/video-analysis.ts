@@ -148,7 +148,7 @@ async function extractSceneFrames(
   const ffmpegPath = ffmpegStatic as string;
   const sceneTimestamps: number[] = [];
 
-  return new Promise((resolve, reject) => {
+  return withFfmpegSlot<Frame[]>(() => new Promise((resolve, reject) => {
     const args = [
       '-i', videoPath,
       '-filter:v', 'select=gt(scene\\,0.3)',
@@ -156,14 +156,24 @@ async function extractSceneFrames(
       '-'
     ];
 
-    const process = child_process.spawn(ffmpegPath, args);
+    const proc = child_process.spawn(ffmpegPath, args, { stdio: ['ignore', 'ignore', 'pipe'] });
     let stderrOutput = '';
+    let killed = false;
 
-    process.stderr.on('data', (data) => {
+    const timer = setTimeout(() => {
+      killed = true;
+      proc.kill('SIGTERM');
+      setTimeout(() => proc.kill('SIGKILL'), 2_000).unref();
+      reject(new Error('FFmpeg scene detection timeout'));
+    }, FFMPEG_TIMEOUT_MS).unref();
+
+    proc.stderr.on('data', (data) => {
       stderrOutput += data.toString();
     });
 
-    process.on('close', async () => {
+    proc.on('close', async () => {
+      clearTimeout(timer);
+      if (killed) return;
       try {
         // Parse scene timestamps from output
         const sceneMatches = stderrOutput.match(/pts_time:([\d.]+)/g);

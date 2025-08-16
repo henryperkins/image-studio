@@ -22,10 +22,11 @@ type Resp = {
 type ImageCreatorProps = {
   onSaved?: (id: string) => void;
   promptInputRef?: React.RefObject<HTMLTextAreaElement>;
+  prompt: string;
+  setPrompt: (p: string) => void;
 };
 
-export default function ImageCreator({ onSaved, promptInputRef }: ImageCreatorProps) {
-  const [prompt, setPrompt] = useState("");
+export default function ImageCreator({ onSaved, promptInputRef, prompt, setPrompt }: ImageCreatorProps) {
   const [size, setSize] = useState("1024x1024");
   const [quality, setQuality] = useState("high");
   const [format, setFormat] = useState<"png" | "jpeg">("png");

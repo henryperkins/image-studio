@@ -141,7 +141,7 @@ export async function callWithRetry<T>(
 ): Promise<T> {
   const { maxRetries, backoff, allowDegradation, context } = options;
   let { maxTokens } = options;
-  let lastError: Error;
+  let lastError: Error | undefined;
 
   for (let attempt = 0; attempt < maxRetries + 1; attempt++) {
     try {
@@ -211,6 +211,9 @@ export async function callWithRetry<T>(
   }
 
   // Final error handling
+  if (!lastError) {
+    throw new VisionAPIError('Unknown error occurred', ErrorCode.NETWORK, true);
+  }
   const finalErrorType = classifyError(lastError);
   throw new VisionAPIError(
     lastError.message || 'Vision API call failed',

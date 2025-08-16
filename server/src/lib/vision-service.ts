@@ -123,20 +123,32 @@ export class VisionService {
       // 4. Content moderation (if enabled)
       let moderationResult: ModerationResult | null = null;
       if (this.config.moderation.enabled && options.enableModeration !== false) {
-        moderationResult = await moderateImages(
-          imageDataUrls,
-          this.config.azure,
-          this.config.authHeaders
-        );
+        try {
+          moderationResult = await moderateImages(
+            imageDataUrls,
+            this.config.azure,
+            this.config.authHeaders
+          );
+        } catch (err) {
+          if (this.config.moderation.strictMode && !this.config.moderation.failOpen) {
+            throw new VisionAPIError(
+              'Moderation unavailable; blocking per policy',
+              ErrorCode.MODERATION,
+              false,
+              FallbackStrategy.USE_GENERIC_DESCRIPTION
+            );
+          }
+          // Otherwise, continue with moderation disabled for this request
+        }
 
-        if (moderationResult.recommended_action === 'block') {
+        if (moderationResult?.recommended_action === 'block') {
           const blockedResponse = handleBlockedContent(moderationResult);
           if (cacheKey) visionCache.set(cacheKey, blockedResponse, this.config.caching.ttl);
           return blockedResponse;
         }
 
         // Check age appropriateness
-        if (options.targetAge && !isContentAppropriateForAge(moderationResult, options.targetAge)) {
+        if (options.targetAge && moderationResult && !isContentAppropriateForAge(moderationResult, options.targetAge)) {
           throw new VisionAPIError(
             `Content not appropriate for target age ${options.targetAge}`,
             ErrorCode.CONTENT_FILTERED,

@@ -1,6 +1,27 @@
 [
   {
     "kind": "video",
+    "id": "eaf9ff49-14ad-4a55-b995-57021007aded",
+    "filename": "eaf9ff49-14ad-4a55-b995-57021007aded.mp4",
+    "url": "/static/videos/eaf9ff49-14ad-4a55-b995-57021007aded.mp4",
+    "prompt": "Cinematic daytime city street scene, wide angle, symmetrical view down a bustling avenue lined with skyscrapers, cars moving, a person crossing at the crosswalk, bright sun overhead, crisp shadows, vibrant and lively urban atmosphere.\n\n[Reference images]\nhttp://localhost:8787/static/images/ce8d0198-8b0a-4e7a-a8fb-aa5ccc91df26.png",
+    "width": 1080,
+    "height": 1080,
+    "duration": 10,
+    "createdAt": "2025-08-16T13:26:05.959Z"
+  },
+  {
+    "kind": "image",
+    "id": "ce8d0198-8b0a-4e7a-a8fb-aa5ccc91df26",
+    "filename": "ce8d0198-8b0a-4e7a-a8fb-aa5ccc91df26.png",
+    "url": "/static/images/ce8d0198-8b0a-4e7a-a8fb-aa5ccc91df26.png",
+    "prompt": "Sunny day in the city",
+    "size": "1024x1024",
+    "format": "png",
+    "createdAt": "2025-08-16T13:19:24.287Z"
+  },
+  {
+    "kind": "video",
     "id": "ac8a173a-c5b3-4746-a234-1951c7e12247",
     "filename": "ac8a173a-c5b3-4746-a234-1951c7e12247.mp4",
     "url": "/static/videos/ac8a173a-c5b3-4746-a234-1951c7e12247.mp4",

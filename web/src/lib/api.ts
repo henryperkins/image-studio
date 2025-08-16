@@ -1,4 +1,4 @@
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8787";
+export const API_BASE_URL = (import.meta as any).env.VITE_API_BASE_URL || "http://localhost:8787";
 
 function withTimeout(ms: number) {
   const controller = new AbortController();
@@ -47,6 +47,49 @@ export type VideoItem = {
 
 export type LibraryItem = ImageItem | VideoItem;
 export const isVideoItem = (i: LibraryItem): i is VideoItem => i.kind === "video";
+
+// Prompt Suggestions
+export type PromptSuggestion = {
+  id: string; // stable UUID
+  text: string;
+  sourceModel: 'gpt-4.1' | 'claude-3-opus' | 'gemini-1.5-pro' | string;
+  origin: 'vision-analysis' | 'user-request' | 'remix' | string;
+  videoId?: string;
+  sessionId?: string;
+  tags: string[];
+  createdAt: string; // ISO timestamp
+  dedupeKey: string; // normalized text hash
+};
+
+export async function getPromptSuggestions(): Promise<PromptSuggestion[]> {
+  // In a real implementation, this would fetch from a server endpoint
+  // For now, we'll rely on local storage persistence.
+  console.log("Fetching suggestions from server (mocked)");
+  return Promise.resolve([]);
+}
+
+export async function savePromptSuggestion(suggestion: Omit<PromptSuggestion, 'id' | 'createdAt' | 'dedupeKey'>): Promise<PromptSuggestion> {
+  // In a real implementation, this would POST to a server endpoint
+  // The server would handle ID generation, timestamping, and dedupe key creation.
+  console.log("Saving suggestion to server (mocked)", suggestion);
+  const newSuggestion: PromptSuggestion = {
+    ...suggestion,
+    id: crypto.randomUUID(),
+    createdAt: new Date().toISOString(),
+    dedupeKey: await hashText(suggestion.text.trim().toLowerCase()),
+  };
+  return Promise.resolve(newSuggestion);
+}
+
+// Helper for client-side dedupe key generation
+async function hashText(text: string) {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(text);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
 
 export async function listLibrary(): Promise<LibraryItem[]> {
   const r = await fetch(`${API_BASE_URL}/api/library/media`);
@@ -243,7 +286,7 @@ export async function generateSoraPrompt(ids: string[], options: Partial<VisionA
     tone: 'creative',
     focus: ['motion_potential', 'cinematic_elements', 'scene_continuity']
   });
-  
+
   return result.generation_guidance.suggested_prompt;
 }
 
@@ -252,7 +295,7 @@ export async function generateAccessibleAltText(ids: string[], options: { readin
     screen_reader_optimized: true,
     reading_level: options.reading_level ?? 8
   });
-  
+
   return result.alt_text;
 }
 
@@ -265,12 +308,12 @@ export async function analyzeImageSafety(ids: string[]): Promise<{
     enable_moderation: true,
     purpose: 'content safety analysis'
   });
-  
+
   const hasFlags = Object.values(result.safety_flags).some(flag => flag);
   const warnings = result.metadata.processing_notes.filter(note =>
     note.includes('warning') || note.includes('advisory')
   );
-  
+
   return {
     safe: !hasFlags && warnings.length === 0,
     flags: result.safety_flags,
@@ -289,7 +332,7 @@ export async function batchAnalyzeImages(
       result: await analyzeImages(set.ids, options)
     }))
   );
-  
+
   return results.map((result, index) => {
     if (result.status === 'fulfilled') {
       return result.value;

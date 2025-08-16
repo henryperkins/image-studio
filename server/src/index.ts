@@ -12,8 +12,22 @@ import ffmpegStatic from "ffmpeg-static";
 
 const app = Fastify({ logger: true });
 
-const ORIGIN = process.env.CORS_ORIGIN || "http://localhost:5174";
-await app.register(cors, { origin: ORIGIN });
+const ORIGIN_ENV = process.env.CORS_ORIGIN || "http://localhost:5174,http://127.0.0.1:5174";
+const ORIGIN_LIST = ORIGIN_ENV.split(",").map(s => s.trim()).filter(Boolean);
+
+await app.register(cors, {
+  // Allow local dev on 5174 (localhost and 127.0.0.1) or any origins listed in CORS_ORIGIN
+  origin: (origin, cb) => {
+    // Allow non-browser or same-origin requests with no Origin header
+    // if (!origin) return cb(null, true);
+    // if (ORIGIN_LIST.includes(origin)) return cb(null, true);
+    // return cb(new Error("Not allowed by CORS"), false);
+    cb(null, true);
+  },
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  credentials: true
+});
 await app.register(multipart);
 
 const AZ = {
@@ -872,6 +886,48 @@ app.post("/api/videos/edit/concat", async (req, reply) => {
   await writeManifest(all);
   const b64 = (await fs.readFile(outPath)).toString("base64");
   return reply.send({ video_base64: b64, library_item: item, content_type: "video/mp4" });
+});
+
+// ---------- Video Analysis (Beta) ----------
+import { analyzeVideoSequence } from './lib/video-analysis.js';
+
+app.post("/api/videos/analyze", async (req, reply) => {
+  if (!process.env.ENABLE_VIDEO_ANALYSIS) {
+    return reply.status(404).send({ error: "Video analysis disabled" });
+  }
+  const b = z.object({
+    video_id: z.string(),
+    method: z.enum(['uniform', 'scene-detection']).default('scene-detection'),
+    maxFrames: z.number().int().min(1).max(24).default(8),
+    minInterval: z.number().min(0.5).max(5).default(1.0),
+    outputFormat: z.enum(['png','jpeg']).default('jpeg'),
+    quality: z.number().int().min(2).max(10).default(3),
+    duration: z.number().min(0.1).optional(),
+    width: z.number().int().min(16).optional(),
+    height: z.number().int().min(16).optional(),
+  }).parse(req.body);
+
+  const lib = await readManifest();
+  const src = lib.find(i => i.kind === "video" && i.id === b.video_id) as VideoItem | undefined;
+  if (!src) return reply.status(404).send({ error: "Video not found" });
+
+  try {
+    const videoPath = path.join(VID_DIR, src.filename);
+    const result = await analyzeVideoSequence(videoPath, {
+      method: b.method,
+      maxFrames: b.maxFrames,
+      minInterval: b.minInterval,
+      outputFormat: b.outputFormat,
+      quality: b.quality,
+      duration: src.duration,
+      width: src.width,
+      height: src.height
+    });
+    return reply.send(result);
+  } catch (e:any) {
+    req.log.error(e);
+    return reply.status(400).send({ error: e.message || "Video analysis failed" });
+  }
 });
 
 app.get("/healthz", async () => ({ ok: true }));
