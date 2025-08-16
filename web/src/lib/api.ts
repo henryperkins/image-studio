@@ -1,5 +1,27 @@
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8787";
 
+function withTimeout(ms: number) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), ms);
+  return { signal: controller.signal, cancel: () => clearTimeout(timeout) };
+}
+
+async function fetchJson(input: RequestInfo, init: RequestInit & { timeoutMs?: number } = {}) {
+  const { timeoutMs = 30000, ...rest } = init;
+  const { signal, cancel } = withTimeout(timeoutMs);
+  try {
+    const r = await fetch(input, { ...rest, signal });
+    if (!r.ok) {
+      const text = await r.text().catch(() => r.statusText);
+      throw new Error(text || `HTTP ${r.status}`);
+    }
+    const ct = r.headers.get('content-type') || '';
+    return ct.includes('application/json') ? r.json() : r.text();
+  } finally {
+    cancel();
+  }
+}
+
 export type ImageItem = {
   kind: "image";
   id: string;
@@ -174,16 +196,13 @@ export async function describeImagesByIds(ids: string[], detail: "auto"|"low"|"h
 
 // Enhanced vision analysis with structured output
 export async function analyzeImages(ids: string[], options: VisionAnalysisParams = {}): Promise<StructuredVisionResult> {
-  const r = await fetch(`${API_BASE_URL}/api/vision/analyze`, {
+  const r = await fetchJson(`${API_BASE_URL}/api/vision/analyze`, {
     method: "POST",
     headers: {"Content-Type":"application/json"},
-    body: JSON.stringify({
-      library_ids: ids,
-      ...options
-    })
+    body: JSON.stringify({ library_ids: ids, ...options }),
+    timeoutMs: 45000
   });
-  if (!r.ok) throw new Error(await r.text());
-  return (await r.json()) as StructuredVisionResult;
+  return r as StructuredVisionResult;
 }
 
 // Accessibility-focused analysis
@@ -195,7 +214,7 @@ export async function analyzeImagesForAccessibility(
     reading_level?: number;
   } = {}
 ): Promise<AccessibilityAnalysisResult> {
-  const r = await fetch(`${API_BASE_URL}/api/vision/accessibility`, {
+  const r = await fetchJson(`${API_BASE_URL}/api/vision/accessibility`, {
     method: "POST",
     headers: {"Content-Type":"application/json"},
     body: JSON.stringify({
@@ -203,17 +222,16 @@ export async function analyzeImagesForAccessibility(
       screen_reader_optimized: options.screen_reader_optimized ?? true,
       include_color_info: options.include_color_info ?? true,
       reading_level: options.reading_level ?? 8
-    })
+    }),
+    timeoutMs: 45000
   });
-  if (!r.ok) throw new Error(await r.text());
-  return (await r.json()) as AccessibilityAnalysisResult;
+  return r as AccessibilityAnalysisResult;
 }
 
 // Get vision service health status
 export async function getVisionHealth(): Promise<VisionHealthStatus> {
-  const r = await fetch(`${API_BASE_URL}/api/vision/health`);
-  if (!r.ok) throw new Error(await r.text());
-  return (await r.json()) as VisionHealthStatus;
+  const r = await fetchJson(`${API_BASE_URL}/api/vision/health`, { timeoutMs: 5000 });
+  return r as VisionHealthStatus;
 }
 
 // Convenience functions for common use cases

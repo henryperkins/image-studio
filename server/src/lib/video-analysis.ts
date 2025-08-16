@@ -4,6 +4,21 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import child_process from "node:child_process";
 import ffmpegStatic from "ffmpeg-static";
+import { setTimeout as sleep } from "node:timers/promises";
+
+let runningFfmpeg = 0;
+const MAX_CONCURRENT_FFMPEG = Number(process.env.MAX_CONCURRENT_FFMPEG || 2);
+const FFMPEG_TIMEOUT_MS = Number(process.env.FFMPEG_TIMEOUT_MS || 30_000);
+
+async function withFfmpegSlot<T>(fn: () => Promise<T>): Promise<T> {
+  const start = Date.now();
+  while (runningFfmpeg >= MAX_CONCURRENT_FFMPEG) {
+    await sleep(50);
+    if (Date.now() - start > 5_000) throw new Error("FFmpeg concurrency queue timeout");
+  }
+  runningFfmpeg++;
+  try { return await fn(); } finally { runningFfmpeg--; }
+}
 
 export interface VideoFrameExtractionOptions {
   method: 'uniform' | 'scene-detection' | 'manual';
@@ -49,21 +64,31 @@ export async function extractKeyframes(
 async function getVideoDuration(videoPath: string): Promise<number> {
   const ffmpegPath = ffmpegStatic as string;
   
-  return new Promise((resolve, reject) => {
+  return withFfmpegSlot<number>(() => new Promise((resolve, reject) => {
     const args = [
       '-i', videoPath,
       '-f', 'null',
       '-'
     ];
 
-    const process = child_process.spawn(ffmpegPath, args);
+    const proc = child_process.spawn(ffmpegPath, args, { stdio: ['ignore', 'ignore', 'pipe'] });
     let stderrOutput = '';
+    let killed = false;
 
-    process.stderr.on('data', (data) => {
+    const timer = setTimeout(() => {
+      killed = true;
+      proc.kill('SIGTERM');
+      setTimeout(() => proc.kill('SIGKILL'), 2_000).unref();
+      reject(new Error('FFmpeg duration check timeout'));
+    }, FFMPEG_TIMEOUT_MS).unref();
+
+    proc.stderr.on('data', (data) => {
       stderrOutput += data.toString();
     });
 
-    process.on('close', () => {
+    proc.on('close', () => {
+      clearTimeout(timer);
+      if (killed) return;
       // Parse duration from ffmpeg output
       const durationMatch = stderrOutput.match(/Duration: (\d{2}):(\d{2}):(\d{2}\.\d{2})/);
       if (durationMatch) {
@@ -77,8 +102,11 @@ async function getVideoDuration(videoPath: string): Promise<number> {
       }
     });
 
-    process.on('error', reject);
-  });
+    proc.on('error', (err) => {
+      clearTimeout(timer);
+      reject(err);
+    });
+  }));
 }
 
 async function extractUniformFrames(
@@ -170,8 +198,11 @@ async function extractSceneFrames(
       }
     });
 
-    process.on('error', reject);
-  });
+    proc.on('error', (err) => {
+      clearTimeout(timer);
+      reject(err);
+    });
+  }));
 }
 
 async function extractSingleFrame(

@@ -480,7 +480,7 @@ export class VisionService {
     moderationResult: ModerationResult | null
   ): Promise<StructuredDescription> {
     // Post-moderate the text content
-    const textModeration = await moderateText(structured);
+    const textModeration = await moderateText<StructuredDescription>(structured);
     
     if (!textModeration.safe) {
       structured.metadata.processing_notes.push(...textModeration.issues);
@@ -494,7 +494,7 @@ export class VisionService {
       }
     }
 
-    return textModeration.sanitized_text || structured;
+    return textModeration.sanitized_object;
   }
 }
 

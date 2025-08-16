@@ -16,10 +16,10 @@ export interface ModerationResult {
   recommended_action: 'allow' | 'warn' | 'block';
 }
 
-export interface TextModerationResult {
+export interface TextModerationResult<T = any> {
   safe: boolean;
   issues: string[];
-  sanitized_text: string;
+  sanitized_object: T;
 }
 
 // Pre-analysis content moderation using Azure OpenAI
@@ -116,9 +116,9 @@ Be conservative but fair - flag only genuinely problematic content.`;
 }
 
 // Post-analysis text moderation for generated descriptions
-export async function moderateText(description: any): Promise<TextModerationResult> {
+export async function moderateText<T = any>(description: T): Promise<TextModerationResult<T>> {
   const issues: string[] = [];
-  let sanitized = JSON.stringify(description);
+  let sanitizedJson = JSON.stringify(description);
 
   // Basic PII pattern detection and redaction
   const piiPatterns = [
@@ -137,8 +137,8 @@ export async function moderateText(description: any): Promise<TextModerationResu
   ];
 
   for (const { pattern, replacement } of piiPatterns) {
-    if (pattern.test(sanitized)) {
-      sanitized = sanitized.replace(pattern, replacement);
+    if (pattern.test(sanitizedJson)) {
+      sanitizedJson = sanitizedJson.replace(pattern, replacement);
       issues.push(`PII detected and redacted: ${pattern.source}`);
     }
   }
@@ -151,14 +151,14 @@ export async function moderateText(description: any): Promise<TextModerationResu
   ];
 
   for (const { pattern, issue } of problematicPatterns) {
-    if (pattern.test(sanitized)) {
+    if (pattern.test(sanitizedJson)) {
       issues.push(issue);
     }
   }
 
-  let parsedSanitized;
+  let parsedSanitized: T;
   try {
-    parsedSanitized = JSON.parse(sanitized);
+    parsedSanitized = JSON.parse(sanitizedJson) as T;
   } catch {
     // If JSON parsing fails, return original with warning
     issues.push('JSON structure corrupted during sanitization');
@@ -168,7 +168,7 @@ export async function moderateText(description: any): Promise<TextModerationResu
   return {
     safe: issues.length === 0,
     issues,
-    sanitized_text: parsedSanitized
+    sanitized_object: parsedSanitized
   };
 }
 
