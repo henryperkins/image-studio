@@ -63,6 +63,7 @@ export interface VisionServiceConfig {
   moderation: {
     enabled: boolean;
     strictMode: boolean;
+    failOpen: boolean;
   };
   performance: {
     maxTokens: number;
@@ -523,7 +524,8 @@ export function createVisionService(config: {
     },
     moderation: {
       enabled: config.moderationEnabled ?? true,
-      strictMode: false
+      strictMode: process.env.MODERATION_STRICT === 'true',
+      failOpen: process.env.MODERATION_FAIL_OPEN !== 'false'
     },
     performance: {
       maxTokens: config.maxTokens ?? 1500,
