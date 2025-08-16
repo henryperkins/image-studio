@@ -13,8 +13,8 @@ interface ToastProps {
 
 export default function Toast({ message, type, onClose, duration = 3000, actionLabel, onAction }: ToastProps) {
   const [isPaused, setIsPaused] = useState(false);
-  const timerRef = useRef<NodeJS.Timeout>();
-  const startTimeRef = useRef<number>();
+  const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const startTimeRef = useRef<number | undefined>(undefined);
   const remainingTimeRef = useRef<number>(duration);
   const toastRef = useRef<HTMLDivElement>(null);
 
@@ -54,10 +54,16 @@ export default function Toast({ message, type, onClose, duration = 3000, actionL
     <div
       ref={toastRef}
       className={`toast ${type === "success" ? "toast-success" : type === "error" ? "toast-error" : "toast-warning"} transition-all duration-300 ease-out animate-slide-in-right`}
-      role="alert"
-      aria-live="assertive"
+      role="status"
+      aria-live="polite"
+      aria-atomic="true"
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
+      onKeyDown={(e) => {
+        if (e.key === "Escape") {
+          handleClose();
+        }
+      }}
     >
       <div className="flex items-center gap-3">
         <span className="text-sm">{message}</span>
@@ -77,9 +83,6 @@ export default function Toast({ message, type, onClose, duration = 3000, actionL
         >
           ✕
         </button>
-      </div>
-      <div className="sr-only" aria-live="polite" aria-atomic="true">
-        {type === "success" ? "Success: " : "Error: "}{message}
       </div>
     </div>
   );

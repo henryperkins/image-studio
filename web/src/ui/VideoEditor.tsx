@@ -91,12 +91,49 @@ export default function VideoEditor({ item, onClose, onEdited, baseUrl }: Props)
 
           <div className="space-y-3">
             {/* Tabs */}
-            <div className="inline-flex rounded-xl overflow-hidden border border-neutral-700">
-              {(["trim","crop","resize","speed","volume","overlay","concat"] as Tab[]).map(t => (
+            <div 
+              className="inline-flex rounded-xl overflow-hidden border border-neutral-700"
+              role="tablist"
+              aria-label="Video editing options"
+            >
+              {(["trim","crop","resize","speed","volume","overlay","concat"] as Tab[]).map((t, idx, arr) => (
                 <button 
-                  key={t} 
-                  className={`px-3 py-1.5 text-sm ${tab===t?"bg-neutral-700":"bg-neutral-900 hover:bg-neutral-800"}`} 
+                  key={t}
+                  id={`tab-${t}`}
+                  role="tab"
+                  aria-selected={tab === t}
+                  aria-controls={`panel-${t}`}
+                  tabIndex={tab === t ? 0 : -1}
+                  className={`px-3 py-1.5 text-sm ${tab===t?"bg-neutral-700":"bg-neutral-900 hover:bg-neutral-800"} focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:z-10`} 
                   onClick={()=>setTab(t)}
+                  onKeyDown={(e) => {
+                    if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+                      e.preventDefault();
+                      const prevIdx = idx > 0 ? idx - 1 : arr.length - 1;
+                      setTab(arr[prevIdx]);
+                      setTimeout(() => document.getElementById(`tab-${arr[prevIdx]}`)?.focus(), 0);
+                    }
+                    if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+                      e.preventDefault();
+                      const nextIdx = idx < arr.length - 1 ? idx + 1 : 0;
+                      setTab(arr[nextIdx]);
+                      setTimeout(() => document.getElementById(`tab-${arr[nextIdx]}`)?.focus(), 0);
+                    }
+                    if (e.key === "Home") {
+                      e.preventDefault();
+                      setTab(arr[0]);
+                      setTimeout(() => document.getElementById(`tab-${arr[0]}`)?.focus(), 0);
+                    }
+                    if (e.key === "End") {
+                      e.preventDefault();
+                      setTab(arr[arr.length - 1]);
+                      setTimeout(() => document.getElementById(`tab-${arr[arr.length - 1]}`)?.focus(), 0);
+                    }
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      setTab(t);
+                    }
+                  }}
                 >
                   {t}
                 </button>
@@ -104,7 +141,7 @@ export default function VideoEditor({ item, onClose, onEdited, baseUrl }: Props)
             </div>
 
             {tab==="trim" && (
-              <div className="space-y-2">
+              <div className="space-y-2" id="panel-trim" role="tabpanel" aria-labelledby="tab-trim">
                 <label className="text-sm">Start (s)
                   <input 
                     className="input mt-1" 

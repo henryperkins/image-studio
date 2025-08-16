@@ -1,4 +1,23 @@
-export const API_BASE_URL = (import.meta as any).env.VITE_API_BASE_URL || "http://localhost:8787";
+// Dynamically determine API URL based on current host
+// This allows mobile devices to connect to the dev server
+function getApiBaseUrl() {
+  const envUrl = (import.meta as any).env.VITE_API_BASE_URL;
+  if (envUrl) return envUrl;
+  
+  // If accessing from localhost, use localhost
+  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+    return "http://localhost:8787";
+  }
+  
+  // Otherwise, use the same hostname as the web app but on port 8787
+  // This works when accessing from mobile devices on the same network
+  return `http://${window.location.hostname}:8787`;
+}
+
+export const API_BASE_URL = getApiBaseUrl();
+
+// Log the API URL for debugging (especially helpful for mobile testing)
+console.log(`🔗 API Base URL: ${API_BASE_URL}`);
 
 function withTimeout(ms: number) {
   const controller = new AbortController();

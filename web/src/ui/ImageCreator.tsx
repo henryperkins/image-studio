@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useToast } from "../contexts/ToastContext";
-import { generateImage } from "../lib/api";
+import { generateImage, API_BASE_URL } from "../lib/api";
 import { Heading, Text, Label, Mono } from "./typography";
 
 type Resp = {
@@ -21,9 +21,9 @@ type Resp = {
 
 type ImageCreatorProps = {
   onSaved?: (id: string) => void;
-  promptInputRef?: React.RefObject<HTMLTextAreaElement>;
+  promptInputRef?: React.RefObject<HTMLTextAreaElement | null>;
   prompt: string;
-  setPrompt: (p: string) => void;
+  setPrompt: React.Dispatch<React.SetStateAction<string>>;
 };
 
 export default function ImageCreator({ onSaved, promptInputRef, prompt, setPrompt }: ImageCreatorProps) {
@@ -48,13 +48,18 @@ export default function ImageCreator({ onSaved, promptInputRef, prompt, setPromp
     } catch (e: any) {
       const errorMsg = e.message || "Failed to generate image";
       const isRateLimit = errorMsg.toLowerCase().includes('rate') || errorMsg.toLowerCase().includes('limit');
-      const isNetworkError = errorMsg.toLowerCase().includes('network') || errorMsg.toLowerCase().includes('fetch');
+      const isNetworkError = errorMsg.toLowerCase().includes('network') || errorMsg.toLowerCase().includes('fetch') || errorMsg.toLowerCase().includes('failed');
+      const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
       
       let detailedError = errorMsg;
       if (isRateLimit) {
         detailedError = `${errorMsg}. Please wait a moment before retrying.`;
       } else if (isNetworkError) {
-        detailedError = `Network error: ${errorMsg}. Check your connection and try again.`;
+        if (isMobileDevice && window.location.hostname !== 'localhost') {
+          detailedError = `Connection failed. On mobile? Make sure:\n1. You're on the same WiFi as the server\n2. The server is running\n3. Using correct IP: ${API_BASE_URL}`;
+        } else {
+          detailedError = `Network error: ${errorMsg}. Check your connection and try again.`;
+        }
       }
       
       setError(detailedError);
@@ -129,11 +134,16 @@ export default function ImageCreator({ onSaved, promptInputRef, prompt, setPromp
           aria-invalid={error ? "true" : undefined}
           aria-describedby="prompt-help"
         />
-        <Text size="xs" tone="muted" className="mt-1" id="prompt-help">
-          {prompt.length === 0 && "Prompt is required"}
-          {prompt.length > 0 && prompt.length < 10 && "Consider adding more detail for better results"}
-          {prompt.length >= 10 && "Press Ctrl+Enter to generate"}
-        </Text>
+        <div className="flex justify-between items-center mt-1">
+          <Text size="xs" tone="muted" id="prompt-help">
+            {prompt.length === 0 && "Prompt is required"}
+            {prompt.length > 0 && prompt.length < 10 && "Consider adding more detail for better results"}
+            {prompt.length >= 10 && "Press Ctrl+Enter to generate"}
+          </Text>
+          <Text size="xs" tone="muted" className={prompt.length > 1000 ? "text-amber-400" : ""}>
+            {prompt.length}/1000
+          </Text>
+        </div>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
         <Label size="sm">Size
@@ -156,17 +166,14 @@ export default function ImageCreator({ onSaved, promptInputRef, prompt, setPromp
       </div>
       <div className="flex gap-2">
         <button
-          className={`btn min-w-[48px] min-h-[48px] md:min-h-0 ${busy ? 'pulse' : ''}`}
+          className={`btn btn-primary min-w-[48px] min-h-[48px] md:min-h-0 ${busy ? 'loading' : ''}`}
           disabled={busy || !prompt.trim()}
           onClick={() => generate()}
           aria-describedby={!prompt.trim() ? "prompt-required" : undefined}
         >
           {busy ? (
             <span className="flex items-center gap-2">
-              <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-              </svg>
+              <span className="loading-spinner" />
               Generating…
             </span>
           ) : "Generate & Save"}
@@ -174,14 +181,14 @@ export default function ImageCreator({ onSaved, promptInputRef, prompt, setPromp
         {!prompt.trim() && (
           <span id="prompt-required" className="sr-only">Enter a prompt to generate an image</span>
         )}
-        <button className="btn min-w-[48px] min-h-[48px] md:min-h-0" disabled={!result} onClick={download}>Download</button>
+        <button className="btn btn-secondary min-w-[48px] min-h-[48px] md:min-h-0" disabled={!result} onClick={download}>Download</button>
       </div>
       {error && (
         <div className="fade-in space-y-2">
           <Text size="sm" tone="danger">{error}</Text>
           {retryCount < 3 && (
             <button
-              className="btn btn-sm text-xs"
+              className="btn btn-sm btn-secondary text-xs"
               onClick={retry}
               disabled={busy}
             >

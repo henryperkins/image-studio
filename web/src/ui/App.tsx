@@ -254,6 +254,11 @@ useEffect(() => {
         </div>
       </header>
 
+      {/* ARIA live region for announcing tab changes */}
+      <div className="sr-only" aria-live="polite" aria-atomic="true">
+        {view === "images" ? "Images panel selected" : view === "sora" ? "Sora panel selected" : "Typography panel selected"}
+      </div>
+
       <div className="flex flex-col md:grid md:grid-cols-3 gap-4">
         {/* Left column (main content) */}
         <div className="md:col-span-2">

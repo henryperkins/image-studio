@@ -191,7 +191,7 @@ export default function EnhancedVisionAnalysis({
 
       if (!safetyData.safe) {
         setError("Content safety concerns detected");
-        showToast("Content flagged by safety filters", "warning" as any);
+        showToast("Content flagged by safety filters", "warning");
       } else {
         showToast("Content passed safety checks", "success");
       }

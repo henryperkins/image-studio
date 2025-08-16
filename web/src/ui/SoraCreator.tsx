@@ -15,8 +15,8 @@ export default function SoraCreator({
   selectedUrls?: string[];
   onRemoveImage?: (id: string) => void;
   prompt: string;
-  setPrompt: (p: string) => void;
-  promptInputRef?: React.RefObject<HTMLTextAreaElement>;
+  setPrompt: React.Dispatch<React.SetStateAction<string>>;
+  promptInputRef?: React.RefObject<HTMLTextAreaElement | null>;
 }) {
   const [width, setWidth] = useState(1080);
   const [height, setHeight] = useState(1080);
@@ -219,7 +219,7 @@ export default function SoraCreator({
 
           <div className="flex flex-col sm:flex-row gap-2">
             <button
-              className={`btn min-h-[48px] sm:min-h-0 ${analyzingImages ? 'pulse' : ''}`}
+              className={`btn btn-secondary min-h-[48px] sm:min-h-0 ${analyzingImages ? 'loading' : ''}`}
               disabled={!selectedIds.length || analyzingImages || busy}
               onClick={analyze}
             >
@@ -236,7 +236,7 @@ export default function SoraCreator({
                 : `Analyze ${selectedIds.length || ""} image${selectedIds.length>1?"s":""} (GPT-4.1)`}
             </button>
             <button
-              className={`btn min-h-[48px] sm:min-h-0 ${analyzingImages ? 'pulse' : ''}`}
+              className={`btn btn-secondary min-h-[48px] sm:min-h-0 ${analyzingImages ? 'loading' : ''}`}
               disabled={!selectedIds.length || analyzingImages || busy}
               onClick={quickSoraPrompt}
             >
@@ -314,10 +314,15 @@ export default function SoraCreator({
           aria-invalid={error ? "true" : undefined}
           aria-describedby="video-prompt-help"
         />
-        <div id="video-prompt-help" className="text-xs text-neutral-400 mt-1">
-          {prompt.length === 0 && "Prompt is required"}
-          {prompt.length > 0 && prompt.length < 10 && "Consider adding more detail for better results"}
-          {prompt.length >= 10 && "Press Ctrl+Enter to generate"}
+        <div className="flex justify-between items-center mt-1">
+          <div id="video-prompt-help" className="text-xs text-neutral-400">
+            {prompt.length === 0 && "Prompt is required"}
+            {prompt.length > 0 && prompt.length < 10 && "Consider adding more detail for better results"}
+            {prompt.length >= 10 && "Press Ctrl+Enter to generate"}
+          </div>
+          <div className={`text-xs ${prompt.length > 2000 ? "text-amber-400" : "text-neutral-400"}`}>
+            {prompt.length}/2000
+          </div>
         </div>
       </div>
 
@@ -371,10 +376,10 @@ export default function SoraCreator({
           >Landscape 1920×1080</button>
         </div>
         
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-          <label className="text-sm">Width
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          <label className="text-sm min-w-0">Width
             <input 
-              className="input mt-1" 
+              className="input mt-1 w-full" 
               type="number" 
               min={256} 
               max={1920} 
@@ -388,10 +393,10 @@ export default function SoraCreator({
               }} 
             />
           </label>
-          <label className="text-sm">Height
+          <label className="text-sm min-w-0">Height
             <div className="flex items-center gap-2 mt-1">
               <input 
-                className="input flex-1" 
+                className="input flex-1 min-w-0" 
                 type="number" 
                 min={256} 
                 max={1920} 
@@ -406,7 +411,7 @@ export default function SoraCreator({
               />
               <button
                 type="button"
-                className={`p-2 rounded border ${aspectLocked ? 'bg-blue-500 border-blue-500 text-white' : 'border-neutral-700 text-neutral-400 hover:text-white'} transition-colors`}
+                className={`flex-shrink-0 p-2 rounded border min-h-[48px] sm:min-h-0 ${aspectLocked ? 'bg-blue-500 border-blue-500 text-white' : 'border-neutral-700 text-neutral-400 hover:text-white'} transition-colors`}
                 onClick={() => {
                   setAspectLocked(!aspectLocked);
                   if (!aspectLocked && width > 0 && height > 0) {
@@ -426,15 +431,15 @@ export default function SoraCreator({
               </button>
             </div>
           </label>
-          <label className="text-sm">Duration (s)
-            <input className="input mt-1" type="number" min={1} max={20} value={seconds} onChange={e=>setSeconds(+e.target.value||10)} />
-            <span className="text-xs text-neutral-500">Max 20s, up to 1920×1920</span>
+          <label className="text-sm min-w-0 sm:col-span-2 lg:col-span-1">Duration (s)
+            <input className="input mt-1 w-full" type="number" min={1} max={20} value={seconds} onChange={e=>setSeconds(+e.target.value||10)} />
+            <span className="text-xs text-neutral-500 block mt-1">Max 20s, up to 1920×1920</span>
           </label>
         </div>
       </div>
 
       <button
-        className={`btn min-w-[48px] min-h-[48px] md:min-h-0 ${busy ? 'pulse' : ''}`}
+        className={`btn btn-primary min-w-[48px] min-h-[48px] md:min-h-0 ${busy ? 'loading' : ''}`}
         disabled={busy || !prompt.trim()}
         onClick={() => generate()}
         aria-describedby={!prompt.trim() ? "video-prompt-required" : undefined}

@@ -114,16 +114,37 @@ body {
   @apply rounded-2xl px-4 py-2 bg-neutral-800 hover:bg-neutral-700 transition-all duration-200 ease-out;
   @apply active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-neutral-800;
   @apply focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:ring-offset-2 focus:ring-offset-neutral-900;
+  @apply text-sm font-medium text-neutral-200;
 }
 
 .btn-primary {
   @apply bg-blue-600 hover:bg-blue-500 text-white;
+  @apply shadow-lg hover:shadow-xl;
+  @apply ring-blue-500/30 hover:ring-blue-500/40;
+}
+
+.btn-secondary {
+  @apply bg-neutral-700 hover:bg-neutral-600 text-neutral-100;
+  @apply border border-neutral-600 hover:border-neutral-500;
+}
+
+.btn-danger {
+  @apply bg-red-600 hover:bg-red-500 text-white;
+  @apply ring-red-500/30 hover:ring-red-500/40;
+}
+
+.btn-sm {
+  @apply px-3 py-1.5 text-xs rounded-xl;
+}
+
+.btn-lg {
+  @apply px-6 py-3 text-base rounded-2xl;
 }
 
 .input { 
   @apply w-full rounded-xl bg-neutral-900 border border-neutral-700 p-3 text-sm;
   @apply transition-all duration-200 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20;
-  @apply placeholder:text-neutral-500;
+  @apply placeholder:text-neutral-400;
 }
 
 .card { 
@@ -145,6 +166,32 @@ body {
   animation: shimmer 1.5s infinite ease-in-out;
 }
 
+/* Loading spinner */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.loading-spinner {
+  @apply inline-block w-4 h-4 border-2 border-current border-t-transparent rounded-full;
+  animation: spin 1s linear infinite;
+}
+
+.loading-spinner-lg {
+  @apply w-6 h-6 border-2;
+}
+
+/* Pulse animation for buttons */
+@keyframes buttonPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+.btn.loading {
+  animation: buttonPulse 1.5s infinite ease-in-out;
+  @apply cursor-wait;
+}
+
 /* Fade in animation */
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(10px); }
@@ -157,9 +204,32 @@ body {
 
 /* Toast notifications */
 .toast {
-  @apply fixed bottom-4 right-4 px-4 py-3 rounded-xl shadow-lg;
-  @apply transform transition-all duration-300 ease-out;
+  @apply fixed right-4 px-4 py-3 rounded-xl shadow-lg;
+  @apply transform transition-all duration-300 ease-out z-50;
+  top: calc(env(safe-area-inset-top, 0px) + 1rem);
+  max-width: calc(100vw - 2rem);
   animation: slideIn 0.3s ease-out;
+}
+
+@media (min-width: 768px) {
+  .toast {
+    @apply bottom-4;
+    top: auto;
+    max-width: 400px;
+  }
+}
+
+@supports (height: 100dvh) {
+  .toast {
+    top: calc(env(safe-area-inset-top, 0px) + 1rem);
+  }
+  
+  @media (min-width: 768px) {
+    .toast {
+      @apply bottom-4;
+      top: auto;
+    }
+  }
 }
 
 @keyframes slideIn {
@@ -307,8 +377,8 @@ pre {
   overflow: hidden;
 }
 
-/* Contrast helper for muted text */
-.text-muted { color: #9ca3af; }
+/* Contrast helper for muted text - improved to meet WCAG AA */
+.text-muted { color: #a8a29e; }
 
 /* Avoid synthetic bold/italics in mono */
 .mono {

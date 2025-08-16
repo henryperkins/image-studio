@@ -45,7 +45,7 @@ export const Heading: React.FC<HeadingProps> = ({
   children,
   ...rest
 }) => {
-  const Tag = (`h${level}` as keyof JSX.IntrinsicElements);
+  const Tag = `h${level}` as 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6';
   const sizeClass = {
     1: 'text-4xl',
     2: 'text-3xl',
@@ -55,20 +55,20 @@ export const Heading: React.FC<HeadingProps> = ({
     6: 'text-md'
   }[level];
   const clampClass = clamp ? 'truncate-2' : '';
-  return (
-    <Tag
-      className={clsx(
+  return React.createElement(
+    Tag,
+    {
+      className: clsx(
         sizeClass,
         serif ? 'display-serif' : 'font-ui',
         weightMap[weight],
         clampClass,
         toneMap[tone],
         className
-      )}
-      {...rest}
-    >
-      {children}
-    </Tag>
+      ),
+      ...rest
+    },
+    children
   );
 };
 
@@ -78,7 +78,7 @@ interface TextProps extends BaseProps {
   mono?: boolean;
   numeric?: boolean;
   weight?: 'regular'|'medium'|'semibold'|'bold';
-  as?: keyof JSX.IntrinsicElements;
+  as?: keyof React.JSX.IntrinsicElements;
   truncate?: 1|2;
 }
 
@@ -95,7 +95,7 @@ export const Text: React.FC<TextProps> = ({
   children,
   ...rest
 }) => {
-  const Tag = as as keyof JSX.IntrinsicElements;
+  const Tag = as as keyof React.JSX.IntrinsicElements;
   const sizeClass = {
     xs: 'text-xs',
     sm: 'text-sm',
@@ -103,9 +103,10 @@ export const Text: React.FC<TextProps> = ({
     md: 'text-md',
     lg: 'text-lg'
   }[size];
-  return (
-    <Tag
-      className={clsx(
+  return React.createElement(
+    Tag,
+    {
+      className: clsx(
         sizeClass,
         longform ? 'font-longform' : 'font-ui',
         mono && 'font-mono',
@@ -115,11 +116,10 @@ export const Text: React.FC<TextProps> = ({
         truncate === 1 && 'truncate',
         truncate === 2 && 'truncate-2',
         className
-      )}
-      {...rest}
-    >
-      {children}
-    </Tag>
+      ),
+      ...rest
+    },
+    children
   );
 };
 
