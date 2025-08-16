@@ -17,6 +17,7 @@ export default function PromptSuggestions({ onInsert, onReplace }: PromptSuggest
     unpin,
     pinnedIds,
     frequencyByKey,
+    incrementFrequency,
   } = usePromptSuggestions();
   const { prefs, setInsertSeparator, setAutoPinLastUsed } = usePreferences();
 

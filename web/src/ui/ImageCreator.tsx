@@ -101,6 +101,29 @@ export default function ImageCreator({ onSaved, promptInputRef, prompt, setPromp
               generate();
             }
           }}
+          onDragOver={(e) => {
+            if (e.dataTransfer?.types.includes('text/plain')) {
+              e.preventDefault();
+              e.dataTransfer.dropEffect = 'copy';
+            }
+          }}
+          onDrop={(e) => {
+            const data = e.dataTransfer?.getData('text/plain');
+            if (!data) return;
+            e.preventDefault();
+            const target = e.currentTarget;
+            const start = target.selectionStart ?? 0;
+            const end = target.selectionEnd ?? 0;
+            const before = prompt.slice(0, start);
+            const after = prompt.slice(end);
+            const next = before + data + after;
+            setPrompt(next);
+            requestAnimationFrame(() => {
+              target.focus();
+              const pos = before.length + data.length;
+              target.setSelectionRange(pos, pos);
+            });
+          }}
           aria-label="Image description prompt"
           aria-required="true"
           aria-invalid={error ? "true" : undefined}

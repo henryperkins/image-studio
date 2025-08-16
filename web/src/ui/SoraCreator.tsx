@@ -6,13 +6,18 @@ import EnhancedVisionAnalysis from "./EnhancedVisionAnalysis";
 export default function SoraCreator({
   selectedIds = [] as string[],
   selectedUrls = [] as string[],
-  onRemoveImage
-}: { 
-  selectedIds?: string[]; 
+  onRemoveImage,
+  prompt,
+  setPrompt,
+  promptInputRef
+}: {
+  selectedIds?: string[];
   selectedUrls?: string[];
   onRemoveImage?: (id: string) => void;
+  prompt: string;
+  setPrompt: (p: string) => void;
+  promptInputRef?: React.RefObject<HTMLTextAreaElement>;
 }) {
-  const [prompt, setPrompt] = useState("");
   const [width, setWidth] = useState(1080);
   const [height, setHeight] = useState(1080);
   const [seconds, setSeconds] = useState(10);
@@ -273,12 +278,36 @@ export default function SoraCreator({
           className="input h-28 resize-none"
           placeholder="Describe your video…"
           value={prompt}
+          ref={promptInputRef}
           onChange={e=>setPrompt(e.target.value)}
           onKeyDown={e => {
             if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && !busy && prompt.trim()) {
               e.preventDefault();
               generate();
             }
+          }}
+          onDragOver={(e) => {
+            if (e.dataTransfer?.types.includes('text/plain')) {
+              e.preventDefault();
+              e.dataTransfer.dropEffect = 'copy';
+            }
+          }}
+          onDrop={(e) => {
+            const data = e.dataTransfer?.getData('text/plain');
+            if (!data) return;
+            e.preventDefault();
+            const target = e.currentTarget;
+            const start = target.selectionStart ?? 0;
+            const end = target.selectionEnd ?? 0;
+            const before = prompt.slice(0, start);
+            const after = prompt.slice(end);
+            const next = before + data + after;
+            setPrompt(next);
+            requestAnimationFrame(() => {
+              target.focus();
+              const pos = before.length + data.length;
+              target.setSelectionRange(pos, pos);
+            });
           }}
           aria-label="Video description prompt"
           aria-required="true"

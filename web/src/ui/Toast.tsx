@@ -1,15 +1,17 @@
 import { useEffect, useState, useRef } from "react";
 
-export type ToastType = "success" | "error";
+export type ToastType = "success" | "error" | "warning";
 
 interface ToastProps {
   message: string;
   type: ToastType;
   onClose: () => void;
   duration?: number;
+  actionLabel?: string;
+  onAction?: () => void;
 }
 
-export default function Toast({ message, type, onClose, duration = 3000 }: ToastProps) {
+export default function Toast({ message, type, onClose, duration = 3000, actionLabel, onAction }: ToastProps) {
   const [isPaused, setIsPaused] = useState(false);
   const timerRef = useRef<NodeJS.Timeout>();
   const startTimeRef = useRef<number>();
@@ -51,7 +53,7 @@ export default function Toast({ message, type, onClose, duration = 3000 }: Toast
   return (
     <div
       ref={toastRef}
-      className={`toast ${type === "success" ? "toast-success" : "toast-error"} transition-all duration-300 ease-out animate-slide-in-right`}
+      className={`toast ${type === "success" ? "toast-success" : type === "error" ? "toast-error" : "toast-warning"} transition-all duration-300 ease-out animate-slide-in-right`}
       role="alert"
       aria-live="assertive"
       onMouseEnter={() => setIsPaused(true)}
@@ -59,6 +61,15 @@ export default function Toast({ message, type, onClose, duration = 3000 }: Toast
     >
       <div className="flex items-center gap-3">
         <span className="text-sm">{message}</span>
+        {actionLabel && onAction && (
+          <button
+            onClick={() => { onAction(); handleClose(); }}
+            className="text-white/90 bg-blue-600 hover:bg-blue-500 rounded px-2 py-1 text-xs"
+            aria-label={actionLabel}
+          >
+            {actionLabel}
+          </button>
+        )}
         <button
           onClick={handleClose}
           className="text-white/70 hover:text-white transition-colors"

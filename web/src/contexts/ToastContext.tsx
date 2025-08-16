@@ -2,15 +2,25 @@ import { createContext, useContext, useState, useCallback, ReactNode } from 'rea
 import { createPortal } from 'react-dom';
 import Toast, { ToastType } from '../ui/Toast';
 
+type ToastOptions = {
+  duration?: number;
+  actionLabel?: string;
+  onAction?: () => void;
+};
+
 interface ToastItem {
   id: string;
   message: string;
   type: ToastType;
   duration?: number;
+  actionLabel?: string;
+  onAction?: () => void;
 }
 
 interface ToastContextType {
-  showToast: (message: string, type?: ToastType, duration?: number) => void;
+  // Backward compatible signature:
+  // showToast(message, type?, durationOrOptions?)
+  showToast: (message: string, type?: ToastType, durationOrOptions?: number | ToastOptions) => void;
 }
 
 const ToastContext = createContext<ToastContextType | undefined>(undefined);
@@ -31,10 +41,23 @@ interface ToastProviderProps {
 export function ToastProvider({ children, maxToasts = 3 }: ToastProviderProps) {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
 
-  const showToast = useCallback((message: string, type: ToastType = "success", duration?: number) => {
+  const showToast = useCallback((message: string, type: ToastType = "success", durationOrOptions?: number | ToastOptions) => {
     const id = crypto.randomUUID?.() || Date.now().toString();
+
+    let duration: number | undefined;
+    let actionLabel: string | undefined;
+    let onAction: (() => void) | undefined;
+
+    if (typeof durationOrOptions === 'number') {
+      duration = durationOrOptions;
+    } else if (durationOrOptions && typeof durationOrOptions === 'object') {
+      duration = durationOrOptions.duration;
+      actionLabel = durationOrOptions.actionLabel;
+      onAction = durationOrOptions.onAction;
+    }
+
     setToasts(prev => {
-      const newToasts = [...prev, { id, message, type, duration }];
+      const newToasts = [...prev, { id, message, type, duration, actionLabel, onAction }];
       // Keep only the most recent toasts
       return newToasts.slice(-maxToasts);
     });
@@ -55,6 +78,8 @@ export function ToastProvider({ children, maxToasts = 3 }: ToastProviderProps) {
               message={toast.message}
               type={toast.type}
               duration={toast.duration}
+              actionLabel={toast.actionLabel}
+              onAction={toast.onAction}
               onClose={() => removeToast(toast.id)}
             />
           ))}

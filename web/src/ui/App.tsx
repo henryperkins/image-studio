@@ -9,6 +9,8 @@ import { TypographySpecimen } from "./TypographySpecimen";
 import { PromptSuggestionsProvider } from "../contexts/PromptSuggestionsContext";
 import { PreferencesProvider } from "../contexts/PreferencesContext";
 import PromptSuggestions from "./PromptSuggestions";
+import { usePromptSuggestions } from "../contexts/PromptSuggestionsContext";
+import { useToast } from "../contexts/ToastContext";
 
 type View = "images" | "sora" | "typography";
 
@@ -33,6 +35,9 @@ function AppContent() {
   // Lifted state for the prompt (used by visible creator panel)
   const [prompt, setPrompt] = useState("");
   const promptInputRef = useRef<HTMLTextAreaElement>(null);
+  const { showToast } = useToast();
+  const { suggestions } = usePromptSuggestions();
+  const prevCountRef = useRef<number>(0);
 
   async function refreshLibrary() {
     setLibraryLoading(true);
@@ -125,6 +130,22 @@ function AppContent() {
     [promptInputRef]
   );
 
+// Toast when new suggestions arrive while sidebar is collapsed (mobile)
+useEffect(() => {
+  const prev = prevCountRef.current;
+  if (suggestions.length > prev && !mobileLibraryOpen) {
+    showToast("New prompt suggestions available", "success", {
+      actionLabel: "View in Library",
+      onAction: () => {
+        setMobileLibraryOpen(true);
+        setTimeout(() => {
+          document.getElementById("suggestions-panel")?.focus();
+        }, 50);
+      },
+    });
+  }
+  prevCountRef.current = suggestions.length;
+}, [suggestions.length, mobileLibraryOpen, showToast]);
   // Typography specimen view
   if (view === "typography") {
     return (
