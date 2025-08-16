@@ -368,7 +368,7 @@ export default function App() {
         <ImageEditor
           item={imgToEdit}
           onClose={() => setEditImageId(null)}
-          onEdited={async (newId) => { setEditImageId(null); await refreshLibrary(); setSelected([newId]); setView("sora"); }}
+          onEdited={async (newId) => { setEditImageId(null); await refreshLibrary(); setSelected([newId]); }}
           baseUrl={API_BASE_URL}
         />
       )}
