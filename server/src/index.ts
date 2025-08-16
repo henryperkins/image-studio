@@ -253,18 +253,36 @@ app.delete("/api/library/media/:id", async (req, reply) => {
 });
 
 // ----------------- VISION Analysis (Enhanced GPT-4.1) -----------------
-import { createVisionService } from './lib/vision-service.js';
+import { VisionService } from './lib/vision-service.js';
 
-// Initialize vision service
-const visionService = createVisionService({
-  azureEndpoint: AZ.endpoint,
-  visionDeployment: AZ.visionDeployment,
-  chatApiVersion: AZ.chatApiVersion,
+// Initialize new modular vision service
+const visionService = new VisionService({
+  azure: {
+    endpoint: AZ.endpoint,
+    visionDeployment: AZ.visionDeployment,
+    chatApiVersion: AZ.chatApiVersion
+  },
   authHeaders: authHeaders(),
   imagePath: IMG_DIR,
-  cachingEnabled: true,
-  moderationEnabled: true,
-  maxTokens: 1500
+  videoPath: VID_DIR,
+  caching: {
+    enabled: true,
+    ttl: 3600
+  },
+  moderation: {
+    enabled: true,
+    strictMode: process.env.MODERATION_STRICT === 'true',
+    azureContentSafety: {
+      endpoint: process.env.AZURE_CONTENT_SAFETY_ENDPOINT,
+      key: process.env.AZURE_CONTENT_SAFETY_KEY
+    }
+  },
+  performance: {
+    maxTokens: 1500,
+    temperature: 0.1,
+    timeout: 30000,
+    seed: process.env.AZURE_OPENAI_SEED ? parseInt(process.env.AZURE_OPENAI_SEED) : undefined
+  }
 });
 
 // Legacy endpoint for backward compatibility
@@ -286,7 +304,7 @@ app.post("/api/vision/describe", async (req, reply) => {
 
     // Convert to new format for backward compatibility
     if (body.library_ids?.length) {
-      const result = await visionService.processImageDescription(body.library_ids, {
+      const result = await visionService.analyzeImages(body.library_ids, {
         detail: body.detail === "high" ? "detailed" : body.detail === "low" ? "brief" : "standard",
         purpose: "video prompt engineering",
         tone: "technical"
@@ -352,7 +370,7 @@ app.post("/api/vision/analyze", async (req, reply) => {
   try {
     const body = EnhancedVisionReq.parse(req.body);
     
-    const result = await visionService.processImageDescription(body.library_ids, {
+    const result = await visionService.analyzeImages(body.library_ids, {
       purpose: body.purpose,
       audience: body.audience,
       language: body.language,
@@ -360,8 +378,8 @@ app.post("/api/vision/analyze", async (req, reply) => {
       tone: body.tone,
       focus: body.focus,
       specific_questions: body.specific_questions,
-      enableModeration: body.enable_moderation,
-      targetAge: body.target_age,
+      enable_moderation: body.enable_moderation,
+      target_age: body.target_age,
       force: body.force_refresh
     });
 
@@ -397,13 +415,13 @@ app.post("/api/vision/accessibility", async (req, reply) => {
   try {
     const body = AccessibilityReq.parse(req.body);
     
-    const result = await visionService.processImageDescription(body.library_ids, {
+    const result = await visionService.analyzeImages(body.library_ids, {
       purpose: "accessibility compliance",
       audience: "general",
       detail: "comprehensive",
       tone: "casual",
       focus: ["accessibility", "spatial_relationships", "text_content"],
-      enableModeration: false, // Less restrictive for accessibility
+      enable_moderation: false, // Less restrictive for accessibility
       force: false
     });
 

@@ -85,6 +85,22 @@ export const StructuredDescriptionSchema = z.object({
 });
 
 export const VideoAnalysisSchema = StructuredDescriptionSchema.extend({
+  duration_seconds: z.number().optional(),
+  keyframes: z.array(z.object({
+    timestamp: z.number(),
+    summary: z.string()
+  })).optional(),
+  scene_segments: z.array(z.object({
+    start_time: z.number(),
+    end_time: z.number(),
+    summary: z.string()
+  })).optional(),
+  actions: z.array(z.string()).optional(),
+  temporal_analysis: z.object({
+    continuity: z.string(),
+    pace: z.string(),
+    camera_movement: z.string()
+  }).optional(),
   video_analysis: z.object({
     scene_segments: z.array(z.object({
       start_time: z.number(),
@@ -98,7 +114,7 @@ export const VideoAnalysisSchema = StructuredDescriptionSchema.extend({
     }),
     temporal_coherence: z.number().min(1).max(10),
     keyframe_quality: z.array(z.string())
-  })
+  }).optional()
 });
 
 export type VisionMetadata = z.infer<typeof VisionMetadataSchema>;

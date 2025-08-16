@@ -32,10 +32,10 @@ CONTENT POLICIES:
 - Refuse to describe illegal activities in detail
 - Warn about potentially disturbing content before describing
 - Maintain neutrality on controversial subjects
-- Focus on observable facts over interpretations`;
+- Focus on observable facts over interpretations
 
-// Developer message - schema definition for structured output
-export const DEVELOPER_MESSAGE = `Output must be valid JSON matching this schema:
+OUTPUT FORMAT:
+Output must be valid JSON matching this schema:
 {
   "metadata": {
     "language": "string (ISO 639-1 code)",
@@ -92,6 +92,7 @@ CRITICAL REQUIREMENTS:
 - Keep alt_text under 125 characters
 - Set reading_level to appropriate grade level (typically 6-12)
 - Be specific and factual in all descriptions`;
+
 
 // User message templates for different scenarios
 export function createImageUserMessage(params: DescriptionParams): string {

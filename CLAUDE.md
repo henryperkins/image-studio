@@ -74,6 +74,14 @@ The server requires Azure OpenAI environment variables:
 - `AZURE_OPENAI_VISION_DEPLOYMENT` (for GPT-4.1)
 - Various API version configurations
 
+### Enhanced Vision System Configuration
+For the new modular vision system with enhanced safety:
+- `AZURE_CONTENT_SAFETY_ENDPOINT` (optional) - Azure AI Content Safety endpoint for primary moderation
+- `AZURE_CONTENT_SAFETY_KEY` (optional) - Azure AI Content Safety API key
+- `MODERATION_STRICT=true` (optional) - Enable strict moderation mode
+- `MODERATION_FAIL_OPEN=false` (optional) - Never fail-open for minors (recommended)
+- `AZURE_OPENAI_SEED` (optional) - Seed for deterministic outputs if supported
+
 ## Key Technical Details
 
 - **File types**: Supports PNG and JPEG image formats, MP4 video format
