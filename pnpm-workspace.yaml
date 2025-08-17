@@ -1,4 +1,8 @@
 packages:
-  - "server"
-  - "web"
-  - "shared"
+  - server
+  - web
+  - shared
+
+onlyBuiltDependencies:
+  - esbuild
+  - ffmpeg-static

@@ -73,6 +73,17 @@ import type {
   AccessibilityAnalysisResult,
   VisionHealthStatus
 } from "@image-studio/shared";
+
+// Re-export types that are used in other files
+export type {
+  ImageItem,
+  VideoItem,
+  LibraryItem,
+  StructuredVisionResult,
+  AccessibilityAnalysisResult,
+  VisionHealthStatus
+};
+
 export const isVideoItem = (i: LibraryItem): i is VideoItem => i.kind === "video";
 
 // Prompt Suggestions
