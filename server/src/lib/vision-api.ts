@@ -18,6 +18,7 @@ export async function callVisionAPI(
     maxTokens?: number;
     temperature?: number;
     seed?: number;
+    timeoutMs?: number;
     // When true, map model JSON to the legacy/structured format used by the app.
     // Set to false when the provided schema already matches the app's expected output (e.g., video schema paths).
     mapToStructured?: boolean;
@@ -52,13 +53,21 @@ export async function callVisionAPI(
       },
       body: JSON.stringify(requestBody)
     }),
-    30000,
+    config.timeoutMs || 30000,
     'Vision API call'
   );
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`Vision API failed: ${response.status} ${errorText}`);
+    const err: any = new Error(`Vision API failed: ${response.status} ${errorText}`);
+    err.status = response.status;
+    try {
+      err.headers = Object.fromEntries(response.headers.entries());
+    } catch {
+      err.headers = {};
+    }
+    err.body = errorText;
+    throw err;
   }
 
   const data = await response.json();

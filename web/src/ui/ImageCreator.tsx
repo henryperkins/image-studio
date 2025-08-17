@@ -1,7 +1,11 @@
 import { useState } from "react";
 import { useToast } from "../contexts/ToastContext";
-import { generateImage, API_BASE_URL } from "../lib/api";
+import { generateImage } from "../lib/api";
+import { processApiError } from "../lib/errorUtils";
 import { Heading, Text, Label, Mono } from "./typography";
+import { PromptTextarea } from "../components/PromptTextarea";
+import { LoadingButton } from "../components/LoadingButton";
+import { MediaSkeleton } from "../components/SkeletonLoader";
 
 type Resp = {
   image_base64: string;
@@ -46,30 +50,12 @@ export default function ImageCreator({ onSaved, promptInputRef, prompt, setPromp
       showToast("Image generated successfully!", "success");
       onSaved && onSaved(data.library_item.id);
     } catch (e: any) {
-      const errorMsg = e.message || "Failed to generate image";
-      const isRateLimit = errorMsg.toLowerCase().includes('rate') || errorMsg.toLowerCase().includes('limit');
-      const isNetworkError = errorMsg.toLowerCase().includes('network') || errorMsg.toLowerCase().includes('fetch') || 
-                           errorMsg.toLowerCase().includes('failed') || errorMsg.toLowerCase().includes('timeout') ||
-                           errorMsg.toLowerCase().includes('cannot reach');
-      const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-      
-      let detailedError = errorMsg;
-      if (isRateLimit) {
-        detailedError = `${errorMsg}. Please wait a moment before retrying.`;
-      } else if (isNetworkError) {
-        if (isMobileDevice && window.location.hostname !== 'localhost') {
-          const currentHost = window.location.hostname;
-          detailedError = `Connection failed on mobile device.\n\nPlease check:\n1. ✓ Same WiFi network as server\n2. ✓ Server is running (port 8787)\n3. ✓ Correct IP address\n\nCurrent: ${currentHost}\nAPI URL: ${API_BASE_URL}\n\nTip: Ask server admin for the correct IP address.`;
-        } else {
-          detailedError = `Network error: ${errorMsg}. Check your connection and try again.`;
-        }
-      }
-      
-      setError(detailedError);
+      const { detailedMessage } = processApiError(e);
+      setError(detailedMessage);
       if (isRetry) {
         setRetryCount(prev => prev + 1);
       }
-      showToast(detailedError, "error");
+      showToast(detailedMessage, "error");
     } finally {
       setBusy(false);
       setIsImageLoading(false);
@@ -95,59 +81,19 @@ export default function ImageCreator({ onSaved, promptInputRef, prompt, setPromp
   return (
     <div className="space-y-3">
       <Heading level={4}>Create Image (gpt-image-1)</Heading>
-      <div className="relative">
-        <textarea
-          id="image-prompt"
-          className="input h-32 resize-none"
-          placeholder="Describe the image…"
-          value={prompt}
-          ref={promptInputRef}
-          onChange={e=>setPrompt(e.target.value)}
-          onKeyDown={e => {
-            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && !busy && prompt.trim()) {
-              e.preventDefault();
-              generate();
-            }
-          }}
-          onDragOver={(e) => {
-            if (e.dataTransfer?.types.includes('text/plain')) {
-              e.preventDefault();
-              e.dataTransfer.dropEffect = 'copy';
-            }
-          }}
-          onDrop={(e) => {
-            const data = e.dataTransfer?.getData('text/plain');
-            if (!data) return;
-            e.preventDefault();
-            const target = e.currentTarget;
-            const start = target.selectionStart ?? 0;
-            const end = target.selectionEnd ?? 0;
-            const before = prompt.slice(0, start);
-            const after = prompt.slice(end);
-            const next = before + data + after;
-            setPrompt(next);
-            requestAnimationFrame(() => {
-              target.focus();
-              const pos = before.length + data.length;
-              target.setSelectionRange(pos, pos);
-            });
-          }}
-          aria-label="Image description prompt"
-          aria-required="true"
-          aria-invalid={error ? "true" : undefined}
-          aria-describedby="prompt-help"
-        />
-        <div className="flex justify-between items-center mt-1">
-          <Text size="xs" tone="muted" id="prompt-help">
-            {prompt.length === 0 && "Prompt is required"}
-            {prompt.length > 0 && prompt.length < 10 && "Consider adding more detail for better results"}
-            {prompt.length >= 10 && "Press Ctrl+Enter to generate"}
-          </Text>
-          <Text size="xs" tone="muted" className={prompt.length > 1000 ? "text-amber-400" : ""}>
-            {prompt.length}/1000
-          </Text>
-        </div>
-      </div>
+      <PromptTextarea
+        ref={promptInputRef}
+        id="image-prompt"
+        value={prompt}
+        onChange={setPrompt}
+        onSubmit={generate}
+        placeholder="Describe the image…"
+        maxLength={1000}
+        disabled={busy}
+        busy={busy}
+        error={error}
+        ariaLabel="Image description prompt"
+      />
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
         <Label size="sm">Size
           <select className="input mt-1" value={size} onChange={e=>setSize(e.target.value)}>
@@ -168,23 +114,22 @@ export default function ImageCreator({ onSaved, promptInputRef, prompt, setPromp
         </Label>
       </div>
       <div className="flex gap-2">
-        <button
-          className={`btn btn-primary min-w-[48px] min-h-[48px] md:min-h-0 ${busy ? 'loading' : ''}`}
-          disabled={busy || !prompt.trim()}
+        <LoadingButton
+          variant="primary"
+          loading={busy}
+          loadingText="Generating…"
+          disabled={!prompt.trim()}
           onClick={() => generate()}
           aria-describedby={!prompt.trim() ? "prompt-required" : undefined}
         >
-          {busy ? (
-            <span className="flex items-center gap-2">
-              <span className="loading-spinner" />
-              Generating…
-            </span>
-          ) : "Generate & Save"}
-        </button>
+          Generate & Save
+        </LoadingButton>
         {!prompt.trim() && (
           <span id="prompt-required" className="sr-only">Enter a prompt to generate an image</span>
         )}
-        <button className="btn btn-secondary min-w-[48px] min-h-[48px] md:min-h-0" disabled={!result} onClick={download}>Download</button>
+        <LoadingButton variant="secondary" disabled={!result} onClick={download}>
+          Download
+        </LoadingButton>
       </div>
       {error && (
         <div className="fade-in space-y-2">
@@ -201,10 +146,7 @@ export default function ImageCreator({ onSaved, promptInputRef, prompt, setPromp
         </div>
       )}
       {(busy && !result) && (
-        <div className="mt-2 space-y-2">
-          <div className={`skeleton rounded-xl aspect-square w-full`} style={{ aspectRatio: size.replace('x', '/') }} />
-          <div className="skeleton h-4 w-3/4 rounded" />
-        </div>
+        <MediaSkeleton mediaType="image" size={size} />
       )}
       {result && (
         <div className="mt-2 fade-in">

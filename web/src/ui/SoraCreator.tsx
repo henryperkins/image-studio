@@ -1,7 +1,11 @@
 import { useMemo, useState, useRef, useEffect } from "react";
 import { describeImagesByIds, generateVideo, generateSoraPrompt } from "../lib/api";
+import { processApiError } from "../lib/errorUtils";
 import { useToast } from "../contexts/ToastContext";
 import EnhancedVisionAnalysis from "./EnhancedVisionAnalysis";
+import { PromptTextarea } from "../components/PromptTextarea";
+import { LoadingButton, LoadingSpinner } from "../components/LoadingButton";
+import { SkeletonLoader, MediaSkeleton } from "../components/SkeletonLoader";
 
 export default function SoraCreator({
   selectedIds = [] as string[],
@@ -130,22 +134,12 @@ export default function SoraCreator({
       setRetryCount(0);
       showToast("Video generated successfully!", "success");
     } catch (e:any) {
-      const errorMsg = e.message || "Failed to generate video";
-      const isRateLimit = errorMsg.toLowerCase().includes('rate') || errorMsg.toLowerCase().includes('limit');
-      const isNetworkError = errorMsg.toLowerCase().includes('network') || errorMsg.toLowerCase().includes('fetch');
-      
-      let detailedError = errorMsg;
-      if (isRateLimit) {
-        detailedError = `${errorMsg}. Please wait a moment before retrying.`;
-      } else if (isNetworkError) {
-        detailedError = `Network error: ${errorMsg}. Check your connection and try again.`;
-      }
-      
-      setError(detailedError);
+      const { detailedMessage } = processApiError(e);
+      setError(detailedMessage);
       if (isRetry) {
         setRetryCount(prev => prev + 1);
       }
-      showToast(detailedError, "error");
+      showToast(detailedMessage, "error");
     } finally {
       clearInterval(progressInterval);
       setBusy(false);
@@ -218,30 +212,25 @@ export default function SoraCreator({
           </div>
 
           <div className="flex flex-col sm:flex-row gap-2">
-            <button
-              className={`btn btn-secondary min-h-[48px] sm:min-h-0 ${analyzingImages ? 'loading' : ''}`}
-              disabled={!selectedIds.length || analyzingImages || busy}
+            <LoadingButton
+              variant="secondary"
+              loading={analyzingImages}
+              loadingText={analysisMode === 'video_ideas' ? 'Generating ideas…' : 'Analyzing…'}
+              disabled={!selectedIds.length || busy}
               onClick={analyze}
             >
-              {analyzingImages ? (
-                <span className="flex items-center gap-2" role="status" aria-live="polite">
-                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" aria-hidden="true">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                  </svg>
-                  {analysisMode === 'video_ideas' ? 'Generating ideas…' : 'Analyzing…'}
-                </span>
-              ) : analysisMode === 'video_ideas'
+              {analysisMode === 'video_ideas'
                 ? `Get Video Ideas for ${selectedIds.length || ""} image${selectedIds.length>1?"s":""}`
                 : `Analyze ${selectedIds.length || ""} image${selectedIds.length>1?"s":""} (GPT-4.1)`}
-            </button>
-            <button
-              className={`btn btn-secondary min-h-[48px] sm:min-h-0 ${analyzingImages ? 'loading' : ''}`}
-              disabled={!selectedIds.length || analyzingImages || busy}
+            </LoadingButton>
+            <LoadingButton
+              variant="secondary"
+              loading={analyzingImages}
+              disabled={!selectedIds.length || busy}
               onClick={quickSoraPrompt}
             >
               Quick Enhanced Prompt
-            </button>
+            </LoadingButton>
             <button
               className="btn min-h-[48px] sm:min-h-0"
               onClick={() => {
@@ -259,11 +248,8 @@ export default function SoraCreator({
       )}
 
       {analyzingImages && !analysis && (
-        <div className="rounded-xl bg-neutral-950 border border-neutral-800 p-3 space-y-2">
-          <div className="skeleton h-4 w-3/4 rounded" />
-          <div className="skeleton h-4 w-full rounded" />
-          <div className="skeleton h-4 w-5/6 rounded" />
-          <div className="skeleton h-4 w-2/3 rounded" />
+        <div className="rounded-xl bg-neutral-950 border border-neutral-800 p-3">
+          <SkeletonLoader type="text" lines={4} />
         </div>
       )}
 
@@ -273,58 +259,20 @@ export default function SoraCreator({
         </pre>
       )}
 
-      <div className="relative">
-        <textarea
-          className="input h-28 resize-none"
-          placeholder="Describe your video…"
-          value={prompt}
-          ref={promptInputRef}
-          onChange={e=>setPrompt(e.target.value)}
-          onKeyDown={e => {
-            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && !busy && prompt.trim()) {
-              e.preventDefault();
-              generate();
-            }
-          }}
-          onDragOver={(e) => {
-            if (e.dataTransfer?.types.includes('text/plain')) {
-              e.preventDefault();
-              e.dataTransfer.dropEffect = 'copy';
-            }
-          }}
-          onDrop={(e) => {
-            const data = e.dataTransfer?.getData('text/plain');
-            if (!data) return;
-            e.preventDefault();
-            const target = e.currentTarget;
-            const start = target.selectionStart ?? 0;
-            const end = target.selectionEnd ?? 0;
-            const before = prompt.slice(0, start);
-            const after = prompt.slice(end);
-            const next = before + data + after;
-            setPrompt(next);
-            requestAnimationFrame(() => {
-              target.focus();
-              const pos = before.length + data.length;
-              target.setSelectionRange(pos, pos);
-            });
-          }}
-          aria-label="Video description prompt"
-          aria-required="true"
-          aria-invalid={error ? "true" : undefined}
-          aria-describedby="video-prompt-help"
-        />
-        <div className="flex justify-between items-center mt-1">
-          <div id="video-prompt-help" className="text-xs text-neutral-400">
-            {prompt.length === 0 && "Prompt is required"}
-            {prompt.length > 0 && prompt.length < 10 && "Consider adding more detail for better results"}
-            {prompt.length >= 10 && "Press Ctrl+Enter to generate"}
-          </div>
-          <div className={`text-xs ${prompt.length > 2000 ? "text-amber-400" : "text-neutral-400"}`}>
-            {prompt.length}/2000
-          </div>
-        </div>
-      </div>
+      <PromptTextarea
+        ref={promptInputRef}
+        id="video-prompt"
+        value={prompt}
+        onChange={setPrompt}
+        onSubmit={generate}
+        placeholder="Describe your video…"
+        maxLength={2000}
+        disabled={busy}
+        busy={busy}
+        error={error}
+        ariaLabel="Video description prompt"
+        className="h-28"
+      />
 
       {selectedUrls.length > 0 && (
         <div className="space-y-2">
@@ -438,22 +386,16 @@ export default function SoraCreator({
         </div>
       </div>
 
-      <button
-        className={`btn btn-primary min-w-[48px] min-h-[48px] md:min-h-0 ${busy ? 'loading' : ''}`}
-        disabled={busy || !prompt.trim()}
+      <LoadingButton
+        variant="primary"
+        loading={busy}
+        loadingText="Generating…"
+        disabled={!prompt.trim()}
         onClick={() => generate()}
         aria-describedby={!prompt.trim() ? "video-prompt-required" : undefined}
       >
-        {busy ? (
-          <span className="flex items-center gap-2">
-            <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-            </svg>
-            Generating…
-          </span>
-        ) : "Generate"}
-      </button>
+        Generate
+      </LoadingButton>
       {!prompt.trim() && (
         <span id="video-prompt-required" className="sr-only">Enter a prompt to generate a video</span>
       )}
@@ -487,10 +429,7 @@ export default function SoraCreator({
         </div>
       )}
       {busy && !videoUrl && (
-        <div className="space-y-2">
-          <div className="skeleton rounded-xl aspect-square w-full" />
-          <div className="skeleton h-10 w-32 rounded-2xl" />
-        </div>
+        <MediaSkeleton mediaType="video" size="1080x1080" />
       )}
 
       {videoUrl && (

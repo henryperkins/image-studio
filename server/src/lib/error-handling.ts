@@ -463,9 +463,11 @@ export class VisionMetrics {
 
     // Update running average latency
     const totalSuccessful = this.metrics.successful_requests;
-    this.metrics.average_latency = (
-      (this.metrics.average_latency * (totalSuccessful - 1)) + latency
-    ) / totalSuccessful;
+    if (totalSuccessful > 0) {
+      this.metrics.average_latency = (
+        (this.metrics.average_latency * (totalSuccessful - 1)) + latency
+      ) / totalSuccessful;
+    }
   }
 
   recordCacheHit(): void {

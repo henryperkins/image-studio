@@ -27,15 +27,30 @@ import {
   moderateContent,
   generateContentWarning,
   redactPIIInObject,
+  moderationToSafetyFlags,
   ModerationResult
 } from './vision-moderation.js';
 
 // Temporary compatibility functions for legacy moderation calls
-async function runModerationPipeline(imageDataUrls: string[], config: any, authHeaders: any): Promise<ModerationResult | null> {
+async function runModerationPipeline(
+  imageDataUrls: string[],
+  azureConfig: { endpoint: string; visionDeployment: string; chatApiVersion: string },
+  authHeaders: Record<string, string>,
+  azureContentSafety?: { endpoint?: string; key?: string },
+  targetAge?: number
+): Promise<ModerationResult | null> {
   try {
+    // Map to expected shape for moderation LLM endpoint
+    const azureLLM = {
+      endpoint: azureConfig.endpoint,
+      deployment: azureConfig.visionDeployment,
+      apiVersion: azureConfig.chatApiVersion
+    };
     return await moderateContent(imageDataUrls, {
-      azureLLM: config,
+      azureContentSafety,
+      azureLLM,
       authHeaders,
+      targetAge,
       strictMode: true
     });
   } catch {
@@ -44,6 +59,7 @@ async function runModerationPipeline(imageDataUrls: string[], config: any, authH
 }
 
 function handleBlockedContent(moderation: ModerationResult): any {
+  const mappedFlags = moderationToSafetyFlags(moderation);
   return {
     metadata: {
       language: "en",
@@ -83,7 +99,7 @@ function handleBlockedContent(moderation: ModerationResult): any {
         complexity_score: 0
       }
     },
-    safety_flags: moderation.flags,
+    safety_flags: mappedFlags,
     uncertainty_notes: ["Content blocked by safety moderation"]
   };
 }
@@ -186,9 +202,16 @@ export class VisionService {
         );
       }
 
-      // 2. Check cache
+      // 2. Check cache (include deployment/schema versions to avoid stale/incompatible entries)
+      const cacheOptions = {
+        ...options,
+        __model: this.config.azure.visionDeployment,
+        __api: this.config.azure.chatApiVersion,
+        __schema: 'image-v1',
+        __prompt: '2025-08-17'
+      } as any;
       if (this.config.caching.enabled && !options.force) {
-        cacheKey = generateCacheKey(imageIds, options);
+        cacheKey = generateCacheKey(imageIds, cacheOptions);
         const cached = visionCache.get(cacheKey);
         if (cached) {
           this.metrics.recordCacheHit();
@@ -208,7 +231,9 @@ export class VisionService {
           moderationResult = await runModerationPipeline(
             imageDataUrls,
             this.config.azure,
-            this.config.authHeaders
+            this.config.authHeaders,
+            this.config.moderation.azureContentSafety,
+            options.targetAge
           );
         } catch (err) {
           // CRITICAL: Never fail-open for minors
@@ -222,6 +247,19 @@ export class VisionService {
             );
           }
           // Otherwise, continue with moderation disabled for this request
+        }
+
+        // If moderation pipeline failed silently, enforce policy for minors/strict
+        if (!moderationResult) {
+          const isMinor = options.targetAge && options.targetAge < 18;
+          if (isMinor || (this.config.moderation.strictMode && !this.config.moderation.failOpen)) {
+            throw new VisionAPIError(
+              'Moderation unavailable; blocking per safety policy',
+              ErrorCode.MODERATION,
+              false,
+              FallbackStrategy.USE_GENERIC_DESCRIPTION
+            );
+          }
         }
 
         if (moderationResult?.recommended_action === 'block') {
@@ -531,13 +569,17 @@ export class VisionService {
       userMessage = createImageUserMessage(options);
     }
 
-    const imageParts = imageDataUrls.map(url => ({
+    const imageParts = imageDataUrls.map((url, idx) => ({
       type: "image_url" as const,
       image_url: {
         url,
-        detail: options.detail === 'brief' ? 'low' as const : 'high' as const
+        // Adaptive detail: first two images high, rest low when many
+        detail: options.detail === 'brief' ? 'low' as const : (imageDataUrls.length > 2 && idx > 1 ? 'low' as const : 'high' as const)
       }
     }));
+
+    // Optimize user message for token budget
+    const optimizedUserMessage = optimizePromptForTokens(userMessage, this.config.performance.maxTokens);
 
     // Build messages without DEVELOPER_MESSAGE in assistant role
     const messages = [
@@ -545,7 +587,7 @@ export class VisionService {
       {
         role: "user",
         content: [
-          { type: "text", text: userMessage },
+          { type: "text", text: optimizedUserMessage },
           ...imageParts
         ]
       }
@@ -566,6 +608,7 @@ export class VisionService {
         authHeaders: this.config.authHeaders,
         maxTokens: this.config.performance.maxTokens,
         temperature: this.config.performance.temperature,
+        timeoutMs: this.config.performance.timeout,
         seed: process.env.AZURE_OPENAI_SEED ? parseInt(process.env.AZURE_OPENAI_SEED) : undefined,
         mapToStructured: true
       }
@@ -587,6 +630,7 @@ export class VisionService {
         authHeaders: this.config.authHeaders,
         maxTokens: this.config.performance.maxTokens,
         temperature: this.config.performance.temperature,
+        timeoutMs: this.config.performance.timeout,
         seed: process.env.AZURE_OPENAI_SEED ? parseInt(process.env.AZURE_OPENAI_SEED) : undefined,
         mapToStructured: false
       }
@@ -793,6 +837,20 @@ export class VisionService {
       const warning = generateContentWarning(moderationResult);
       if (warning) {
         structured.metadata.processing_notes.unshift(warning);
+      }
+      // Merge moderation safety flags into structured flags (OR)
+      const modFlags = moderationToSafetyFlags(moderationResult);
+      structured.safety_flags = {
+        violence: structured.safety_flags.violence || modFlags.violence,
+        adult_content: structured.safety_flags.adult_content || modFlags.adult_content,
+        pii_detected: structured.safety_flags.pii_detected || modFlags.pii_detected,
+        medical_content: structured.safety_flags.medical_content || modFlags.medical_content,
+        weapons: structured.safety_flags.weapons || modFlags.weapons,
+        substances: structured.safety_flags.substances || modFlags.substances
+      };
+      // Mark sensitive if any flag
+      if (Object.values(structured.safety_flags).some(Boolean)) {
+        structured.metadata.sensitive_content = true;
       }
     }
 
