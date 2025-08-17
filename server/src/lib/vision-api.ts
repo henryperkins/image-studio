@@ -18,6 +18,9 @@ export async function callVisionAPI(
     maxTokens?: number;
     temperature?: number;
     seed?: number;
+    // When true, map model JSON to the legacy/structured format used by the app.
+    // Set to false when the provided schema already matches the app's expected output (e.g., video schema paths).
+    mapToStructured?: boolean;
   }
 ): Promise<any> {
   const url = `${config.endpoint}/openai/deployments/${encodeURIComponent(config.deployment)}/chat/completions?api-version=${config.apiVersion}`;
@@ -68,8 +71,13 @@ export async function callVisionAPI(
   // Parse the JSON response (guaranteed valid by strict schema)
   const parsed = JSON.parse(content);
 
-  // Map to legacy format for backwards compatibility
-  return mapToLegacyFormat(parsed);
+  // Map to legacy/structured app format when requested (default true for images)
+  if (config.mapToStructured !== false) {
+    return mapToLegacyFormat(parsed);
+  }
+
+  // Return raw parsed JSON when the schema already matches the consumer
+  return parsed;
 }
 
 // Re-export analyzeVideoTwoPass from vision-service if needed externally

@@ -1,0 +1,72 @@
+## Our ultimate guide for Sora Image Generation, full prompt guide and top 20 Image prompts inside.
+
+**In partnership with**
+
+[![](https://media.beehiiv.com/cdn-cgi/image/fit=scale-down,format=auto,onerror=redirect,quality=80/uploads/ad_network/advertiser/logo/326a9193-12cd-4dcf-8b6c-7d26fbda699e/SHAI.png)](https://magic.beehiiv.com/v1/faa6a747-8c1c-43c1-8155-91aa43268f01?email={{email}}&redirect_to=https%3A%2F%2Fwww.superhuman.ai%2Fc%2Fconfirmation%3Fmagiclink_subscription&utm_source=beehiiv&utm_campaign=VPSLCCALRN&redirect_delay=3&_bhiiv=opp_cbc50fa4-f8d8-41c4-adf8-77150892fb05_d22f5b49&bhcl_id=08a48097-783e-4b0f-aacd-842cfdb198e9_SUBSCRIBER_ID)
+
+[![](https://media.beehiiv.com/cdn-cgi/image/fit=scale-down,format=auto,onerror=redirect,quality=80/uploads/asset/file/0b3375ee-5a1e-4a5d-ac98-e0e0342be692/AI_News_Facts.jpg?t=1740759349)](https://magic.beehiiv.com/v1/faa6a747-8c1c-43c1-8155-91aa43268f01?email={{email}}&redirect_to=https%3A%2F%2Fwww.superhuman.ai%2Fc%2Fconfirmation%3Fmagiclink_subscription&utm_source=beehiiv&utm_campaign=VPSLCCALRN&redirect_delay=3&_bhiiv=opp_cbc50fa4-f8d8-41c4-adf8-77150892fb05_d22f5b49&bhcl_id=08a48097-783e-4b0f-aacd-842cfdb198e9_SUBSCRIBER_ID)
+
+In 2 years you will be working for AI
+
+Or an AI will be working for you
+
+Here's how you can future-proof yourself:
+
+1. Join the [Superhuman AI](https://magic.beehiiv.com/v1/faa6a747-8c1c-43c1-8155-91aa43268f01?email={{email}}&redirect_to=https%3A%2F%2Fwww.superhuman.ai%2Fc%2Fconfirmation%3Fmagiclink_subscription&utm_source=beehiiv&utm_campaign=VPSLCCALRN&redirect_delay=3&_bhiiv=opp_cbc50fa4-f8d8-41c4-adf8-77150892fb05_d22f5b49&bhcl_id=08a48097-783e-4b0f-aacd-842cfdb198e9_SUBSCRIBER_ID) newsletter – read by 1M+ people at top companies
+2. Master AI tools, tutorials, and news in just 3 minutes a day
+3. Become 10X more productive using AI
+
+Join 1,000,000+ pros at companies like Google, Meta, and Amazon that are using AI to get ahead.
+
+Hey Friends! Welcome to this Saturday edition with a complete prompt guide for using Sora and how to create trending image styles like the trending Ghibli cartoon style that has been taking the internet by storm.
+
+To master OpenAI's Sora for cinematic AI video or Image generation, focus on structured prompts that combine vivid scene descriptions with technical cinematography cues. Below is a methodology distilled from industry practices and 20 trending style prompts optimized for diverse visual outcomes.
+
+### Sora Prompt Structure Guide
+
+1. **Subject & Action**
+	- Describe primary elements: *"A mecha-robot with hydraulic joints and glowing plasma cores"*
+	- Specify movements: *"slowly raises its arm, sparks flying from damaged wiring"*
+2. **Environment & Mood**
+	- Set the scene: *"in a derelict spaceship corridor with flickering neon lights"*
+	- Add sensory details: *"acrid smoke swirls in zero gravity"*
+3. **Cinematography**
+	- Camera angles: *"close-up Dutch angle tracking the robot’s perspective"*
+	- Motion: *"steadycam glide with slight handheld shake"*
+4. **Stylization**
+	- Artistic filters: *"rendered in cel-shaded anime with bold ink outlines"*
+	- Technical cues: *"shot on 35mm film, chromatic aberration"*
+5. **Technical Specs (Optional)**
+	- Resolution/framerate: *"4K, 24fps cinematic"*
+	- Lighting: *"volumetric fog under cold cyan spotlights"*
+
+![](https://media.beehiiv.com/cdn-cgi/image/fit=scale-down,format=auto,onerror=redirect,quality=80/uploads/asset/file/6c836faf-b3a1-44bc-9b87-38c527856105/Screenshot_2025-04-05_at_1.19.14_PM.png?t=1743873581)
+
+| Style | Prompt Example |
+| --- | --- |
+| **Japan Anime** | *"A samurai kneels atop a pagoda roof, cherry blossoms swirling in a thunderstorm. Dynamic poses with thick black outlines and saturated hues. Wide-angle shot with a fisheye lens distortion."* \[3\]\[6\] |
+| **Cyberpunk** | *"Neon-lit Tokyo alley at night: a cyborg bartender mixes glowing cocktails while holographic ads flicker. Rain-soaked pavement reflects teal and magenta neon. Low-angle tracking shot with cyberterminal HUD overlay."* \[2\]\[4\] |
+| **Watercolor Painting** | *"A willow tree bends over a misty river, brushstrokes visible in soft blues and greens. Delicate paint bleeds simulate watercolor texture. Static wide shot with a washed-out palette."* \[3\] |
+| **Claymation** | *"A lumpy clay dragon hatching from an egg, stop-motion texture with visible fingerprints. Warm studio lighting casts soft shadows on a miniature diorama. Locked-down top-down camera."* \[6\] |
+| **Fantasy Storybook** | *"A knight rides a winged wolf through a storybook forest, outlined in gold ink. Watercolor textures with parchment-like grain. Panning shot mimicking page-turn animation."* \[3\] |
+| **Vaporwave/90s** | *"A vintage CRT TV plays static in a pink-and-teal mall, palm trees pixelating into glitch art. VHS tracking lines overlay a slow zoom-out shot."* \[4\]\[6\] |
+| **LEGO Style** | *"Minifigures construct a floating castle with interlocking bricks. Primary colors and plastic sheen under bright studio lights. Isometric camera angle."* \[2\] |
+| **Paper Cut Collage** | *"Layered paper owls take flight in a 3D diorama, hand-cut edges casting geometric shadows. Top-down perspective with parallax scrolling."* \[3\] |
+| **Ghibli Style** | *"A young witch delivers bread via flying broomstick over rolling hills. Soft watercolor skies and detailed cottage-core textures. Helicopter shot with Studio Ghibli-inspired painterly lighting."* \[3\]\[6\] |
+| **Steampunk** | *"Brass airship docks at a clockwork tower, gears whirring and steam hissing. Sepia tones with oil-painted metal textures. Wide-angle tilt shot."* \[2\] |
+| **Film Noir** | *"A detective in a trenchcoat interrogates a suspect under a swinging lamp. High-contrast chiaroscuro lighting with cigarette smoke haze. Close-up profile shot."* \[4\]\[6\] |
+| **Retro VHS** | *"A skateboarder grinds a neon rail in a 1980s parking lot. VHS tape artifacts, color bleed, and tracking errors. Fisheye lens with VCR timestamp overlay."* \[4\] |
+| **Ukiyo-e** | *"A sumo wrestler mid-match, stylized with woodblock prints and flat planes of indigo and vermillion. Static wide shot mimicking traditional Japanese art."* \[3\] |
+| **Glitch Art** | *"A hacker’s face distorts into digital fragments, RGB split effects corrupting the background. Rapid jump cuts with datamosh transitions."* \[4\]\[6\] |
+| **Neon Noir** | *"A femme fatale lights a cigarette in a rain-soaked cybercity. Neon reflections in her mirrored sunglasses. Slow dolly-in shot with blue-and-orange duality."* \[2\]\[4\] |
+| **Dystopian Future** | *"Children play in a junkyard beneath a colossal floating corporate logo. Desaturated colors and gritty textures. Wide establishing shot with dystopian fog."* \[3\]\[6\] |
+| **Surreal Dreamscape** | *"A clock melts into a waterfall flowing upward into a starry sky. Salvador Dalí-inspired surrealism with hyperreal textures. Slider shot with time-lapse clouds."* \[3\] |
+| **Minimalist Line Art** | *"A single continuous line morphs into animals across a white void. Black ink on paper texture with subtle pencil sketches. Overhead static shot."* \[6\] |
+| **Hyperrealistic CGI** | *"A tiger’s fur ripples in 8K detail as it drinks from a jungle stream. Macro shot with subsurface scattering and photoreal water droplets."* \[2\]\[5\] |
+| **Custom Action Figure** | *"Design a poseable anime mecha figure: angular armor with katana sheath, metallic red finish, and LED eye slots. Product shot with studio lighting and green screen."* \[3\]\[6\] |
+
+![](https://media.beehiiv.com/cdn-cgi/image/fit=scale-down,format=auto,onerror=redirect,quality=80/uploads/asset/file/a0458e04-efee-4c9d-b3f8-d53b76dd4171/Screenshot_2025-04-05_at_1.18.56_PM.png?t=1743873596)
+
+For optimal results, iterate using Sora’s remix feature to refine textures or motion. Pair these prompts with reference images for consistent character or environment design.
+
+***Unlock your creativity and bring your imagination to life by experimenting with these expertly crafted Sora prompts. Whether you're designing your own action figure, exploring unique art styles, or diving into fantastical worlds, these prompts will elevate your visual storytelling to new heights. Share this guide with your friends and challenge them to create their own stunning Sora-generated masterpieces—together, you can inspire a wave of artistic innovation!***

@@ -359,7 +359,7 @@ export class VisionService {
       purpose: 'initial video overview'
     });
     
-    const pass1Result = await this.callVisionAPI(pass1Messages, options as any);
+    const pass1Result = await this.callVideoVisionAPI(pass1Messages, options as any);
     const pass1Analysis = this.validateAndParseVideoResponse(pass1Result);
     
     // Determine if Pass 2 is needed
@@ -388,7 +388,7 @@ export class VisionService {
       purpose: 'detailed segment analysis'
     });
     
-    const pass2Result = await this.callVisionAPI(pass2Messages, options as any);
+    const pass2Result = await this.callVideoVisionAPI(pass2Messages, options as any);
     const pass2Analysis = this.validateAndParseVideoResponse(pass2Result);
     
     // Merge results from both passes
@@ -401,7 +401,7 @@ export class VisionService {
     options: VideoParams
   ): Promise<VideoAnalysis> {
     const messages = this.constructVideoMessages(frames, options);
-    const result = await this.callVisionAPI(messages, options as any);
+    const result = await this.callVideoVisionAPI(messages, options as any);
     return this.validateAndParseVideoResponse(result);
   }
 
@@ -566,11 +566,31 @@ export class VisionService {
         authHeaders: this.config.authHeaders,
         maxTokens: this.config.performance.maxTokens,
         temperature: this.config.performance.temperature,
-        seed: process.env.AZURE_OPENAI_SEED ? parseInt(process.env.AZURE_OPENAI_SEED) : undefined
+        seed: process.env.AZURE_OPENAI_SEED ? parseInt(process.env.AZURE_OPENAI_SEED) : undefined,
+        mapToStructured: true
       }
     );
     
     // The centralized API returns the parsed object, but we need the raw JSON string here
+    return JSON.stringify(result);
+  }
+
+  // Use the video schema and return raw JSON matching video analysis
+  private async callVideoVisionAPI(messages: any[], options: DescriptionParams): Promise<any> {
+    const result = await callVisionAPI(
+      messages,
+      VIDEO_ANALYSIS_SCHEMA,
+      {
+        endpoint: this.config.azure.endpoint,
+        deployment: this.config.azure.visionDeployment,
+        apiVersion: this.config.azure.chatApiVersion,
+        authHeaders: this.config.authHeaders,
+        maxTokens: this.config.performance.maxTokens,
+        temperature: this.config.performance.temperature,
+        seed: process.env.AZURE_OPENAI_SEED ? parseInt(process.env.AZURE_OPENAI_SEED) : undefined,
+        mapToStructured: false
+      }
+    );
     return JSON.stringify(result);
   }
 
@@ -666,7 +686,7 @@ export class VisionService {
   
   // Get schema instructions for the prompt
   private getSchemaInstructions(): string {
-    return `\n\nOutput must be valid JSON matching the strict schema with all required fields. Ensure alt_text is ≤125 characters.`;
+    return `\n\nOutput must be valid JSON matching the provided response schema with all required fields. Ensure alt_text is ≤125 characters. Do not include extra commentary.`;
   }
   
   // Helper methods for video analysis

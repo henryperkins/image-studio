@@ -39,6 +39,7 @@ export default function EnhancedVisionAnalysis({
     tone: mode === "sora" ? "creative" : "casual",
     focus: mode === "sora" ? ["motion_potential", "cinematic_elements", "scene_continuity"] : undefined,
     enable_moderation: true,
+    target_age: 18,
     force_refresh: false,
   });
 
@@ -441,6 +442,20 @@ export default function EnhancedVisionAnalysis({
                   <span className="text-sm">Force refresh (skip cache)</span>
                 </label>
               </div>
+              {/* Target Age */}
+              <div className="flex items-center space-x-2">
+                <label htmlFor="target-age" className="text-sm">Target age</label>
+                <input
+                  id="target-age"
+                  type="number"
+                  min={5}
+                  max={100}
+                  value={params.target_age ?? 18}
+                  onChange={(e) => setParams((prev) => ({ ...prev, target_age: Number(e.target.value) }))}
+                  className="input w-20 text-sm"
+                  aria-describedby="target-age-help"
+                />
+              </div>
             </div>
           </div>
         )}
@@ -552,6 +567,8 @@ export default function EnhancedVisionAnalysis({
 function StructuredResultDisplay({ result }: { result: StructuredVisionResult }) {
   return (
     <div className="space-y-4">
+      {/* Quality Panel */}
+      <QualityPanel result={result} />
       {/* Metadata */}
       <div>
         <h4 className="font-medium mb-2">Analysis Metadata</h4>
@@ -632,6 +649,78 @@ function StructuredResultDisplay({ result }: { result: StructuredVisionResult })
             </div>
           )}
         </div>
+      </div>
+
+      {/* Generation Guidance */}
+      {result.generation_guidance?.suggested_prompt && (
+        <GenerationGuidanceBlock prompt={result.generation_guidance.suggested_prompt} styleKeywords={result.generation_guidance.style_keywords || []} />
+      )}
+    </div>
+  );
+}
+
+function QualityPanel({ result }: { result: StructuredVisionResult }) {
+  const salvage = isSalvaged(result);
+  const schemaLabel = 'StructuredDescription v1';
+  return (
+    <div className="bg-neutral-800/50 rounded-lg p-3 text-sm">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="flex justify-between">
+          <span>Confidence:</span>
+          <span
+            className={`font-medium ${
+              result.metadata.confidence === 'high' ? 'text-green-400' :
+              result.metadata.confidence === 'medium' ? 'text-yellow-400' : 'text-red-400'
+            }`}
+          >
+            {result.metadata.confidence}
+          </span>
+        </div>
+        <div className="flex justify-between">
+          <span>Schema:</span>
+          <span className="font-medium">{schemaLabel}</span>
+        </div>
+        <div className="flex justify-between">
+          <span>Salvaged:</span>
+          <span className={`font-medium ${salvage ? 'text-yellow-400' : 'text-green-400'}`}>{salvage ? 'Yes' : 'No'}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function isSalvaged(result: StructuredVisionResult): boolean {
+  const notes = (result.metadata?.processing_notes || []).join(' ').toLowerCase();
+  return notes.includes('partially recovered') || notes.includes('partially invalid') || notes.includes('fallback response');
+}
+
+function GenerationGuidanceBlock({ prompt, styleKeywords }: { prompt: string; styleKeywords: string[] }) {
+  const { showToast } = useToast();
+  const copy = async () => {
+    await navigator.clipboard.writeText(prompt);
+    showToast('Sora prompt copied to clipboard', 'success');
+  };
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-2">
+        <h4 className="font-medium">Generation Guidance</h4>
+        <button className="btn btn-sm text-xs" onClick={copy}>Copy Sora Prompt</button>
+      </div>
+      <div className="bg-neutral-800/50 rounded-lg p-3 space-y-2 text-sm">
+        <div>
+          <strong>Suggested Prompt:</strong>
+          <p className="mt-1 whitespace-pre-wrap">{prompt}</p>
+        </div>
+        {styleKeywords.length > 0 && (
+          <div className="flex items-center gap-2">
+            <strong>Style Keywords:</strong>
+            <div className="flex flex-wrap gap-1">
+              {styleKeywords.map((k, i) => (
+                <span key={i} className="px-2 py-1 bg-blue-600/20 text-blue-300 text-xs rounded-md">{k}</span>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
