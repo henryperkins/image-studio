@@ -14,7 +14,8 @@
     "dotenv": "16.4.5",
     "fastify": "5.1.0",
     "ffmpeg-static": "^5.2.0",
-    "zod": "3.23.8"
+    "zod": "3.23.8",
+    "@image-studio/shared": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^24.2.1",

@@ -31,7 +31,7 @@ import {
 } from './vision-moderation.js';
 
 // Temporary compatibility functions for legacy moderation calls
-async function moderateImages(imageDataUrls: string[], config: any, authHeaders: any): Promise<ModerationResult | null> {
+async function runModerationPipeline(imageDataUrls: string[], config: any, authHeaders: any): Promise<ModerationResult | null> {
   try {
     return await moderateContent(imageDataUrls, {
       azureLLM: config,
@@ -115,6 +115,9 @@ import {
   VisionMetrics,
   checkVisionServiceHealth
 } from './error-handling.js';
+
+import { callVisionAPI } from './vision-api.js';
+import { IMAGE_ANALYSIS_SCHEMA, VIDEO_ANALYSIS_SCHEMA } from './vision-schemas.js';
 
 import { promises as fs } from "node:fs";
 import path from "node:path";
@@ -202,7 +205,7 @@ export class VisionService {
       let moderationResult: ModerationResult | null = null;
       if (this.config.moderation.enabled && options.enableModeration !== false) {
         try {
-          moderationResult = await moderateImages(
+          moderationResult = await runModerationPipeline(
             imageDataUrls,
             this.config.azure,
             this.config.authHeaders
@@ -552,44 +555,23 @@ export class VisionService {
   }
 
   private async callVisionAPI(messages: any[], options: DescriptionParams): Promise<any> {
-    const url = `${this.config.azure.endpoint}/openai/deployments/${encodeURIComponent(this.config.azure.visionDeployment)}/chat/completions?api-version=${this.config.azure.chatApiVersion}`;
-    
-    // Use strict JSON schema if available in the API version
-    const supportsStrictSchema = this.config.azure.chatApiVersion >= '2024-08-01-preview';
-    
-    const requestBody = {
+    // Delegate to the centralized vision API caller
+    const result = await callVisionAPI(
       messages,
-      max_tokens: this.config.performance.maxTokens,
-      temperature: this.config.performance.temperature,
-      response_format: supportsStrictSchema ? {
-        type: "json_schema" as const,
-        json_schema: {
-          name: "vision_analysis",
-          schema: this.getStrictSchema(),
-          strict: true
-        }
-      } : { type: "json_object" as const },
-      // Add seed for deterministic outputs if supported
-      ...(process.env.AZURE_OPENAI_SEED && { seed: parseInt(process.env.AZURE_OPENAI_SEED) })
-    };
-
-    const response = await withTimeout(
-      fetch(url, {
-        method: "POST",
-        headers: { ...this.config.authHeaders, "Content-Type": "application/json" },
-        body: JSON.stringify(requestBody)
-      }),
-      this.config.performance.timeout,
-      'Vision API call'
+      IMAGE_ANALYSIS_SCHEMA,
+      {
+        endpoint: this.config.azure.endpoint,
+        deployment: this.config.azure.visionDeployment,
+        apiVersion: this.config.azure.chatApiVersion,
+        authHeaders: this.config.authHeaders,
+        maxTokens: this.config.performance.maxTokens,
+        temperature: this.config.performance.temperature,
+        seed: process.env.AZURE_OPENAI_SEED ? parseInt(process.env.AZURE_OPENAI_SEED) : undefined
+      }
     );
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Vision API failed: ${response.status} ${errorText}`);
-    }
-
-    const data = await response.json();
-    return data?.choices?.[0]?.message?.content;
+    
+    // The centralized API returns the parsed object, but we need the raw JSON string here
+    return JSON.stringify(result);
   }
 
   private validateAndParseResponse(responseContent: string): StructuredDescription {
@@ -681,95 +663,6 @@ export class VisionService {
       ]
     };
   }
-
-  // Helper method to get strict schema for JSON response
-  private getStrictSchema(): any {
-    return {
-      type: "object",
-      required: ["metadata", "accessibility", "content", "generation_guidance", "safety_flags", "uncertainty_notes"],
-      properties: {
-        metadata: {
-          type: "object",
-          required: ["language", "confidence", "content_type", "sensitive_content", "processing_notes"],
-          properties: {
-            language: { type: "string", pattern: "^[a-z]{2}$" },
-            confidence: { type: "string", enum: ["high", "medium", "low"] },
-            content_type: { type: "string", enum: ["photograph", "illustration", "screenshot", "diagram", "artwork", "other"] },
-            sensitive_content: { type: "boolean" },
-            processing_notes: { type: "array", items: { type: "string" } }
-          }
-        },
-        accessibility: {
-          type: "object",
-          required: ["alt_text", "long_description", "reading_level", "color_accessibility"],
-          properties: {
-            alt_text: { type: "string", maxLength: 125 },
-            long_description: { type: "string" },
-            reading_level: { type: "number" },
-            color_accessibility: {
-              type: "object",
-              required: ["relies_on_color", "color_blind_safe"],
-              properties: {
-                relies_on_color: { type: "boolean" },
-                color_blind_safe: { type: "boolean" }
-              }
-            }
-          }
-        },
-        content: {
-          type: "object",
-          required: ["primary_subjects", "scene_description", "visual_elements", "text_content", "spatial_layout"],
-          properties: {
-            primary_subjects: { type: "array", items: { type: "string" } },
-            scene_description: { type: "string" },
-            visual_elements: {
-              type: "object",
-              required: ["composition", "lighting", "colors", "style", "mood"],
-              properties: {
-                composition: { type: "string" },
-                lighting: { type: "string" },
-                colors: { type: "array", items: { type: "string" } },
-                style: { type: "string" },
-                mood: { type: "string" }
-              }
-            },
-            text_content: { type: "array", items: { type: "string" } },
-            spatial_layout: { type: "string" }
-          }
-        },
-        generation_guidance: {
-          type: "object",
-          required: ["suggested_prompt", "style_keywords", "technical_parameters"],
-          properties: {
-            suggested_prompt: { type: "string" },
-            style_keywords: { type: "array", items: { type: "string" } },
-            technical_parameters: {
-              type: "object",
-              required: ["aspect_ratio", "recommended_model", "complexity_score"],
-              properties: {
-                aspect_ratio: { type: "string" },
-                recommended_model: { type: "string" },
-                complexity_score: { type: "number", minimum: 1, maximum: 10 }
-              }
-            }
-          }
-        },
-        safety_flags: {
-          type: "object",
-          required: ["violence", "adult_content", "pii_detected", "medical_content", "weapons", "substances"],
-          properties: {
-            violence: { type: "boolean" },
-            adult_content: { type: "boolean" },
-            pii_detected: { type: "boolean" },
-            medical_content: { type: "boolean" },
-            weapons: { type: "boolean" },
-            substances: { type: "boolean" }
-          }
-        },
-        uncertainty_notes: { type: "array", items: { type: "string" } }
-      }
-    };
-  }
   
   // Get schema instructions for the prompt
   private getSchemaInstructions(): string {
@@ -778,10 +671,7 @@ export class VisionService {
   
   // Helper methods for video analysis
   private constructVideoMessages(frames: Array<{ timestamp: number; dataUrl: string }>, options: any): any[] {
-    const videoUserMessage = createVideoUserMessage({
-      ...options,
-      frameCount: frames.length
-    });
+    const videoUserMessage = createVideoUserMessage(frames, options);
     
     const frameParts = frames.map(f => ({
       type: "image_url" as const,

@@ -1,5 +1,33 @@
-// Vision Analysis Types and Schemas
+/**
+ * Vision Analysis Types and Schemas
+ * NOTE: Shared types (ImageItem, VideoItem, LibraryItem, StructuredVisionResult, AccessibilityAnalysisResult, VisionHealthStatus)
+ * have been moved to ./shared.ts for cross-project consistency.
+ */
 import { z } from "zod";
+import type {
+  ImageItem,
+  VideoItem,
+  LibraryItem,
+  StructuredVisionResult,
+  AccessibilityAnalysisResult,
+  VisionHealthStatus
+} from "./shared";
+
+// Moderation result interface
+export interface ModerationResult {
+  safe: boolean;
+  flags: {
+    violence: boolean;
+    adult_content: boolean;
+    hate_speech: boolean;
+    illegal_activity: boolean;
+    self_harm: boolean;
+    pii_visible: boolean;
+  };
+  severity: 'none' | 'low' | 'medium' | 'high' | 'critical';
+  description: string;
+  recommended_action: 'allow' | 'warn' | 'block';
+}
 
 // Processing parameters for vision analysis
 export interface DescriptionParams {
@@ -122,8 +150,10 @@ export type Accessibility = z.infer<typeof AccessibilitySchema>;
 export type Content = z.infer<typeof ContentSchema>;
 export type GenerationGuidance = z.infer<typeof GenerationGuidanceSchema>;
 export type SafetyFlags = z.infer<typeof SafetyFlagsSchema>;
-export type StructuredDescription = z.infer<typeof StructuredDescriptionSchema>;
-export type VideoAnalysis = z.infer<typeof VideoAnalysisSchema>;
+
+// Use shared types for these:
+export type StructuredDescription = StructuredVisionResult;
+export type VideoAnalysis = StructuredVisionResult & { duration_seconds?: number; keyframes?: any[]; scene_segments?: any[]; actions?: string[]; temporal_analysis?: any; video_analysis?: any; };
 
 // Error types for vision processing
 export enum ErrorCode {

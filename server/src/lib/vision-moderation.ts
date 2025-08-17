@@ -1,20 +1,20 @@
 // Content moderation with Azure AI Content Safety primary, LLM backup
 
-import { VisionAPIError, ErrorCode } from '../types/vision.js';
+import { VisionAPIError, ErrorCode, ModerationResult } from '../types/vision.js';
 
-export interface ModerationResult {
-  safe: boolean;
-  flags: {
-    violence: boolean;
-    adult_content: boolean;
-    hate_speech: boolean;
-    illegal_activity: boolean;
-    self_harm: boolean;
-    pii_visible: boolean;
+// Re-export for backward compatibility
+export type { ModerationResult };
+
+// Moved from content-moderation.ts: Convert moderation result to safety flags for the vision API response
+export function moderationToSafetyFlags(moderation: ModerationResult) {
+  return {
+    violence: moderation.flags.violence,
+    adult_content: moderation.flags.adult_content,
+    pii_detected: moderation.flags.pii_visible,
+    medical_content: false, // Not checked by default moderation
+    weapons: false, // Would need specific detection
+    substances: moderation.flags.illegal_activity // Approximation
   };
-  severity: 'none' | 'low' | 'medium' | 'high' | 'critical';
-  description: string;
-  recommended_action: 'allow' | 'warn' | 'block';
 }
 
 // Primary: Azure AI Content Safety (when available)

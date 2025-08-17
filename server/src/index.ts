@@ -9,6 +9,7 @@ import path from "node:path";
 import crypto from "node:crypto";
 import child_process from "node:child_process";
 import ffmpegStatic from "ffmpeg-static";
+import type { ImageItem, VideoItem, LibraryItem } from "@image-studio/shared";
 
 const app = Fastify({ logger: true });
 
@@ -50,30 +51,7 @@ const IMG_DIR = path.join(DATA_DIR, "images");
 const VID_DIR = path.join(DATA_DIR, "videos");
 const MANIFEST = path.join(DATA_DIR, "manifest.json");
 
-type ImageItem = {
-  kind: "image";
-  id: string;
-  url: string;
-  filename: string;
-  prompt: string;
-  size: "1024x1024" | "1536x1024" | "1024x1536";
-  format: "png" | "jpeg";
-  createdAt: string;
-};
-
-type VideoItem = {
-  kind: "video";
-  id: string;
-  url: string;
-  filename: string;
-  prompt: string;
-  width: number;
-  height: number;
-  duration: number;
-  createdAt: string;
-};
-
-type LibraryItem = ImageItem | VideoItem;
+/** Types moved to @image-studio/shared */
 
 async function ensureDirs() {
   await fs.mkdir(IMG_DIR, { recursive: true });
@@ -190,12 +168,15 @@ app.post("/api/images/edit", async (req, reply) => {
     const srcPath = path.join(IMG_DIR, src.filename);
     const srcBuf = await fs.readFile(srcPath);
     const srcMime = src.filename.endsWith(".jpg") ? "image/jpeg" : "image/png";
-    form.set("image", new File([srcBuf], src.filename, { type: srcMime }));
+    // Use a Uint8Array view to ensure BlobPart is ArrayBufferView<ArrayBuffer>
+    const srcView = new Uint8Array(srcBuf);
+    form.set("image", new File([srcView], src.filename, { type: srcMime }));
 
     // optional mask (PNG with transparent regions to edit)
     if (body.mask_data_url) {
       const maskBuf = dataURLtoBuffer(body.mask_data_url);
-      form.set("mask", new File([maskBuf], "mask.png", { type: "image/png" }));
+      const maskView = new Uint8Array(maskBuf);
+      form.set("mask", new File([maskView], "mask.png", { type: "image/png" }));
     }
 
     const url = `${AZ.endpoint}/openai/v1/images/edits?api-version=${AZ.apiVersion}`;
@@ -949,6 +930,24 @@ app.post("/api/videos/analyze", async (req, reply) => {
 });
 
 app.get("/healthz", async () => ({ ok: true }));
+
+// ----------------- ANALYTICS EVENTS -----------------
+const AnalyticsEvent = z.object({
+  name: z.string().min(1),
+  ts: z.string().refine((val) => !isNaN(Date.parse(val)), { message: "Invalid ISO date" }),
+  props: z.record(z.unknown()).optional()
+});
+
+app.post("/api/analytics", async (req, reply) => {
+  try {
+    const event = AnalyticsEvent.parse(req.body);
+    req.log.info({ analytics: event });
+    return reply.send({ ok: true });
+  } catch (e: any) {
+    req.log.warn({ analytics_error: e });
+    return reply.status(400).send({ error: "Invalid analytics event" });
+  }
+});
 
 const port = Number(process.env.PORT || 8787);
 app.listen({ port, host: "0.0.0.0" }).catch((e) => { app.log.error(e); process.exit(1); });
