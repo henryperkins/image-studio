@@ -6,7 +6,11 @@
     "moduleResolution": "Bundler",
     "strict": true,
     "skipLibCheck": true,
-    "types": ["react", "react-dom"]
+    "types": ["react", "react-dom"],
+    "baseUrl": ".",
+    "paths": {
+      "@image-studio/shared": ["../shared/src"]
+    }
   },
   "exclude": ["src/__tests__/**/*"]
 }

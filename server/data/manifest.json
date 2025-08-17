@@ -1,6 +1,27 @@
 [
   {
     "kind": "video",
+    "id": "93cf1348-dcfe-4aab-9830-11c4f9054460",
+    "filename": "93cf1348-dcfe-4aab-9830-11c4f9054460.mp4",
+    "url": "/static/videos/93cf1348-dcfe-4aab-9830-11c4f9054460.mp4",
+    "prompt": "Cinematic aerial shot of sunlit mountain peaks above a valley filled with rolling clouds and lush pine trees, golden hour lighting, wide panoramic view, dramatic shadows, tranquil and majestic mood.\n\n[Reference images]\nhttp://localhost:8787/static/images/e00e898a-bccc-4516-b342-18d1be8243d9.png",
+    "width": 1080,
+    "height": 1080,
+    "duration": 10,
+    "createdAt": "2025-08-16T23:45:03.641Z"
+  },
+  {
+    "kind": "image",
+    "id": "e00e898a-bccc-4516-b342-18d1be8243d9",
+    "filename": "e00e898a-bccc-4516-b342-18d1be8243d9.png",
+    "url": "/static/images/e00e898a-bccc-4516-b342-18d1be8243d9.png",
+    "prompt": "Sunny mountains and cloudy valley",
+    "size": "1024x1024",
+    "format": "png",
+    "createdAt": "2025-08-16T23:42:42.647Z"
+  },
+  {
+    "kind": "video",
     "id": "20024d50-d7b8-422b-b1d4-b8395b6a23a7",
     "filename": "20024d50-d7b8-422b-b1d4-b8395b6a23a7.mp4",
     "url": "/static/videos/20024d50-d7b8-422b-b1d4-b8395b6a23a7.mp4",

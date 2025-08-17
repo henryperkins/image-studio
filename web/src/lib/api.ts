@@ -2,22 +2,30 @@
 // This allows mobile devices to connect to the dev server
 function getApiBaseUrl() {
   const envUrl = (import.meta as any).env.VITE_API_BASE_URL;
-  if (envUrl) return envUrl;
-  
+  if (envUrl) {
+    console.log(`📍 Using env-configured API URL: ${envUrl}`);
+    return envUrl;
+  }
+
   // If accessing from localhost, use localhost
   if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+    console.log(`🏠 Using localhost API URL`);
     return "http://localhost:8787";
   }
-  
+
   // Otherwise, use the same hostname as the web app but on port 8787
   // This works when accessing from mobile devices on the same network
-  return `http://${window.location.hostname}:8787`;
+  const apiUrl = `http://${window.location.hostname}:8787`;
+  console.log(`📱 Using network API URL for mobile/remote access: ${apiUrl}`);
+  return apiUrl;
 }
 
 export const API_BASE_URL = getApiBaseUrl();
 
-// Log the API URL for debugging (especially helpful for mobile testing)
+// Enhanced debugging info for mobile connections
 console.log(`🔗 API Base URL: ${API_BASE_URL}`);
+console.log(`📱 User Agent: ${navigator.userAgent}`);
+console.log(`🌐 Current host: ${window.location.hostname}:${window.location.port || '(default)'}`);
 
 function withTimeout(ms: number) {
   const controller = new AbortController();
@@ -28,43 +36,54 @@ function withTimeout(ms: number) {
 async function fetchJson(input: RequestInfo, init: RequestInit & { timeoutMs?: number } = {}) {
   const { timeoutMs = 30000, ...rest } = init;
   const { signal, cancel } = withTimeout(timeoutMs);
+
+  // Log API calls for debugging (especially mobile)
+  if (typeof input === 'string') {
+    console.log(`🔄 API Request: ${input}`);
+  }
+
   try {
     const r = await fetch(input, { ...rest, signal });
     if (!r.ok) {
       const text = await r.text().catch(() => r.statusText);
+      console.error(`❌ API Error (${r.status}): ${text}`);
       throw new Error(text || `HTTP ${r.status}`);
     }
     const ct = r.headers.get('content-type') || '';
-    return ct.includes('application/json') ? r.json() : r.text();
+    const result = ct.includes('application/json') ? await r.json() : await r.text();
+    console.log(`✅ API Response received`);
+    return result;
+  } catch (error: any) {
+    if (error.name === 'AbortError') {
+      console.error(`⏱️ Request timeout after ${timeoutMs}ms`);
+      throw new Error(`Request timeout after ${timeoutMs/1000}s. The server may be unreachable.`);
+    }
+    console.error(`🔌 Network error:`, error);
+    throw error;
   } finally {
     cancel();
   }
 }
 
-export type ImageItem = {
-  kind: "image";
-  id: string;
-  url: string;
-  filename: string;
-  prompt: string;
-  size: "1024x1024" | "1536x1024" | "1024x1536";
-  format: "png" | "jpeg";
-  createdAt: string;
+import type {
+  ImageItem,
+  VideoItem,
+  LibraryItem,
+  StructuredVisionResult,
+  AccessibilityAnalysisResult,
+  VisionHealthStatus
+} from "@image-studio/shared";
+
+// Re-export types that are used in other files
+export type {
+  ImageItem,
+  VideoItem,
+  LibraryItem,
+  StructuredVisionResult,
+  AccessibilityAnalysisResult,
+  VisionHealthStatus
 };
 
-export type VideoItem = {
-  kind: "video";
-  id: string;
-  url: string;
-  filename: string;
-  prompt: string;
-  width: number;
-  height: number;
-  duration: number;
-  createdAt: string;
-};
-
-export type LibraryItem = ImageItem | VideoItem;
 export const isVideoItem = (i: LibraryItem): i is VideoItem => i.kind === "video";
 
 // Prompt Suggestions
@@ -123,12 +142,38 @@ export async function deleteLibraryItem(id: string) {
 }
 
 export async function generateImage(prompt: string, size: string, quality: string, format: "png"|"jpeg") {
-  const r = await fetch(`${API_BASE_URL}/api/images/generate`, {
-    method: "POST", headers: {"Content-Type":"application/json"},
-    body: JSON.stringify({ prompt, size, quality, output_format: format, n: 1 })
-  });
-  if (!r.ok) throw new Error(await r.text());
-  return await r.json();
+  const url = `${API_BASE_URL}/api/images/generate`;
+  console.log(`🎨 Generating image at: ${url}`);
+
+  try {
+    const r = await fetch(url, {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({ prompt, size, quality, output_format: format, n: 1 })
+    });
+
+    if (!r.ok) {
+      const errorText = await r.text();
+      console.error(`❌ Image generation failed (${r.status}): ${errorText}`);
+      throw new Error(errorText);
+    }
+
+    const result = await r.json();
+    console.log(`✅ Image generated successfully`);
+    return result;
+  } catch (error: any) {
+    // Enhanced error for mobile debugging
+    if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      if (isMobile) {
+        console.error(`📱 Mobile network error detected`);
+        console.error(`💡 Tip: Ensure you're on the same WiFi as the server`);
+        console.error(`💡 Server should be accessible at: ${API_BASE_URL}`);
+        throw new Error(`Network error: Cannot reach server at ${API_BASE_URL}. Make sure you're on the same WiFi network as the server.`);
+      }
+    }
+    throw error;
+  }
 }
 
 export async function editImage(image_id: string, prompt: string, mask_data_url?: string, size: string = "1024x1024", output_format: "png"|"jpeg" = "png") {
@@ -154,97 +199,7 @@ export interface VisionAnalysisParams {
   force_refresh?: boolean;
 }
 
-export interface StructuredVisionResult {
-  metadata: {
-    language: string;
-    confidence: 'high' | 'medium' | 'low';
-    content_type: 'photograph' | 'illustration' | 'screenshot' | 'diagram' | 'artwork' | 'other';
-    sensitive_content: boolean;
-    processing_notes: string[];
-  };
-  accessibility: {
-    alt_text: string;
-    long_description: string;
-    reading_level: number;
-    color_accessibility: {
-      relies_on_color: boolean;
-      color_blind_safe: boolean;
-    };
-  };
-  content: {
-    primary_subjects: string[];
-    scene_description: string;
-    visual_elements: {
-      composition: string;
-      lighting: string;
-      colors: string[];
-      style: string;
-      mood: string;
-    };
-    text_content: string[];
-    spatial_layout: string;
-  };
-  generation_guidance: {
-    suggested_prompt: string;
-    style_keywords: string[];
-    technical_parameters: {
-      aspect_ratio: string;
-      recommended_model: string;
-      complexity_score: number;
-    };
-  };
-  safety_flags: {
-    violence: boolean;
-    adult_content: boolean;
-    pii_detected: boolean;
-    medical_content: boolean;
-    weapons: boolean;
-    substances: boolean;
-  };
-  uncertainty_notes: string[];
-}
 
-export interface AccessibilityAnalysisResult {
-  alt_text: string;
-  long_description: string;
-  reading_level: number;
-  color_accessibility: {
-    relies_on_color: boolean;
-    color_blind_safe: boolean;
-  };
-  spatial_layout: string;
-  text_content: string[];
-  processing_notes: string[];
-}
-
-export interface VisionHealthStatus {
-  healthy: boolean;
-  details: {
-    service?: {
-      healthy: boolean;
-      latency?: number;
-      error?: string;
-    };
-    cache?: {
-      size: number;
-      healthy: boolean;
-    };
-    circuitBreaker?: {
-      state: string;
-    };
-    metrics?: {
-      total_requests: number;
-      successful_requests: number;
-      failed_requests: number;
-      cache_hits: number;
-      cache_misses: number;
-      average_latency: number;
-      success_rate: number;
-      cache_hit_rate: number;
-      error_counts: Record<string, number>;
-    };
-  };
-}
 
 // Legacy function for backward compatibility
 export async function describeImagesByIds(ids: string[], detail: "auto"|"low"|"high" = "high", mode: "describe"|"video_ideas" = "describe", style: "concise"|"detailed" = "concise") {

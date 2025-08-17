@@ -48,7 +48,9 @@ export default function ImageCreator({ onSaved, promptInputRef, prompt, setPromp
     } catch (e: any) {
       const errorMsg = e.message || "Failed to generate image";
       const isRateLimit = errorMsg.toLowerCase().includes('rate') || errorMsg.toLowerCase().includes('limit');
-      const isNetworkError = errorMsg.toLowerCase().includes('network') || errorMsg.toLowerCase().includes('fetch') || errorMsg.toLowerCase().includes('failed');
+      const isNetworkError = errorMsg.toLowerCase().includes('network') || errorMsg.toLowerCase().includes('fetch') || 
+                           errorMsg.toLowerCase().includes('failed') || errorMsg.toLowerCase().includes('timeout') ||
+                           errorMsg.toLowerCase().includes('cannot reach');
       const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
       
       let detailedError = errorMsg;
@@ -56,7 +58,8 @@ export default function ImageCreator({ onSaved, promptInputRef, prompt, setPromp
         detailedError = `${errorMsg}. Please wait a moment before retrying.`;
       } else if (isNetworkError) {
         if (isMobileDevice && window.location.hostname !== 'localhost') {
-          detailedError = `Connection failed. On mobile? Make sure:\n1. You're on the same WiFi as the server\n2. The server is running\n3. Using correct IP: ${API_BASE_URL}`;
+          const currentHost = window.location.hostname;
+          detailedError = `Connection failed on mobile device.\n\nPlease check:\n1. ✓ Same WiFi network as server\n2. ✓ Server is running (port 8787)\n3. ✓ Correct IP address\n\nCurrent: ${currentHost}\nAPI URL: ${API_BASE_URL}\n\nTip: Ask server admin for the correct IP address.`;
         } else {
           detailedError = `Network error: ${errorMsg}. Check your connection and try again.`;
         }

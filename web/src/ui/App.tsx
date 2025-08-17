@@ -11,6 +11,7 @@ import { PreferencesProvider } from "../contexts/PreferencesContext";
 import PromptSuggestions from "./PromptSuggestions";
 import { usePromptSuggestions } from "../contexts/PromptSuggestionsContext";
 import { useToast } from "../contexts/ToastContext";
+import ConnectionStatus from "./ConnectionStatus";
 
 type View = "images" | "sora" | "typography";
 
@@ -516,6 +517,9 @@ useEffect(() => {
           baseUrl={API_BASE_URL}
         />
       )}
+      
+      {/* Connection status indicator for debugging mobile issues */}
+      <ConnectionStatus />
     </div>
   );
 }
