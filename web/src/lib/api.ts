@@ -1,21 +1,49 @@
 // Dynamically determine API URL based on current host
 // This allows mobile devices to connect to the dev server
 function getApiBaseUrl() {
-  const envUrl = (import.meta as any).env.VITE_API_BASE_URL;
+  // 1) Build-time override via env
+  const envUrl = (import.meta as any).env?.VITE_API_BASE_URL as string | undefined;
   if (envUrl) {
     console.log(`📍 Using env-configured API URL: ${envUrl}`);
     return envUrl;
   }
 
-  // If accessing from localhost, use localhost
-  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-    console.log(`🏠 Using localhost API URL`);
-    return "http://localhost:8787";
+  // 2) Runtime overrides
+  try {
+    const url = new URL(window.location.href);
+    const paramUrl = url.searchParams.get('api');
+    if (paramUrl) {
+      // Persist for subsequent loads
+      localStorage.setItem('API_BASE_URL', paramUrl);
+      console.log(`🧭 API override from URL param: ${paramUrl}`);
+      return paramUrl;
+    }
+  } catch {}
+
+  try {
+    const stored = localStorage.getItem('API_BASE_URL');
+    if (stored) {
+      console.log(`💾 API override from localStorage: ${stored}`);
+      return stored;
+    }
+  } catch {}
+
+  // 3) Smart defaults based on current host
+  const host = window.location.hostname;
+
+  // In production builds, prefer same-origin API to work on public URLs
+  if ((import.meta as any).env && (import.meta as any).env.DEV === false) {
+    const sameOrigin = window.location.origin;
+    console.log(`🌐 Using same-origin API (prod): ${sameOrigin}`);
+    return sameOrigin;
   }
 
-  // Otherwise, use the same hostname as the web app but on port 8787
-  // This works when accessing from mobile devices on the same network
-  const apiUrl = `http://${window.location.hostname}:8787`;
+  // In dev, default to localhost or LAN host:8787
+  if (host === 'localhost' || host === '127.0.0.1') {
+    console.log(`🏠 Using localhost API URL`);
+    return 'http://localhost:8787';
+  }
+  const apiUrl = `http://${host}:8787`;
   console.log(`📱 Using network API URL for mobile/remote access: ${apiUrl}`);
   return apiUrl;
 }

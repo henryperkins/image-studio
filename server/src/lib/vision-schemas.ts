@@ -1,4 +1,5 @@
 // Strict JSON schemas for Azure OpenAI vision analysis
+import { StructuredDescriptionSchema, VideoAnalysisSchema } from "@image-studio/shared";
 
 export const IMAGE_ANALYSIS_SCHEMA = {
   type: "object",

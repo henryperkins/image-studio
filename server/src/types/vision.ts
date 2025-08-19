@@ -1,17 +1,42 @@
 /**
- * Vision Analysis Types and Schemas
- * NOTE: Shared types (ImageItem, VideoItem, LibraryItem, StructuredVisionResult, AccessibilityAnalysisResult, VisionHealthStatus)
- * have been moved to ./shared.ts for cross-project consistency.
+ * Vision Analysis Types and Additional Schemas
+ * Core schemas have been moved to @image-studio/shared/schemas
  */
-import { z } from "zod";
 import type {
   ImageItem,
   VideoItem,
   LibraryItem,
   StructuredVisionResult,
   AccessibilityAnalysisResult,
-  VisionHealthStatus
-} from "./shared";
+  VisionHealthStatus,
+  VisionMetadata,
+  Accessibility,
+  Content,
+  GenerationGuidance,
+  SafetyFlags,
+  StructuredDescription,
+  VideoAnalysis
+} from "@image-studio/shared";
+
+export type {
+  VisionMetadata,
+  Accessibility,
+  Content,
+  GenerationGuidance,
+  SafetyFlags,
+  StructuredDescription,
+  VideoAnalysis
+} from "@image-studio/shared";
+
+export {
+  VisionMetadataSchema,
+  AccessibilitySchema,
+  ContentSchema,
+  GenerationGuidanceSchema,
+  SafetyFlagsSchema,
+  StructuredDescriptionSchema,
+  VideoAnalysisSchema
+} from "@image-studio/shared";
 
 // Moderation result interface
 export interface ModerationResult {
@@ -51,109 +76,6 @@ export interface Frame {
   data_url: string;
 }
 
-// Structured output schema for vision analysis
-export const VisionMetadataSchema = z.object({
-  language: z.string(),
-  confidence: z.enum(['high', 'medium', 'low']),
-  content_type: z.enum(['photograph', 'illustration', 'screenshot', 'diagram', 'artwork', 'other']),
-  sensitive_content: z.boolean(),
-  processing_notes: z.array(z.string())
-});
-
-export const AccessibilitySchema = z.object({
-  alt_text: z.string().max(125),
-  long_description: z.string(),
-  reading_level: z.number(),
-  color_accessibility: z.object({
-    relies_on_color: z.boolean(),
-    color_blind_safe: z.boolean()
-  })
-});
-
-export const ContentSchema = z.object({
-  primary_subjects: z.array(z.string()),
-  scene_description: z.string(),
-  visual_elements: z.object({
-    composition: z.string(),
-    lighting: z.string(),
-    colors: z.array(z.string()),
-    style: z.string(),
-    mood: z.string()
-  }),
-  text_content: z.array(z.string()),
-  spatial_layout: z.string()
-});
-
-export const GenerationGuidanceSchema = z.object({
-  suggested_prompt: z.string(),
-  style_keywords: z.array(z.string()),
-  technical_parameters: z.object({
-    aspect_ratio: z.string(),
-    recommended_model: z.string(),
-    complexity_score: z.number().min(1).max(10)
-  })
-});
-
-export const SafetyFlagsSchema = z.object({
-  violence: z.boolean(),
-  adult_content: z.boolean(),
-  pii_detected: z.boolean(),
-  medical_content: z.boolean(),
-  weapons: z.boolean(),
-  substances: z.boolean()
-});
-
-export const StructuredDescriptionSchema = z.object({
-  metadata: VisionMetadataSchema,
-  accessibility: AccessibilitySchema,
-  content: ContentSchema,
-  generation_guidance: GenerationGuidanceSchema,
-  safety_flags: SafetyFlagsSchema,
-  uncertainty_notes: z.array(z.string())
-});
-
-export const VideoAnalysisSchema = StructuredDescriptionSchema.extend({
-  duration_seconds: z.number().optional(),
-  keyframes: z.array(z.object({
-    timestamp: z.number(),
-    summary: z.string()
-  })).optional(),
-  scene_segments: z.array(z.object({
-    start_time: z.number(),
-    end_time: z.number(),
-    summary: z.string()
-  })).optional(),
-  actions: z.array(z.string()).optional(),
-  temporal_analysis: z.object({
-    continuity: z.string(),
-    pace: z.string(),
-    camera_movement: z.string()
-  }).optional(),
-  video_analysis: z.object({
-    scene_segments: z.array(z.object({
-      start_time: z.number(),
-      end_time: z.number(),
-      description: z.string()
-    })),
-    motion_analysis: z.object({
-      camera_movement: z.string(),
-      subject_movement: z.string(),
-      transitions: z.string()
-    }),
-    temporal_coherence: z.number().min(1).max(10),
-    keyframe_quality: z.array(z.string())
-  }).optional()
-});
-
-export type VisionMetadata = z.infer<typeof VisionMetadataSchema>;
-export type Accessibility = z.infer<typeof AccessibilitySchema>;
-export type Content = z.infer<typeof ContentSchema>;
-export type GenerationGuidance = z.infer<typeof GenerationGuidanceSchema>;
-export type SafetyFlags = z.infer<typeof SafetyFlagsSchema>;
-
-// Use shared types for these:
-export type StructuredDescription = StructuredVisionResult;
-export type VideoAnalysis = StructuredVisionResult & { duration_seconds?: number; keyframes?: any[]; scene_segments?: any[]; actions?: string[]; temporal_analysis?: any; video_analysis?: any; };
 
 // Error types for vision processing
 export enum ErrorCode {

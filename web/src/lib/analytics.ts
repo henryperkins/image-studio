@@ -1,24 +1,19 @@
 import { API_BASE_URL } from './api';
+import type { AnalyticsEvent } from '@image-studio/shared';
 
 const KEY = 'analytics:queue:v1';
 
-type EventPayload = {
-  name: string;
-  ts: string;
-  props?: Record<string, unknown>;
-};
-
-function enqueue(ev: EventPayload) {
+function enqueue(ev: AnalyticsEvent) {
   try {
     const raw = localStorage.getItem(KEY);
-    const arr: EventPayload[] = raw ? JSON.parse(raw) : [];
+    const arr: AnalyticsEvent[] = raw ? JSON.parse(raw) : [];
     arr.push(ev);
     localStorage.setItem(KEY, JSON.stringify(arr));
   } catch {}
 }
 
 export function recordEvent(name: string, props?: Record<string, unknown>) {
-  const ev: EventPayload = { name, ts: new Date().toISOString(), props };
+  const ev: AnalyticsEvent = { name, ts: new Date().toISOString(), props };
   enqueue(ev);
 
   // Best-effort POST; ignore failures silently

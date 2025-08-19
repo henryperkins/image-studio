@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { editImage, type LibraryItem } from "../lib/api";
+import { useToast } from "../contexts/ToastContext";
 
 type Props = {
   item: LibraryItem & { kind: "image" };
@@ -10,6 +11,7 @@ type Props = {
 
 export default function ImageEditor({ item, onClose, onEdited, baseUrl }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const previewRef = useRef<HTMLCanvasElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
   const [brush, setBrush] = useState(30);
   const [drawing, setDrawing] = useState(false);
@@ -20,6 +22,7 @@ export default function ImageEditor({ item, onClose, onEdited, baseUrl }: Props)
   // Added: track whether user has drawn and last pointer position for smooth strokes
   const [hasMask, setHasMask] = useState(false);
   const lastPt = useRef<{ x: number; y: number } | null>(null);
+  const { showToast } = useToast();
 
   // Initialize mask canvas as opaque (white). Transparent pixels will be areas to change.
   useEffect(() => {
@@ -29,6 +32,9 @@ export default function ImageEditor({ item, onClose, onEdited, baseUrl }: Props)
     ctx.clearRect(0, 0, c.width, c.height);
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, c.width, c.height);
+    const p = previewRef.current!;
+    const pctx = p.getContext("2d")!;
+    pctx.clearRect(0, 0, p.width, p.height);
     setHasMask(false);
     lastPt.current = null;
   }, [item.id]);
@@ -37,14 +43,19 @@ export default function ImageEditor({ item, onClose, onEdited, baseUrl }: Props)
   useEffect(() => {
     const img = imgRef.current!;
     const c = canvasRef.current!;
+    const p = previewRef.current!;
     const sync = () => {
       c.width = img.naturalWidth;
       c.height = img.naturalHeight;
+      p.width = img.naturalWidth;
+      p.height = img.naturalHeight;
       const ctx = c.getContext("2d")!;
       ctx.globalCompositeOperation = "source-over";
       ctx.clearRect(0, 0, c.width, c.height);
       ctx.fillStyle = "#ffffff";
       ctx.fillRect(0, 0, c.width, c.height);
+      const pctx = p.getContext("2d")!;
+      pctx.clearRect(0, 0, p.width, p.height);
       setHasMask(false);
       lastPt.current = null;
     };
@@ -80,6 +91,25 @@ export default function ImageEditor({ item, onClose, onEdited, baseUrl }: Props)
       ctx.lineTo(x, y);
       ctx.stroke();
     }
+    // Visual preview stroke (tinted mask overlay)
+    const p = previewRef.current!;
+    const pctx = p.getContext("2d")!;
+    pctx.globalCompositeOperation = "source-over";
+    pctx.strokeStyle = "rgba(255,0,0,0.35)";
+    pctx.fillStyle = "rgba(255,0,0,0.35)";
+    pctx.lineCap = "round";
+    pctx.lineJoin = "round";
+    pctx.lineWidth = brush;
+    if (!lastPt.current || initial) {
+      pctx.beginPath();
+      pctx.arc(x, y, brush / 2, 0, Math.PI * 2);
+      pctx.fill();
+    } else {
+      pctx.beginPath();
+      pctx.moveTo(lastPt.current.x, lastPt.current.y);
+      pctx.lineTo(x, y);
+      pctx.stroke();
+    }
     lastPt.current = { x, y };
     setHasMask(true);
   }
@@ -91,8 +121,9 @@ export default function ImageEditor({ item, onClose, onEdited, baseUrl }: Props)
       const maskPng = hasMask ? canvasRef.current!.toDataURL("image/png") : undefined;
       const res = await editImage(item.id, prompt || "Apply the painted mask changes", maskPng, size, format);
       onEdited(res.library_item.id);
+      showToast("Image edited and saved", "success");
     } catch (e) {
-      alert((e as any).message || "Edit failed");
+      showToast((e as any).message || "Edit failed", "error");
     } finally { setBusy(false); }
   }
 
@@ -107,6 +138,10 @@ export default function ImageEditor({ item, onClose, onEdited, baseUrl }: Props)
         <div className="grid md:grid-cols-2 gap-4 p-4">
           <div className="relative">
             <img ref={imgRef} src={`${baseUrl}${item.url}`} alt="" className="w-full rounded-lg border border-neutral-800 select-none pointer-events-none" />
+            <canvas
+              ref={previewRef}
+              className="absolute inset-0 w-full h-full pointer-events-none"
+            />
             <canvas
               ref={canvasRef}
               className="absolute inset-0 w-full h-full cursor-crosshair"
@@ -139,18 +174,20 @@ export default function ImageEditor({ item, onClose, onEdited, baseUrl }: Props)
               </label>
             </div>
             <div className="flex gap-2">
-              <button className="btn" disabled={busy || !prompt.trim()} onClick={runEdit}>{busy ? "Editing…" : "Apply Edit & Save"}</button>
+              <button className="btn" disabled={busy} onClick={runEdit}>{busy ? "Editing…" : "Apply Edit & Save"}</button>
               <button className="btn" onClick={()=>{
                 const c = canvasRef.current!; const ctx = c.getContext("2d")!;
                 ctx.globalCompositeOperation = "source-over";
                 ctx.clearRect(0,0,c.width,c.height);
                 ctx.fillStyle = "#ffffff";
                 ctx.fillRect(0,0,c.width,c.height);
+                const p = previewRef.current!; const pctx = p.getContext("2d")!;
+                pctx.clearRect(0,0,p.width,p.height);
                 setHasMask(false);
                 lastPt.current = null;
               }}>Clear Mask</button>
             </div>
-            <p className="text-xs text-neutral-500">Paint the areas to change; transparent pixels become the edit mask. The edited image is saved back to your library.</p>
+            <p className="text-xs text-neutral-500">Paint areas to change; red tint shows your mask. Leave prompt empty for a global transform.</p>
           </div>
         </div>
       </div>

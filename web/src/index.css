@@ -202,6 +202,16 @@ body {
   animation: fadeIn 0.3s ease-out;
 }
 
+/* Slide up animation */
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-slide-up {
+  animation: slideUp 0.3s ease-out;
+}
+
 /* Toast notifications */
 .toast {
   @apply fixed right-4 px-4 py-3 rounded-xl shadow-lg;

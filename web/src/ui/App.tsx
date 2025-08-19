@@ -4,8 +4,8 @@ import SoraCreator from "./SoraCreator";
 import { listLibrary, type LibraryItem, API_BASE_URL, isVideoItem } from "../lib/api";
 import ImageEditor from "./ImageEditor";
 import VideoEditor from "./VideoEditor";
+import ImageViewerModal from "./ImageViewerModal";
 import { Heading, Text } from "./typography";
-import { TypographySpecimen } from "./TypographySpecimen";
 import { PromptSuggestionsProvider } from "../contexts/PromptSuggestionsContext";
 import { PreferencesProvider } from "../contexts/PreferencesContext";
 import PromptSuggestions from "./PromptSuggestions";
@@ -13,7 +13,7 @@ import { usePromptSuggestions } from "../contexts/PromptSuggestionsContext";
 import { useToast } from "../contexts/ToastContext";
 import ConnectionStatus from "./ConnectionStatus";
 
-type View = "images" | "sora" | "typography";
+type View = "images" | "sora";
 
 function AppContent() {
   // Setup for accessible tabs + deep-linking
@@ -21,7 +21,6 @@ function AppContent() {
     const q = new URLSearchParams(window.location.search);
     const v = q.get("view");
     if (v === "sora") return "sora";
-    if (v === "typography") return "typography";
     return "images";
   }
 
@@ -32,6 +31,7 @@ function AppContent() {
   const [mobileLibraryOpen, setMobileLibraryOpen] = useState(false);
   const [editImageId, setEditImageId] = useState<string | null>(null);
   const [editVideoId, setEditVideoId] = useState<string | null>(null);
+  const [viewImageId, setViewImageId] = useState<string | null>(null);
 
   // Lifted state for the prompt (used by visible creator panel)
   const [prompt, setPrompt] = useState("");
@@ -63,7 +63,7 @@ function AppContent() {
     }
     // Focus management: Move focus to the active panel after view change
     requestAnimationFrame(() => {
-      const panelId = view === "images" ? "panel-images" : view === "sora" ? "panel-sora" : "panel-typography";
+      const panelId = view === "images" ? "panel-images" : "panel-sora";
       const panel = document.getElementById(panelId);
       if (panel) {
         // Find first focusable element in the panel
@@ -147,25 +147,10 @@ useEffect(() => {
   }
   prevCountRef.current = suggestions.length;
 }, [suggestions.length, mobileLibraryOpen, showToast]);
-  // Typography specimen view
-  if (view === "typography") {
-    return (
-      <div className="mx-auto max-w-7xl p-4">
-        <header className="flex items-center justify-between mb-4">
-          <Heading level={1} serif={false} className="!text-2xl">
-            Typography System
-          </Heading>
-          <button className="btn btn-primary" onClick={() => setView("images")}>
-            Back to Studio
-          </button>
-        </header>
-        <TypographySpecimen />
-      </div>
-    );
-  }
 
   const imgToEdit = editImageId ? (library.find((i) => i.id === editImageId && !isVideoItem(i)) as any) : null;
   const vidToEdit = editVideoId ? (library.find((i) => i.id === editVideoId && isVideoItem(i)) as any) : null;
+  const imgToView = viewImageId ? (library.find((i) => i.id === viewImageId && !isVideoItem(i)) as any) : null;
 
   return (
     <div className="mx-auto max-w-6xl p-4 space-y-4">
@@ -372,7 +357,7 @@ useEffect(() => {
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-[320px] md:max-h-[520px] overflow-auto fade-in">
               {library.map((item, index) => (
-                <label
+                <div
                   key={item.id}
                   className="relative cursor-pointer group"
                   style={{
@@ -382,19 +367,24 @@ useEffect(() => {
                   {!isVideoItem(item) && (
                     <input
                       type="checkbox"
-                      className="absolute top-1 left-1 md:top-2 md:left-2 z-10 w-6 h-6 md:w-5 md:h-5 rounded cursor-pointer appearance-none bg-neutral-800/80 border-2 border-neutral-600 checked:bg-blue-500 checked:border-blue-500 transition-all duration-200 hover:border-neutral-400 checked:hover:bg-blue-400"
+                      className="absolute top-1 left-1 md:top-2 md:left-2 z-20 w-6 h-6 md:w-5 md:h-5 rounded cursor-pointer appearance-none bg-neutral-800/80 border-2 border-neutral-600 checked:bg-blue-500 checked:border-blue-500 transition-all duration-200 hover:border-neutral-400 checked:hover:bg-blue-400"
                       checked={selected.includes(item.id)}
-                      onChange={(e) =>
-                        setSelected((prev) => (e.target.checked ? [...prev, item.id] : prev.filter((x) => x !== item.id)))
-                      }
+                      onChange={(e) => {
+                        e.stopPropagation();
+                        setSelected((prev) => (e.target.checked ? [...prev, item.id] : prev.filter((x) => x !== item.id)));
+                      }}
+                      onClick={(e) => e.stopPropagation()}
                       aria-label={`Select image: ${item.prompt || `Image ${index + 1}`}`}
                     />
                   )}
 
                   {/* Edit button */}
                   <button
-                    className="absolute top-1 right-1 md:top-2 md:right-2 z-10 bg-black/70 text-white text-xs rounded px-2 py-1 opacity-0 group-hover:opacity-100 transition"
-                    onClick={() => (isVideoItem(item) ? setEditVideoId(item.id) : setEditImageId(item.id))}
+                    className="absolute top-1 right-1 md:top-2 md:right-2 z-20 bg-black/70 text-white text-xs rounded px-2 py-1 opacity-0 group-hover:opacity-100 transition"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      isVideoItem(item) ? setEditVideoId(item.id) : setEditImageId(item.id);
+                    }}
                     title="Edit"
                     aria-label="Edit"
                   >
@@ -403,7 +393,7 @@ useEffect(() => {
 
                   {!isVideoItem(item) && selected.includes(item.id) && (
                     <svg
-                      className="absolute top-1 left-1 md:top-2 md:left-2 w-6 h-6 md:w-5 md:h-5 text-white pointer-events-none z-20"
+                      className="absolute top-1 left-1 md:top-2 md:left-2 w-6 h-6 md:w-5 md:h-5 text-white pointer-events-none z-30"
                       viewBox="0 0 20 20"
                     >
                       <path
@@ -414,7 +404,7 @@ useEffect(() => {
                   )}
 
                   {isVideoItem(item) && (
-                    <div className="absolute top-1 left-1 md:top-2 md:left-2 z-10 bg-neutral-800/90 backdrop-blur-sm rounded px-1 py-0.5 flex items-center gap-1">
+                    <div className="absolute top-1 left-1 md:top-2 md:left-2 z-20 bg-neutral-800/90 backdrop-blur-sm rounded px-1 py-0.5 flex items-center gap-1 pointer-events-none">
                       <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
                         <path d="M2 6a2 2 0 012-2h6a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V6zM14.553 7.106A1 1 0 0014 8v4a1 1 0 00.553.894l2 1A1 1 0 0018 13V7a1 1 0 00-1.447-.894l-2 1z" />
                       </svg>
@@ -441,11 +431,12 @@ useEffect(() => {
                       alt={item.prompt || `Generated image ${index + 1}`}
                       loading="lazy"
                       className={`rounded-lg border border-neutral-800 transition-all duration-200 ${
-                        selected.includes(item.id) ? "outline outline-2 outline-blue-400 scale-95" : "hover:scale-105"
+                        selected.includes(item.id) ? "ring-2 ring-blue-400 scale-95" : "hover:scale-105"
                       }`}
+                      onClick={() => setViewImageId(item.id)}
                     />
                   )}
-                </label>
+                </div>
               ))}
             </div>
           )}
@@ -494,6 +485,17 @@ useEffect(() => {
       </footer>
 
       {/* Modals */}
+      {imgToView && (
+        <ImageViewerModal
+          item={imgToView}
+          onClose={() => setViewImageId(null)}
+          onEdit={() => {
+            setViewImageId(null);
+            setEditImageId(imgToView.id);
+          }}
+          baseUrl={API_BASE_URL}
+        />
+      )}
       {imgToEdit && (
         <ImageEditor
           item={imgToEdit}

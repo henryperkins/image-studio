@@ -119,12 +119,25 @@ export interface VisionHealthStatus {
   };
 }
 
-// Analytics event (mirrors server /api/analytics zod schema)
-export interface AnalyticsEvent {
-  name: string;
-  ts: string; // ISO timestamp
-  props?: Record<string, unknown>;
-}
+// Re-export schemas and types
+export {
+  VisionMetadataSchema,
+  AccessibilitySchema,
+  ContentSchema,
+  GenerationGuidanceSchema,
+  SafetyFlagsSchema,
+  StructuredDescriptionSchema,
+  VideoAnalysisSchema,
+  AnalyticsEventSchema,
+  type VisionMetadata,
+  type Accessibility,
+  type Content,
+  type GenerationGuidance,
+  type SafetyFlags,
+  type StructuredDescription,
+  type VideoAnalysis,
+  type AnalyticsEvent
+} from './schemas';
 
 // Shared timeout error contract to align web/server semantics (Phase 4)
 export interface TimeoutError {

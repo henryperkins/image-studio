@@ -121,7 +121,7 @@ check_server_health() {
     print_info "Waiting for server to be ready..."
     
     while [ $attempt -lt $max_attempts ]; do
-        if curl -s -o /dev/null -w "%{http_code}" http://localhost:$SERVER_PORT/health 2>/dev/null | grep -q "200\|404"; then
+        if curl -s -o /dev/null -w "%{http_code}" http://localhost:$SERVER_PORT/healthz 2>/dev/null | grep -q "200\|404"; then
             print_success "Server is responding on port $SERVER_PORT"
             return 0
         fi

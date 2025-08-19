@@ -8,17 +8,30 @@ AI Media Studio is a full-stack application for generating images and videos usi
 
 ## Development Commands
 
-### Root Level
+### Primary Development Workflow (Recommended)
+Use the `dev.sh` script for robust development with health checks and port management:
+- `./dev.sh start` - Start development servers with automatic port cleanup and health checks
+- `./dev.sh stop` - Stop all development servers
+- `./dev.sh restart` - Restart development servers
+- `./dev.sh status` - Check server status
+- `./dev.sh build` - Build for production
+- `./dev.sh prod` - Start production server
+- `./dev.sh logs` - Tail development logs
+- `./dev.sh clean` - Clean up ports 8787 and 5174
+
+### Alternative: pnpm Commands
+For simpler development without health checks:
 - `pnpm dev` - Start both web and server in development mode concurrently
 - `pnpm build` - Build both web and server for production
 - `pnpm start` - Start the production server
 
-### Server (`/server`)
+### Package-Specific Commands
+Server (`/server`):
 - `pnpm dev` - Start server in development mode with hot reload (tsx watch)
 - `pnpm build` - Build server using tsup (outputs to `dist/`)
 - `pnpm start` - Start production server from `dist/index.js`
 
-### Web (`/web`)
+Web (`/web`):
 - `pnpm dev` - Start Vite development server on port 5174
 - `pnpm build` - Build web app for production using Vite
 - `pnpm preview` - Preview production build
@@ -65,14 +78,26 @@ AI Media Studio is a full-stack application for generating images and videos usi
 7. Selected images can be used as Sora video references
 8. Vision API analyzes selected images to improve Sora prompts
 
+## Project Structure
+
+### Workspace Configuration
+- **Single pnpm workspace**: Managed by root `pnpm-workspace.yaml`
+- **Single lockfile**: Root `pnpm-lock.yaml` (no nested lockfiles)
+- **Unified manifest**: `server/data/manifest.json` for all media metadata
+- **Environment variables**: All in `server/.env` (server loads via dotenv)
+
 ## Environment Configuration
 
-The server requires Azure OpenAI environment variables:
+The server requires Azure OpenAI environment variables (configured in `server/.env`):
 - `AZURE_OPENAI_ENDPOINT` (required)
-- `AZURE_OPENAI_API_KEY` or `AZURE_OPENAI_BEARER`
+- `AZURE_OPENAI_API_KEY` or `AZURE_OPENAI_BEARER` (for authentication)
 - `AZURE_OPENAI_IMAGE_DEPLOYMENT` (for gpt-image-1)
-- `AZURE_OPENAI_VISION_DEPLOYMENT` (for GPT-4.1)
-- Various API version configurations
+- `AZURE_OPENAI_IMAGE_API_VERSION` (for image generation/editing, e.g., "2025-04-01-preview")
+- `AZURE_OPENAI_VISION_DEPLOYMENT` (for GPT-4.1 vision)
+- `AZURE_OPENAI_CHAT_API_VERSION` (for vision/chat completions, e.g., "2024-04-01-preview")
+- `AZURE_OPENAI_API_VERSION` (for Sora video generation, set to "preview")
+- `PORT` (server port, defaults to 8787)
+- `CORS_ORIGIN` (comma-separated allowed origins, defaults to localhost:5174 in dev)
 
 ### Enhanced Vision System Configuration
 For the new modular vision system with enhanced safety:

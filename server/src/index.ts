@@ -10,14 +10,16 @@ import crypto from "node:crypto";
 import child_process from "node:child_process";
 import ffmpegStatic from "ffmpeg-static";
 import type { ImageItem, VideoItem, LibraryItem } from "@image-studio/shared";
+import { AnalyticsEventSchema } from "@image-studio/shared";
 
 const app = Fastify({ logger: true });
 
-const ORIGIN_ENV = process.env.CORS_ORIGIN || "http://localhost:5174,http://127.0.0.1:5174";
-const ORIGIN_LIST = ORIGIN_ENV.split(",").map(s => s.trim()).filter(Boolean);
+// CORS origins from environment variable (required in production, defaults to localhost for dev)
+const ORIGIN_ENV = process.env.CORS_ORIGIN || "";
+const ORIGIN_LIST = ORIGIN_ENV ? ORIGIN_ENV.split(",").map(s => s.trim()).filter(Boolean) : ["http://localhost:5174", "http://127.0.0.1:5174"];
 
 await app.register(cors, {
-  // Allow local dev on 5174 (localhost and 127.0.0.1) or any origins listed in CORS_ORIGIN
+  // Allow origins from CORS_ORIGIN env var, or localhost:5174 in dev if not set
   origin: (origin, cb) => {
     // Allow non-browser or same-origin requests with no Origin header
     // if (!origin) return cb(null, true);
@@ -43,7 +45,12 @@ const AZ = {
   chatApiVersion: process.env.AZURE_OPENAI_CHAT_API_VERSION || "2024-02-15-preview",
   visionDeployment: process.env.AZURE_OPENAI_VISION_DEPLOYMENT || ""
 };
-if (!AZ.endpoint) throw new Error("Missing AZURE_OPENAI_ENDPOINT");
+// Allow the server to start even without Azure config.
+// Azure-dependent endpoints below already validate required settings
+// and will return 400 errors if misconfigured.
+if (!AZ.endpoint) {
+  console.warn("[server] AZURE_OPENAI_ENDPOINT not set. Azure-dependent endpoints will be disabled.");
+}
 
 // ----------------- library layout -----------------
 const DATA_DIR = path.resolve(process.cwd(), "data");
@@ -67,7 +74,7 @@ async function writeManifest(items: LibraryItem[]) {
   await fs.writeFile(MANIFEST, JSON.stringify(items, null, 2));
 }
 
-// Static
+// Static (media library)
 await app.register(fstatic, { root: IMG_DIR, prefix: "/static/images/", decorateReply: false });
 await app.register(fstatic, { root: VID_DIR, prefix: "/static/videos/", decorateReply: false });
 
@@ -204,7 +211,8 @@ app.post("/api/images/edit", async (req, reply) => {
     all.unshift(item);
     await writeManifest(all);
 
-    return reply.send({ image_base64: b64, library_item: item });
+    // For edits, return metadata only to avoid large payloads
+    return reply.send({ library_item: item });
   } catch (e: any) {
     req.log.error(e);
     return reply.status(400).send({ error: e.message || "Image edit failed" });
@@ -558,8 +566,7 @@ app.post("/api/videos/edit/trim", async (req, reply) => {
   await writeManifest(all);
 
   // stream back base64 (for immediate preview)
-  const b64 = (await fs.readFile(outPath)).toString("base64");
-  return reply.send({ video_base64: b64, library_item: item, content_type: "video/mp4" });
+  return reply.send({ library_item: item });
 });
 
 // ---------- Video Edits: CROP ----------
@@ -584,7 +591,7 @@ app.post("/api/videos/edit/crop", async (req, reply) => {
   
   const ffmpegPath = ffmpegStatic as string;
   await new Promise<void>((resolve, reject) => {
-    const args = ["-i", inPath, "-filter:v", vf, "-c:a", "copy", outPath, "-y"];
+    const args = ["-i", inPath, "-filter:v", vf, "-c:a", "copy", "-movflags", "+faststart", outPath, "-y"];
     const p = child_process.spawn(ffmpegPath, args);
     p.on("error", reject);
     p.stderr.on("data", d => req.log.debug({ ffmpeg: d.toString() }));
@@ -600,8 +607,7 @@ app.post("/api/videos/edit/crop", async (req, reply) => {
   const all = await readManifest(); 
   all.unshift(item); 
   await writeManifest(all);
-  const b64 = (await fs.readFile(outPath)).toString("base64");
-  return reply.send({ video_base64: b64, library_item: item, content_type: "video/mp4" });
+  return reply.send({ library_item: item });
 });
 
 // ---------- Video Edits: RESIZE / FIT ----------
@@ -617,6 +623,13 @@ app.post("/api/videos/edit/resize", async (req, reply) => {
   const lib = await readManifest(); 
   const src = lib.find(i => i.kind === "video" && i.id === b.video_id) as VideoItem | undefined;
   if (!src) return reply.status(404).send({ error: "Video not found" });
+  // Validate pad color to a safe subset (#RRGGBB or common names)
+  const safeColor = (c: string) => /^(#[0-9a-fA-F]{6})$/.test(c) || [
+    "black","white","gray","grey","red","green","blue","yellow","magenta","cyan","transparent"
+  ].includes(c.toLowerCase());
+  if (b.fit === "contain" && !safeColor(b.bg)) {
+    return reply.status(400).send({ error: "Invalid pad color" });
+  }
   
   const inPath = path.join(VID_DIR, src.filename);
   const id = crypto.randomUUID();
@@ -630,7 +643,7 @@ app.post("/api/videos/edit/resize", async (req, reply) => {
   
   const ffmpegPath = ffmpegStatic as string;
   await new Promise<void>((resolve, reject) => {
-    const args = ["-i", inPath, "-vf", vf, "-c:a", "copy", outPath, "-y"];
+    const args = ["-i", inPath, "-vf", vf, "-c:a", "copy", "-movflags", "+faststart", outPath, "-y"];
     const p = child_process.spawn(ffmpegPath, args);
     p.on("error", reject);
     p.stderr.on("data", d => req.log.debug({ ffmpeg: d.toString() }));
@@ -646,8 +659,7 @@ app.post("/api/videos/edit/resize", async (req, reply) => {
   const all = await readManifest(); 
   all.unshift(item); 
   await writeManifest(all);
-  const b64 = (await fs.readFile(outPath)).toString("base64");
-  return reply.send({ video_base64: b64, library_item: item, content_type: "video/mp4" });
+  return reply.send({ library_item: item });
 });
 
 // ---------- Video Edits: SPEED (with audio) ----------
@@ -678,7 +690,7 @@ app.post("/api/videos/edit/speed", async (req, reply) => {
   
   const ffmpegPath = ffmpegStatic as string;
   await new Promise<void>((resolve, reject) => {
-    const args = ["-i", inPath, "-filter:v", vset, "-filter:a", aset, outPath, "-y"];
+    const args = ["-i", inPath, "-filter:v", vset, "-filter:a", aset, "-movflags", "+faststart", outPath, "-y"];
     const p = child_process.spawn(ffmpegPath, args);
     p.on("error", reject);
     p.stderr.on("data", d => req.log.debug({ ffmpeg: d.toString() }));
@@ -695,8 +707,7 @@ app.post("/api/videos/edit/speed", async (req, reply) => {
   const all = await readManifest(); 
   all.unshift(item); 
   await writeManifest(all);
-  const b64 = (await fs.readFile(outPath)).toString("base64");
-  return reply.send({ video_base64: b64, library_item: item, content_type: "video/mp4" });
+  return reply.send({ library_item: item });
 });
 
 // ---------- Video Edits: MUTE / VOLUME ----------
@@ -714,7 +725,7 @@ app.post("/api/videos/edit/mute", async (req, reply) => {
   
   const ffmpegPath = ffmpegStatic as string;
   await new Promise<void>((resolve, reject) => {
-    const args = ["-i", inPath, "-an", "-c:v", "copy", outPath, "-y"];
+    const args = ["-i", inPath, "-an", "-c:v", "copy", "-movflags", "+faststart", outPath, "-y"];
     const p = child_process.spawn(ffmpegPath, args);
     p.on("error", reject);
     p.stderr.on("data", d => req.log.debug({ ffmpeg: d.toString() }));
@@ -730,8 +741,7 @@ app.post("/api/videos/edit/mute", async (req, reply) => {
   const all = await readManifest(); 
   all.unshift(item); 
   await writeManifest(all);
-  const b64 = (await fs.readFile(outPath)).toString("base64");
-  return reply.send({ video_base64: b64, library_item: item, content_type: "video/mp4" });
+  return reply.send({ library_item: item });
 });
 
 const VolumeReq = z.object({ 
@@ -751,7 +761,7 @@ app.post("/api/videos/edit/volume", async (req, reply) => {
   
   const ffmpegPath = ffmpegStatic as string;
   await new Promise<void>((resolve, reject) => {
-    const args = ["-i", inPath, "-filter:a", `volume=${b.gain_db}dB`, outPath, "-y"];
+    const args = ["-i", inPath, "-filter:a", `volume=${b.gain_db}dB`, "-movflags", "+faststart", outPath, "-y"];
     const p = child_process.spawn(ffmpegPath, args);
     p.on("error", reject);
     p.stderr.on("data", d => req.log.debug({ ffmpeg: d.toString() }));
@@ -767,8 +777,7 @@ app.post("/api/videos/edit/volume", async (req, reply) => {
   const all = await readManifest(); 
   all.unshift(item); 
   await writeManifest(all);
-  const b64 = (await fs.readFile(outPath)).toString("base64");
-  return reply.send({ video_base64: b64, library_item: item, content_type: "video/mp4" });
+  return reply.send({ library_item: item });
 });
 
 // ---------- Video Edits: OVERLAY IMAGE (watermark/logo) ----------
@@ -787,6 +796,12 @@ app.post("/api/videos/edit/overlay", async (req, reply) => {
   const src = lib.find(i => i.kind === "video" && i.id === b.video_id) as VideoItem | undefined;
   const img = lib.find(i => i.kind === "image" && i.id === b.image_id) as ImageItem | undefined;
   if (!src || !img) return reply.status(404).send({ error: "Video or image not found" });
+
+  // Validate overlay expressions to avoid filtergraph injection
+  const isSafeExpr = (s: string) => /^[\s0-9+\-*/().WHwh]+$/.test(s);
+  if (!isSafeExpr(b.x) || !isSafeExpr(b.y)) {
+    return reply.status(400).send({ error: "Invalid overlay position expression" });
+  }
 
   const inVideo = path.join(VID_DIR, src.filename);
   const inImage = path.join(IMG_DIR, img.filename);
@@ -807,7 +822,7 @@ app.post("/api/videos/edit/overlay", async (req, reply) => {
       "-loop", "1", "-i", inImage,
       "-filter_complex", ovChain,
       "-map", "[v]", "-map", "0:a?", "-shortest",
-      "-c:a", "copy", outPath, "-y"
+      "-c:a", "copy", "-movflags", "+faststart", outPath, "-y"
     ];
     const p = child_process.spawn(ffmpegPath, args);
     p.on("error", reject);
@@ -824,8 +839,7 @@ app.post("/api/videos/edit/overlay", async (req, reply) => {
   const all = await readManifest(); 
   all.unshift(item); 
   await writeManifest(all);
-  const b64 = (await fs.readFile(outPath)).toString("base64");
-  return reply.send({ video_base64: b64, library_item: item, content_type: "video/mp4" });
+  return reply.send({ library_item: item });
 });
 
 // ---------- Video Edits: CONCAT ----------
@@ -849,23 +863,38 @@ app.post("/api/videos/edit/concat", async (req, reply) => {
   const n = vids.length;
   const maps: string[] = [];
   const pre: string[] = [];
+  // If any input is missing audio (e.g., muted), emit video-only output to avoid concat failures
+  // Simple robustness: include audio only if all inputs have audio
+  async function hasAudio(filePath: string): Promise<boolean> {
+    return await new Promise<boolean>((resolve) => {
+      const ff = child_process.spawn(ffmpegStatic as string, ["-i", filePath]);
+      let stderr = "";
+      ff.stderr.on("data", d => stderr += d.toString());
+      ff.on("close", () => resolve(/Audio:\s/.test(stderr)));
+      ff.on("error", () => resolve(false));
+    });
+  }
+  const audioPresence = await Promise.all(inputs.map(p => hasAudio(p)));
+  const includeAudio = audioPresence.every(Boolean);
   for (let i = 0; i < n; i++) {
     const vLabel = `[v${i}]`;
     const aLabel = `[a${i}]`;
     const scale = (b.target_width && b.target_height)
       ? `scale=${b.target_width}:${b.target_height}:force_original_aspect_ratio=decrease,pad=${b.target_width}:${b.target_height}:(ow-iw)/2:(oh-ih)/2:color=black`
       : "null";
-    pre.push(`[${i}:v]${scale}${vLabel};[${i}:a]anull${aLabel}`);
-    maps.push(vLabel, aLabel);
+    pre.push(`[${i}:v]${scale}${vLabel}` + (includeAudio ? `;[${i}:a]anull${aLabel}` : ""));
+    maps.push(vLabel);
+    if (includeAudio) maps.push(aLabel);
   }
-  const fc = `${pre.join("")}${maps.join("")}concat=n=${n}:v=1:a=1[v][a]`;
+  const fc = includeAudio
+    ? `${pre.join("")}${maps.join("")}concat=n=${n}:v=1:a=1[v][a]`
+    : `${pre.join("")}${maps.join("")}concat=n=${n}:v=1:a=0[v]`;
   
   const ffmpegPath = ffmpegStatic as string;
   await new Promise<void>((resolve, reject) => {
-    const args = inputs.flatMap(f => ["-i", f]).concat([
-      "-filter_complex", fc, "-map", "[v]", "-map", "[a]",
-      "-c:v", "libx264", "-c:a", "aac", "-shortest", outPath, "-y"
-    ]);
+    const baseArgs = inputs.flatMap(f => ["-i", f]).concat(["-filter_complex", fc, "-map", "[v]"]);
+    if (includeAudio) baseArgs.push("-map", "[a]", "-c:a", "aac");
+    const args = baseArgs.concat(["-c:v", "libx264", "-shortest", "-movflags", "+faststart", outPath, "-y"]);
     const p = child_process.spawn(ffmpegPath, args);
     p.on("error", reject);
     p.stderr.on("data", d => req.log.debug({ ffmpeg: d.toString() }));
@@ -883,8 +912,7 @@ app.post("/api/videos/edit/concat", async (req, reply) => {
   const all = await readManifest(); 
   all.unshift(item); 
   await writeManifest(all);
-  const b64 = (await fs.readFile(outPath)).toString("base64");
-  return reply.send({ video_base64: b64, library_item: item, content_type: "video/mp4" });
+  return reply.send({ library_item: item });
 });
 
 // ---------- Video Analysis (Beta) ----------
@@ -932,15 +960,9 @@ app.post("/api/videos/analyze", async (req, reply) => {
 app.get("/healthz", async () => ({ ok: true }));
 
 // ----------------- ANALYTICS EVENTS -----------------
-const AnalyticsEvent = z.object({
-  name: z.string().min(1),
-  ts: z.string().refine((val) => !isNaN(Date.parse(val)), { message: "Invalid ISO date" }),
-  props: z.record(z.unknown()).optional()
-});
-
 app.post("/api/analytics", async (req, reply) => {
   try {
-    const event = AnalyticsEvent.parse(req.body);
+    const event = AnalyticsEventSchema.parse(req.body);
     req.log.info({ analytics: event });
     return reply.send({ ok: true });
   } catch (e: any) {
@@ -948,6 +970,24 @@ app.post("/api/analytics", async (req, reply) => {
     return reply.status(400).send({ error: "Invalid analytics event" });
   }
 });
+
+// ----------------- Serve built web app (SPA) in production -----------------
+try {
+  const WEB_DIST_DIR = path.resolve(process.cwd(), "../web/dist");
+  // Serve static assets from the built web directory
+  await app.register(fstatic, { root: WEB_DIST_DIR, prefix: "/", index: false, decorateReply: false });
+  // SPA fallback: send index.html for unknown routes that are not API/static
+  app.get("/*", async (_req, reply) => {
+    try {
+      const html = await fs.readFile(path.join(WEB_DIST_DIR, "index.html"), "utf-8");
+      reply.type("text/html").send(html);
+    } catch {
+      reply.code(404).send({ error: "Not found" });
+    }
+  });
+} catch (e) {
+  app.log.warn({ msg: "Web dist not found; dev mode?", error: (e as any)?.message });
+}
 
 const port = Number(process.env.PORT || 8787);
 app.listen({ port, host: "0.0.0.0" }).catch((e) => { app.log.error(e); process.exit(1); });

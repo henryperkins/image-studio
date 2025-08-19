@@ -1,5 +1,15 @@
 [
   {
+    "kind": "image",
+    "id": "0fee316b-9a28-47cb-9eb8-b909a437debd",
+    "filename": "0fee316b-9a28-47cb-9eb8-b909a437debd.png",
+    "url": "/static/images/0fee316b-9a28-47cb-9eb8-b909a437debd.png",
+    "prompt": "Cinematic video of a modern city skyline at sunset, viewed from across a calm river. The camera glides along a curved park path lined with green trees and lampposts, passing under a stone bridge. Skyscrapers reflect golden hour light, and soft clouds drift across the sky. Emphasize smooth lighting transitions, tranquil mood, and gentle movement in water and clouds.",
+    "size": "1024x1024",
+    "format": "png",
+    "createdAt": "2025-08-17T07:42:23.695Z"
+  },
+  {
     "kind": "video",
     "id": "93cf1348-dcfe-4aab-9830-11c4f9054460",
     "filename": "93cf1348-dcfe-4aab-9830-11c4f9054460.mp4",
