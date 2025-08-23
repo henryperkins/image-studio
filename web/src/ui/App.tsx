@@ -364,10 +364,32 @@ useEffect(() => {
                       muted
                       loop
                       playsInline
-                      onMouseEnter={(e) => e.currentTarget.play()}
+                      preload="metadata"
+                      onError={(evt) => {
+                        const v = evt.currentTarget as HTMLVideoElement;
+                        console.warn("Video failed to load:", v.src);
+                      }}
+                      onMouseEnter={(e) => {
+                        const v = e.currentTarget;
+                        const NETWORK_NO_SOURCE = (HTMLMediaElement as any).NETWORK_NO_SOURCE ?? 3;
+                        const hasSrc = Boolean(v.currentSrc || v.src);
+                        const hasError = v.error != null;
+                        const noSource = v.networkState === NETWORK_NO_SOURCE;
+                        if (!hasSrc || hasError || noSource) {
+                          // Don't attempt to play if there is no valid, supported source
+                          return;
+                        }
+                        const p = v.play();
+                        if (p && typeof (p as any).catch === "function") {
+                          (p as Promise<void>).catch(() => {
+                            // Suppress NotSupportedError when hovering items with invalid sources
+                          });
+                        }
+                      }}
                       onMouseLeave={(e) => {
-                        e.currentTarget.pause();
-                        e.currentTarget.currentTime = 0;
+                        const v = e.currentTarget;
+                        try { v.pause(); } catch {}
+                        v.currentTime = 0;
                       }}
                     />
                   ) : (
