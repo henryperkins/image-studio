@@ -144,14 +144,18 @@ app.post("/api/images/generate", async (req, reply) => {
   }
 });
 
-// ----------------- IMAGES: edit (gpt-image-1 inpainting/transform) -----------------
+ // ----------------- IMAGES: edit (gpt-image-1 inpainting/transform) -----------------
 const ImageEditReq = z.object({
   image_id: z.string().min(1),
   prompt: z.string().min(1),
   // PNG data URL for mask; transparent pixels mark regions to change
   mask_data_url: z.string().url().optional(),
   size: z.enum(["1024x1024", "1536x1024", "1024x1536"]).default("1024x1024"),
-  output_format: z.enum(["png", "jpeg"]).default("png")
+  output_format: z.enum(["png", "jpeg"]).default("png"),
+  // API enhancements (optional)
+  quality: z.enum(["auto","low","medium","high","standard"]).optional(),
+  background: z.enum(["transparent","opaque","auto"]).optional(),
+  output_compression: z.number().int().min(0).max(100).optional()
 });
 
 function dataURLtoBuffer(dataUrl: string) {
@@ -174,6 +178,10 @@ app.post("/api/images/edit", async (req, reply) => {
     form.set("prompt", body.prompt);
     form.set("size", body.size);
     form.set("output_format", body.output_format);
+    // Optional enhancements
+    if (body.quality) form.set("quality", body.quality);
+    if (body.background) form.set("background", body.background);
+    if (typeof body.output_compression === "number") form.set("output_compression", String(body.output_compression));
 
     // image file
     const srcPath = path.join(IMG_DIR, src.filename);

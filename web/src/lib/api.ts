@@ -204,10 +204,29 @@ export async function generateImage(prompt: string, size: string, quality: strin
   }
 }
 
-export async function editImage(image_id: string, prompt: string, mask_data_url?: string, size: string = "1024x1024", output_format: "png"|"jpeg" = "png") {
+export async function editImage(
+  image_id: string,
+  prompt: string,
+  mask_data_url?: string,
+  size: string = "1024x1024",
+  output_format: "png" | "jpeg" = "png",
+  options: {
+    quality?: "auto" | "low" | "medium" | "high" | "standard";
+    background?: "transparent" | "opaque" | "auto";
+    output_compression?: number;
+  } = {}
+) {
   const r = await fetch(`${API_BASE_URL}/api/images/edit`, {
-    method: "POST", headers: {"Content-Type":"application/json"},
-    body: JSON.stringify({ image_id, prompt, mask_data_url, size, output_format })
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      image_id,
+      prompt,
+      mask_data_url,
+      size,
+      output_format,
+      ...options
+    })
   });
   if (!r.ok) throw new Error(await r.text());
   return await r.json();

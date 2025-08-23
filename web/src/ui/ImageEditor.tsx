@@ -22,6 +22,10 @@ export default function ImageEditor({ item, onClose, onEdited, baseUrl }: Props)
   const [busy, setBusy] = useState(false);
   const [size, setSize] = useState(item.size);
   const [format, setFormat] = useState<"png"|"jpeg">(item.format);
+  // API enhancements
+  const [quality, setQuality] = useState<"auto"|"low"|"medium"|"high">("high");
+  const [background, setBackground] = useState<"transparent"|"opaque"|"auto">("opaque");
+  const [outputCompression, setOutputCompression] = useState<number>(100);
   // Added: track whether user has drawn and last pointer position for smooth strokes
   const [hasMask, setHasMask] = useState(false);
   const lastPt = useRef<{ x: number; y: number } | null>(null);
@@ -122,7 +126,11 @@ export default function ImageEditor({ item, onClose, onEdited, baseUrl }: Props)
     try {
       // Only send a mask if the user has painted; otherwise request a global transform by omitting mask
       const maskPng = hasMask ? canvasRef.current!.toDataURL("image/png") : undefined;
-      const res = await editImage(item.id, prompt || "Apply the painted mask changes", maskPng, size, format);
+      const res = await editImage(item.id, prompt || "Apply the painted mask changes", maskPng, size, format, {
+        quality,
+        background: format === "png" ? background : undefined,
+        output_compression: format === "jpeg" ? outputCompression : undefined
+      });
       onEdited(res.library_item.id);
       showToast("Image edited and saved", "success");
     } catch (e) {
@@ -186,6 +194,34 @@ export default function ImageEditor({ item, onClose, onEdited, baseUrl }: Props)
                   <option>1024x1536</option>
                 </select>
               </label>
+              <label className="text-sm">Quality
+                <select className="input mt-1" value={quality} onChange={e=>setQuality(e.target.value as any)}>
+                  <option value="auto">auto</option>
+                  <option value="low">low</option>
+                  <option value="medium">medium</option>
+                  <option value="high">high</option>
+                </select>
+              </label>
+              {format === "png" && (
+                <label className="text-sm col-span-2">Background (PNG only)
+                  <select className="input mt-1" value={background} onChange={e=>setBackground(e.target.value as any)}>
+                    <option value="opaque">opaque</option>
+                    <option value="transparent">transparent</option>
+                    <option value="auto">auto</option>
+                  </select>
+                </label>
+              )}
+              {format === "jpeg" && (
+                <label className="text-sm col-span-2">JPEG compression (0–100)
+                  <input
+                    className="input mt-1"
+                    type="number"
+                    min={0}
+                    max={100}
+                    value={outputCompression}
+                    onChange={e=>setOutputCompression(Math.min(100, Math.max(0, +e.target.value || 0)))} />
+                </label>
+              )}
             </div>
             <div className="flex gap-2">
               <LoadingButton loading={busy} loadingText="Editing…" onClick={runEdit}>
