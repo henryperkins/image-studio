@@ -5,6 +5,9 @@ import {
   trimVideo, cropVideo, resizeVideo, speedVideo, muteVideo, volumeVideo,
   overlayImageOnVideo, concatVideos, listLibrary
 } from "../lib/api";
+import { LoadingButton } from "../components/LoadingButton";
+import Modal from "../components/Modal";
+import Tabs from "../components/Tabs";
 
 type Props = {
   item: LibraryItem & { kind: "video" };
@@ -74,8 +77,8 @@ export default function VideoEditor({ item, onClose, onEdited, baseUrl }: Props)
   }
 
   return (
-    <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-      <div className="bg-neutral-900 border border-neutral-800 rounded-2xl w-full max-w-5xl max-h-[90vh] overflow-y-auto">
+    <Modal onClose={onClose} ariaLabel="Video editor" panelClassName="bg-neutral-900 border border-neutral-800 rounded-2xl w-full max-w-5xl max-h-[90vh] overflow-y-auto">
+      <div>
         <div className="flex items-center justify-between p-3 border-b border-neutral-800">
           <div className="font-medium">Edit Video</div>
           <button className="btn" onClick={onClose}>Close</button>
@@ -91,54 +94,13 @@ export default function VideoEditor({ item, onClose, onEdited, baseUrl }: Props)
 
           <div className="space-y-3">
             {/* Tabs */}
-            <div 
-              className="inline-flex rounded-xl overflow-hidden border border-neutral-700"
-              role="tablist"
-              aria-label="Video editing options"
-            >
-              {(["trim","crop","resize","speed","volume","overlay","concat"] as Tab[]).map((t, idx, arr) => (
-                <button 
-                  key={t}
-                  id={`tab-${t}`}
-                  role="tab"
-                  aria-selected={tab === t}
-                  aria-controls={`panel-${t}`}
-                  tabIndex={tab === t ? 0 : -1}
-                  className={`px-3 py-1.5 text-sm ${tab===t?"bg-neutral-700":"bg-neutral-900 hover:bg-neutral-800"} focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:z-10`} 
-                  onClick={()=>setTab(t)}
-                  onKeyDown={(e) => {
-                    if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
-                      e.preventDefault();
-                      const prevIdx = idx > 0 ? idx - 1 : arr.length - 1;
-                      setTab(arr[prevIdx]);
-                      setTimeout(() => document.getElementById(`tab-${arr[prevIdx]}`)?.focus(), 0);
-                    }
-                    if (e.key === "ArrowRight" || e.key === "ArrowDown") {
-                      e.preventDefault();
-                      const nextIdx = idx < arr.length - 1 ? idx + 1 : 0;
-                      setTab(arr[nextIdx]);
-                      setTimeout(() => document.getElementById(`tab-${arr[nextIdx]}`)?.focus(), 0);
-                    }
-                    if (e.key === "Home") {
-                      e.preventDefault();
-                      setTab(arr[0]);
-                      setTimeout(() => document.getElementById(`tab-${arr[0]}`)?.focus(), 0);
-                    }
-                    if (e.key === "End") {
-                      e.preventDefault();
-                      setTab(arr[arr.length - 1]);
-                      setTimeout(() => document.getElementById(`tab-${arr[arr.length - 1]}`)?.focus(), 0);
-                    }
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      setTab(t);
-                    }
-                  }}
-                >
-                  {t}
-                </button>
-              ))}
-            </div>
+            <Tabs
+              tabs={(["trim","crop","resize","speed","volume","overlay","concat"] as Tab[]).map(t => ({ id: t, label: t, ariaControls: `panel-${t}` }))}
+              selected={tab}
+              onChange={(id) => setTab(id as Tab)}
+              listClassName="inline-flex rounded-xl overflow-hidden border border-neutral-700"
+              getTabClassName={(id, isSelected) => `px-3 py-1.5 text-sm ${isSelected?"bg-neutral-700":"bg-neutral-900 hover:bg-neutral-800"} focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:z-10`}
+            />
 
             {tab==="trim" && (
               <div className="space-y-2" id="panel-trim" role="tabpanel" aria-labelledby="tab-trim">
@@ -162,13 +124,13 @@ export default function VideoEditor({ item, onClose, onEdited, baseUrl }: Props)
                     onChange={e=>setDur(Math.max(0.1,+e.target.value||1))}
                   />
                 </label>
-                <button 
-                  className="btn" 
-                  disabled={busy} 
+                <LoadingButton
+                  loading={busy}
+                  loadingText="Processing…"
                   onClick={()=>run(()=>trimVideo(item.id,start,dur))}
                 >
-                  {busy?"Processing…":"Trim & Save"}
-                </button>
+                  Trim & Save
+                </LoadingButton>
               </div>
             )}
 
@@ -186,13 +148,14 @@ export default function VideoEditor({ item, onClose, onEdited, baseUrl }: Props)
                 <label className="text-sm">Height
                   <input className="input mt-1" type="number" value={ch} onChange={e=>setCh(+e.target.value||item.height)} />
                 </label>
-                <button 
-                  className="btn col-span-2" 
-                  disabled={busy} 
+                <LoadingButton
+                  className="col-span-2"
+                  loading={busy}
+                  loadingText="Processing…"
                   onClick={()=>run(()=>cropVideo(item.id,cx,cy,cw,ch))}
                 >
-                  {busy?"Processing…":"Crop & Save"}
-                </button>
+                  Crop & Save
+                </LoadingButton>
               </div>
             )}
 
@@ -214,13 +177,14 @@ export default function VideoEditor({ item, onClose, onEdited, baseUrl }: Props)
                 <label className="text-sm">Pad color (contain)
                   <input className="input mt-1" value={bg} onChange={e=>setBg(e.target.value)} placeholder="black"/>
                 </label>
-                <button 
-                  className="btn col-span-2" 
-                  disabled={busy} 
+                <LoadingButton
+                  className="col-span-2"
+                  loading={busy}
+                  loadingText="Processing…"
                   onClick={()=>run(()=>resizeVideo(item.id,rw,rh,fit,bg))}
                 >
-                  {busy?"Processing…":"Resize & Save"}
-                </button>
+                  Resize & Save
+                </LoadingButton>
               </div>
             )}
 
@@ -237,26 +201,26 @@ export default function VideoEditor({ item, onClose, onEdited, baseUrl }: Props)
                     onChange={e=>setSpeed(+e.target.value||1)} 
                   />
                 </label>
-                <button 
-                  className="btn" 
-                  disabled={busy} 
+                <LoadingButton
+                  loading={busy}
+                  loadingText="Processing…"
                   onClick={()=>run(()=>speedVideo(item.id,speed))}
                 >
-                  {busy?"Processing…":"Apply Speed & Save"}
-                </button>
+                  Apply Speed & Save
+                </LoadingButton>
               </div>
             )}
 
             {tab==="volume" && (
               <div className="space-y-2">
                 <div className="flex gap-2">
-                  <button 
-                    className="btn" 
-                    disabled={busy} 
+                  <LoadingButton
+                    loading={busy}
+                    loadingText="Processing…"
                     onClick={()=>run(()=>muteVideo(item.id))}
                   >
                     Mute
-                  </button>
+                  </LoadingButton>
                 </div>
                 <label className="text-sm">Gain (dB, -30 to +30)
                   <input 
@@ -269,13 +233,13 @@ export default function VideoEditor({ item, onClose, onEdited, baseUrl }: Props)
                     onChange={e=>setGainDb(+e.target.value||0)} 
                   />
                 </label>
-                <button 
-                  className="btn" 
-                  disabled={busy} 
+                <LoadingButton
+                  loading={busy}
+                  loadingText="Processing…"
                   onClick={()=>run(()=>volumeVideo(item.id,gainDb))}
                 >
-                  {busy?"Processing…":"Set Volume & Save"}
-                </button>
+                  Set Volume & Save
+                </LoadingButton>
               </div>
             )}
 
@@ -312,9 +276,10 @@ export default function VideoEditor({ item, onClose, onEdited, baseUrl }: Props)
                     />
                   </label>
                 </div>
-                <button 
-                  className="btn" 
-                  disabled={busy || !overlayId} 
+                <LoadingButton
+                  loading={busy}
+                  loadingText="Processing…"
+                  disabled={!overlayId}
                   onClick={()=>run(()=>overlayImageOnVideo(item.id, overlayId, { 
                     x:ox, y:oy, 
                     overlay_width: ow||undefined, 
@@ -322,8 +287,8 @@ export default function VideoEditor({ item, onClose, onEdited, baseUrl }: Props)
                     opacity 
                   }))}
                 >
-                  {busy?"Processing…":"Overlay & Save"}
-                </button>
+                  Overlay & Save
+                </LoadingButton>
                 <p className="text-xs text-neutral-500">
                   Tips: Use <code>W</code>/<code>H</code> (video dims) and <code>w</code>/<code>h</code> (overlay) in expressions, e.g. <code>W-w-20</code>, <code>H-h-20</code>, <code>(W-w)/2</code>.
                 </p>
@@ -370,13 +335,14 @@ export default function VideoEditor({ item, onClose, onEdited, baseUrl }: Props)
                     />
                   </label>
                 </div>
-                <button 
-                  className="btn" 
-                  disabled={busy || concatIds.length<2} 
+                <LoadingButton
+                  loading={busy}
+                  loadingText="Processing…"
+                  disabled={concatIds.length<2}
                   onClick={()=>run(()=>concatVideos(concatIds, targetW, targetH))}
                 >
-                  {busy?"Processing…":"Concat & Save"}
-                </button>
+                  Concat & Save
+                </LoadingButton>
               </div>
             )}
 
@@ -384,6 +350,6 @@ export default function VideoEditor({ item, onClose, onEdited, baseUrl }: Props)
           </div>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }

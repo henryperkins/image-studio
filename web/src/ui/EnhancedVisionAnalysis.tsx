@@ -10,6 +10,8 @@ import {
 } from "../lib/api";
 import { useToast } from "../contexts/ToastContext";
 import { usePromptSuggestions } from "../contexts/PromptSuggestionsContext";
+import { LoadingButton } from "../components/LoadingButton";
+import { PromptTextarea } from "../components/PromptTextarea";
 
 interface EnhancedVisionAnalysisProps {
   selectedIds: string[];
@@ -396,17 +398,21 @@ export default function EnhancedVisionAnalysis({
 
             <div>
               <label className="block text-sm font-medium mb-2">Specific Questions</label>
-              <textarea
-                className="input resize-none"
-                rows={3}
+              <PromptTextarea
+                id="specific-questions"
+                ariaLabel="Specific questions about the images"
+                className="h-24"
                 placeholder="Ask specific questions about the images..."
                 value={params.specific_questions || ""}
-                onChange={(e) =>
+                onChange={(val) =>
                   setParams((prev) => ({
                     ...prev,
-                    specific_questions: e.target.value || undefined,
+                    specific_questions: val || undefined,
                   }))
                 }
+                maxLength={1000}
+                minLength={0}
+                busy={analyzing}
               />
             </div>
 
@@ -463,23 +469,15 @@ export default function EnhancedVisionAnalysis({
 
       {/* Analysis Actions */}
       <div className="flex flex-wrap gap-2">
-        <button className={`btn flex-1 min-w-[200px] ${analyzing ? "pulse" : ""}`} onClick={runAnalysis} disabled={analyzing}>
-          {analyzing ? (
-            <span className="flex items-center gap-2" role="status" aria-live="polite">
-              <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" aria-hidden="true">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                <path
-                  className="opacity-75"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                />
-              </svg>
-              Analyzing {selectedIds.length} image{selectedIds.length > 1 ? "s" : ""}...
-            </span>
-          ) : (
-            `Analyze ${selectedIds.length} image${selectedIds.length > 1 ? "s" : ""}`
-          )}
-        </button>
+        <LoadingButton
+          className="flex-1 min-w-[200px]"
+          onClick={runAnalysis}
+          loading={analyzing}
+          loadingText={`Analyzing ${selectedIds.length} image${selectedIds.length > 1 ? "s" : ""}…`}
+          aria-live="polite"
+        >
+          {`Analyze ${selectedIds.length} image${selectedIds.length > 1 ? "s" : ""}`}
+        </LoadingButton>
       </div>
 
       {/* Analysis Results */}

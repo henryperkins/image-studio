@@ -166,20 +166,7 @@ body {
   animation: shimmer 1.5s infinite ease-in-out;
 }
 
-/* Loading spinner */
-@keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-
-.loading-spinner {
-  @apply inline-block w-4 h-4 border-2 border-current border-t-transparent rounded-full;
-  animation: spin 1s linear infinite;
-}
-
-.loading-spinner-lg {
-  @apply w-6 h-6 border-2;
-}
+/* (Removed old loading spinner CSS; using shared LoadingButton/Spinner component) */
 
 /* Pulse animation for buttons */
 @keyframes buttonPulse {
@@ -265,15 +252,7 @@ body {
   @apply transition-all duration-200 hover:scale-105 hover:shadow-xl;
 }
 
-/* Pulse animation for loading states */
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
-}
-
-.pulse {
-  animation: pulse 2s infinite;
-}
+/* (Removed global pulse helper; avoid duplicate animations) */
 
 /* === Heading Classes === */
 .display, .heading-1 {

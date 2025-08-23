@@ -4,7 +4,7 @@ import { processApiError } from "../lib/errorUtils";
 import { useToast } from "../contexts/ToastContext";
 import EnhancedVisionAnalysis from "./EnhancedVisionAnalysis";
 import { PromptTextarea } from "../components/PromptTextarea";
-import { LoadingButton, LoadingSpinner } from "../components/LoadingButton";
+import { LoadingButton } from "../components/LoadingButton";
 import { SkeletonLoader, MediaSkeleton } from "../components/SkeletonLoader";
 
 export default function SoraCreator({

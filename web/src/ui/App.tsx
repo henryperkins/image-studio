@@ -12,6 +12,7 @@ import PromptSuggestions from "./PromptSuggestions";
 import { usePromptSuggestions } from "../contexts/PromptSuggestionsContext";
 import { useToast } from "../contexts/ToastContext";
 import ConnectionStatus from "./ConnectionStatus";
+import Tabs from "../components/Tabs";
 
 type View = "images" | "sora";
 
@@ -158,11 +159,7 @@ useEffect(() => {
         <Heading level={1} serif={false} className="!text-2xl">
           AI Media Studio
         </Heading>
-        <div
-          className="inline-flex rounded-2xl border border-neutral-800 overflow-hidden relative"
-          role="tablist"
-          aria-label="Main sections"
-        >
+        <div className="inline-flex rounded-2xl border border-neutral-800 overflow-hidden relative">
           <div
             className="absolute inset-y-0 bg-neutral-700 rounded-2xl transition-all duration-300 ease-out"
             style={{
@@ -171,72 +168,20 @@ useEffect(() => {
             }}
             aria-hidden="true"
           />
-          <button
-            id="tab-images"
-            role="tab"
-            aria-selected={view === "images"}
-            aria-controls="panel-images"
-            tabIndex={view === "images" ? 0 : -1}
-            className={`px-4 py-2 relative z-10 transition-colors duration-300 ${
-              view === "images" ? "text-white" : "text-neutral-400 hover:text-white"
-            }`}
-            onClick={() => setView("images")}
-            onKeyDown={(e) => {
-              if (e.key === "ArrowRight" || e.key === "ArrowDown") {
-                e.preventDefault();
-                setView("sora");
-                setTimeout(() => document.getElementById("tab-sora")?.focus(), 0);
-              }
-              if (e.key === "Home") {
-                e.preventDefault();
-                setView("images");
-              }
-              if (e.key === "End") {
-                e.preventDefault();
-                setView("sora");
-                setTimeout(() => document.getElementById("tab-sora")?.focus(), 0);
-              }
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
-                setView("images");
-              }
-            }}
-          >
-            Images
-          </button>
-          <button
-            id="tab-sora"
-            role="tab"
-            aria-selected={view === "sora"}
-            aria-controls="panel-sora"
-            tabIndex={view === "sora" ? 0 : -1}
-            className={`px-4 py-2 relative z-10 transition-colors duration-300 ${
-              view === "sora" ? "text-white" : "text-neutral-400 hover:text-white"
-            }`}
-            onClick={() => setView("sora")}
-            onKeyDown={(e) => {
-              if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
-                e.preventDefault();
-                setView("images");
-                setTimeout(() => document.getElementById("tab-images")?.focus(), 0);
-              }
-              if (e.key === "Home") {
-                e.preventDefault();
-                setView("images");
-                setTimeout(() => document.getElementById("tab-images")?.focus(), 0);
-              }
-              if (e.key === "End") {
-                e.preventDefault();
-                setView("sora");
-              }
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
-                setView("sora");
-              }
-            }}
-          >
-            Sora
-          </button>
+          <Tabs
+            tabs={[
+              { id: "images", label: "Images", ariaControls: "panel-images" },
+              { id: "sora", label: "Sora", ariaControls: "panel-sora" },
+            ]}
+            selected={view}
+            onChange={(id) => setView(id as View)}
+            listClassName="inline-flex relative z-10"
+            getTabClassName={(id, isSelected) =>
+              `px-4 py-2 relative z-10 transition-colors duration-300 ${
+                isSelected ? "text-white" : "text-neutral-400 hover:text-white"
+              }`
+            }
+          />
         </div>
       </header>
 

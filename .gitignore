@@ -21,6 +21,7 @@ server/data/videos/
 .env.development.local
 .env.test.local
 .env.production.local
+.env.mcp
 
 # IDE and editor files
 .vscode/

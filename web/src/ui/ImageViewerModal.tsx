@@ -1,5 +1,6 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useRef } from "react";
 import { type LibraryItem, API_BASE_URL } from "../lib/api";
+import Modal from "../components/Modal";
 
 type Props = {
   item: LibraryItem & { kind: "image" };
@@ -11,76 +12,16 @@ type Props = {
 export default function ImageViewerModal({ item, onClose, onEdit, baseUrl = API_BASE_URL }: Props) {
   const [showControls, setShowControls] = useState(false);
   const [imageError, setImageError] = useState(false);
-  const modalRef = useRef<HTMLDivElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
-
-  // Keyboard navigation and focus management
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        onClose();
-      }
-    };
-
-    // Store current focus to restore later
-    const previouslyFocused = document.activeElement as HTMLElement;
-    
-    // Focus the close button on mount
-    setTimeout(() => closeButtonRef.current?.focus(), 0);
-
-    document.addEventListener('keydown', handleKeyDown);
-    
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown);
-      // Restore focus to previously focused element
-      previouslyFocused?.focus();
-    };
-  }, [onClose]);
-
-  // Focus trap
-  useEffect(() => {
-    const modalElement = modalRef.current;
-    if (!modalElement) return;
-
-    const focusableElements = modalElement.querySelectorAll<HTMLElement>(
-      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-    );
-    const firstFocusable = focusableElements[0];
-    const lastFocusable = focusableElements[focusableElements.length - 1];
-
-    const handleTabKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Tab') return;
-
-      if (e.shiftKey) {
-        if (document.activeElement === firstFocusable) {
-          e.preventDefault();
-          lastFocusable?.focus();
-        }
-      } else {
-        if (document.activeElement === lastFocusable) {
-          e.preventDefault();
-          firstFocusable?.focus();
-        }
-      }
-    };
-
-    modalElement.addEventListener('keydown', handleTabKey);
-    return () => modalElement.removeEventListener('keydown', handleTabKey);
-  }, [showControls]);
-
+ 
   return (
-    <div 
-      ref={modalRef}
-      className="fixed inset-0 bg-black/90 z-40 flex items-center justify-center p-4"
-      onClick={onClose}
-      role="dialog"
-      aria-modal="true"
-      aria-label="Image viewer"
+    <Modal
+      onClose={onClose}
+      ariaLabel="Image viewer"
+      initialFocusRef={closeButtonRef}
+      overlayClassName="fixed inset-0 bg-black/90 z-40 flex items-center justify-center p-4"
+      panelClassName="relative max-w-[90vw] max-h-[90vh] flex flex-col"
     >
-      <div 
-        className="relative max-w-[90vw] max-h-[90vh] flex flex-col"
-        onClick={(e) => e.stopPropagation()}
-      >
         {/* Close button */}
         <button
           ref={closeButtonRef}
@@ -159,7 +100,6 @@ export default function ImageViewerModal({ item, onClose, onEdit, baseUrl = API_
             )}
           </div>
         )}
-      </div>
-    </div>
+    </Modal>
   );
 }

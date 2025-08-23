@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { editImage, type LibraryItem } from "../lib/api";
 import { useToast } from "../contexts/ToastContext";
+import Modal from "../components/Modal";
+import { LoadingButton } from "../components/LoadingButton";
+import { PromptTextarea } from "../components/PromptTextarea";
 
 type Props = {
   item: LibraryItem & { kind: "image" };
@@ -128,8 +131,8 @@ export default function ImageEditor({ item, onClose, onEdited, baseUrl }: Props)
   }
 
   return (
-    <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-      <div className="bg-neutral-900 border border-neutral-800 rounded-2xl w-full max-w-4xl">
+    <Modal onClose={onClose} ariaLabel="Image editor">
+      <div>
         <div className="flex items-center justify-between p-3 border-b border-neutral-800">
           <div className="font-medium">Edit Image</div>
           <button className="btn" onClick={onClose}>Close</button>
@@ -155,7 +158,18 @@ export default function ImageEditor({ item, onClose, onEdited, baseUrl }: Props)
           </div>
 
           <div className="space-y-3">
-            <textarea className="input h-40 resize-none" placeholder="Describe the edit you want…" value={prompt} onChange={e=>setPrompt(e.target.value)} />
+            <PromptTextarea
+              id="image-edit-prompt"
+              ariaLabel="Describe the edit you want"
+              className="h-40"
+              placeholder="Describe the edit you want…"
+              value={prompt}
+              onChange={setPrompt}
+              onSubmit={runEdit}
+              maxLength={2000}
+              minLength={0}
+              busy={busy}
+            />
             <div className="grid grid-cols-2 gap-2">
               <label className="text-sm">Brush size
                 <input className="w-full" type="range" min={5} max={200} value={brush} onChange={e=>setBrush(+e.target.value)} />
@@ -174,7 +188,9 @@ export default function ImageEditor({ item, onClose, onEdited, baseUrl }: Props)
               </label>
             </div>
             <div className="flex gap-2">
-              <button className="btn" disabled={busy} onClick={runEdit}>{busy ? "Editing…" : "Apply Edit & Save"}</button>
+              <LoadingButton loading={busy} loadingText="Editing…" onClick={runEdit}>
+                Apply Edit & Save
+              </LoadingButton>
               <button className="btn" onClick={()=>{
                 const c = canvasRef.current!; const ctx = c.getContext("2d")!;
                 ctx.globalCompositeOperation = "source-over";
@@ -191,6 +207,6 @@ export default function ImageEditor({ item, onClose, onEdited, baseUrl }: Props)
           </div>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }
