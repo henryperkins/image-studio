@@ -182,7 +182,7 @@ useEffect(() => {
         </Heading>
         <div className="inline-flex rounded-2xl border border-neutral-800 overflow-hidden relative">
           <div
-            className="absolute inset-y-0 bg-neutral-700 rounded-2xl transition-all duration-300 ease-out"
+            className="absolute inset-y-0 bg-neutral-700 rounded-2xl transition-transform duration-200 ease-out"
             style={{
               width: "50%",
               transform: `translateX(${view === "images" ? "0%" : "100%"})`,
@@ -198,7 +198,7 @@ useEffect(() => {
             onChange={(id) => setView(id as View)}
             listClassName="inline-flex relative z-10"
             getTabClassName={(_, isSelected) =>
-              `px-4 py-2 relative z-10 transition-colors duration-300 ${
+              `px-4 py-2 relative z-10 transition-colors duration-200 ${
                 isSelected ? "text-white" : "text-neutral-400 hover:text-white"
               }`
             }
@@ -214,10 +214,10 @@ useEffect(() => {
       <div className="flex flex-col md:grid md:grid-cols-3 gap-4">
         {/* Left column (main content) */}
         <div className="md:col-span-2">
-          <div className="card transition-all duration-300">
+          <div className="card transition-opacity duration-200">
             <div className="relative overflow-hidden">
               <div
-                className="transition-all duration-500 ease-in-out"
+                className="transition-all duration-200 ease-in-out"
                 id="panel-images"
                 role="tabpanel"
                 aria-labelledby="tab-images"
@@ -232,7 +232,7 @@ useEffect(() => {
               </div>
 
               <div
-                className="transition-all duration-500 ease-in-out"
+                className="transition-all duration-200 ease-in-out"
                 id="panel-sora"
                 role="tabpanel"
                 aria-labelledby="tab-sora"
@@ -280,7 +280,7 @@ useEffect(() => {
         </button>
 
         {/* Library panel */}
-        <div id="library-panel" className={`card transition-all duration-300 ${mobileLibraryOpen ? "block" : "hidden md:block"}`}>
+        <div id="library-panel" className={`card transition-opacity duration-200 ${mobileLibraryOpen ? "block" : "hidden md:block"}`}>
           <Heading level={4} className="mb-2">
             Media Library
           </Heading>
@@ -332,7 +332,9 @@ useEffect(() => {
                       index={index}
                       selected={selected.includes(item.id)}
                       onSelect={(id, isSelected) => {
-                        setSelected(prev => isSelected ? [...prev, id] : prev.filter(x => x !== id));
+                        if (!isVideoItem(item)) {
+                          setSelected(prev => isSelected ? [...prev, id] : prev.filter(x => x !== id));
+                        }
                       }}
                       onAction={handleAction}
                       onView={(item) => setViewImageId(item.id)}
@@ -372,14 +374,10 @@ useEffect(() => {
               onClick={() => setSelected([])}
               disabled={selected.length === 0}
               aria-disabled={selected.length === 0}
+              title={selected.length === 0 ? "Select at least one image" : "Clear selection"}
             >
               <span className="relative z-10">Clear</span>
-              <span className="absolute inset-0 bg-neutral-600 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left" />
-              {selected.length === 0 && (
-                <span className="absolute left-1/2 -translate-x-1/2 top-full mt-2 w-max min-w-[150px] text-xs px-2 py-1 rounded bg-black/90 text-white shadow opacity-0 group-hover:opacity-100 group-focus:opacity-100 pointer-events-none z-30 transition-opacity duration-200 whitespace-nowrap">
-                  Select at least one image
-                </span>
-              )}
+              <span className="absolute inset-0 bg-neutral-600 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-200 origin-left" />
             </button>
             <button
               className="btn group relative overflow-hidden min-w-[48px] min-h-[48px] md:min-h-0"
@@ -389,14 +387,10 @@ useEffect(() => {
               }}
               disabled={selected.length === 0}
               aria-disabled={selected.length === 0}
+              title={selected.length === 0 ? "Select at least one image" : "Use selected images in Sora"}
             >
               <span className="relative z-10">Use in Sora</span>
-              <span className="absolute inset-0 bg-blue-600 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left" />
-              {selected.length === 0 && (
-                <span className="absolute left-1/2 -translate-x-1/2 top-full mt-2 w-max min-w-[150px] text-xs px-2 py-1 rounded bg-black/90 text-white shadow opacity-0 group-hover:opacity-100 group-focus:opacity-100 pointer-events-none z-30 transition-opacity duration-200 whitespace-nowrap">
-                  Select at least one image
-                </span>
-              )}
+              <span className="absolute inset-0 bg-blue-600 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-200 origin-left" />
             </button>
           </div>
 

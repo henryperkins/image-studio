@@ -200,3 +200,38 @@ For the new modular vision system with enhanced safety:
 - Debounced/throttled interactions where needed
 - Optimistic UI updates for better perceived performance
 - Request animation frame for focus management
+
+## Recent UI/UX Improvements (Media Library)
+
+### Visual Hierarchy & Z-Index Management
+- **Established z-index layers**: 
+  - Base content: z-10
+  - Selection UI: z-20  
+  - Quick actions: z-30
+  - Tooltips: z-40
+  - Context menus: z-50
+  - Modals: z-60+
+
+### Resolved Visual Conflicts
+- **Tooltip behavior**: Automatically hides when context menu opens to prevent overlapping
+- **Selection UI**: Removed redundant checkmark overlay, integrated into checkbox label
+- **Video badges**: Repositioned from top-left to bottom-left to avoid conflicts with quick actions
+- **Touch targets**: Minimum 44x44px on mobile for all interactive elements
+- **Animation timing**: Standardized all transitions to 200ms for consistency
+
+### Context Menu Enhancements
+- **Viewport-aware positioning**: Automatically adjusts to stay within viewport bounds
+- **Scroll position handling**: Accounts for page scroll when positioning
+- **Mobile optimization**: Proper touch targets and no hover dependencies
+
+### Mobile-Specific Improvements
+- **Touch device detection**: Quick actions visible by default on touch devices
+- **Increased touch targets**: All buttons meet 44x44px minimum requirement
+- **Removed hover dependencies**: All functionality accessible without hover states
+- **Long-press support**: Context menu accessible via long-press on mobile
+
+### Accessibility Enhancements  
+- **ARIA labels**: Comprehensive labeling for screen readers
+- **Keyboard navigation**: Full keyboard support maintained
+- **Focus management**: Logical focus flow without focus stealing
+- **Native tooltips**: Added title attributes as fallback for accessibility

@@ -1,6 +1,8 @@
+import type React from 'react';
 import { useState, useRef, memo } from 'react';
 import { LibraryItem, isVideoItem, API_BASE_URL } from '../lib/api';
-import MediaContextMenu, { MediaAction } from './MediaContextMenu';
+import MediaContextMenu from './MediaContextMenu';
+import type { MediaAction } from '../hooks/useMediaActions';
 
 interface LibraryItemCardProps {
   item: LibraryItem;
@@ -26,11 +28,14 @@ const LibraryItemCard = memo(({
   const [isHovered, setIsHovered] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
+  const [isTouchDevice] = useState(() => 'ontouchstart' in window);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
   const isVideo = isVideoItem(item);
 
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
+    setIsHovered(false); // Hide tooltip when context menu opens
     setContextMenuPos({ x: e.clientX, y: e.clientY });
     setShowContextMenu(true);
   };
@@ -78,6 +83,7 @@ const LibraryItemCard = memo(({
   return (
     <>
       <div
+        ref={cardRef}
         className="relative cursor-pointer group"
         style={{
           animation: `fadeIn 0.3s ease-out ${index * 0.05}s both`,
@@ -90,25 +96,38 @@ const LibraryItemCard = memo(({
         aria-label={`${isVideo ? 'Video' : 'Image'}: ${item.prompt || 'Untitled'}`}
         tabIndex={0}
       >
-        {/* Selection checkbox */}
+        {/* Selection checkbox with proper touch target */}
         {!isVideo && (
-          <input
-            type="checkbox"
-            className="absolute top-1 left-1 md:top-2 md:left-2 z-20 w-6 h-6 md:w-5 md:h-5 rounded cursor-pointer appearance-none bg-neutral-800/80 border-2 border-neutral-600 checked:bg-blue-500 checked:border-blue-500 transition-all duration-200 hover:border-neutral-400 checked:hover:bg-blue-400"
-            checked={selected}
-            onChange={(e) => {
-              e.stopPropagation();
-              onSelect(item.id, e.target.checked);
-            }}
-            onClick={(e) => e.stopPropagation()}
-            aria-label={`Select ${item.prompt || 'image'}`}
-          />
+          <label className="absolute top-1 left-1 md:top-2 md:left-2 z-20 min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0">
+            <input
+              type="checkbox"
+              className="w-6 h-6 md:w-5 md:h-5 rounded cursor-pointer appearance-none bg-white/90 border-2 border-neutral-400 checked:bg-blue-500 checked:border-blue-500 transition-all duration-200 hover:border-neutral-300 checked:hover:bg-blue-400 shadow-sm"
+              checked={selected}
+              onChange={(e) => {
+                e.stopPropagation();
+                onSelect(item.id, e.target.checked);
+              }}
+              onClick={(e) => e.stopPropagation()}
+              aria-label={`Select ${item.prompt || 'image'}`}
+            />
+            {selected && (
+              <svg
+                className="absolute top-0 left-0 w-6 h-6 md:w-5 md:h-5 text-white pointer-events-none"
+                viewBox="0 0 20 20"
+              >
+                <path
+                  fill="currentColor"
+                  d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                />
+              </svg>
+            )}
+          </label>
         )}
 
-        {/* Quick actions (visible on hover) */}
-        <div className={`absolute top-1 right-1 md:top-2 md:right-2 z-20 flex gap-1 transition-opacity ${isHovered ? 'opacity-100' : 'opacity-0'}`}>
+        {/* Quick actions (visible on hover or touch devices) */}
+        <div className={`absolute top-1 right-1 md:top-2 md:right-2 z-30 flex gap-1 transition-opacity duration-200 ${(isHovered || isTouchDevice) && !showContextMenu ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
           <button
-            className="bg-black/70 hover:bg-black/90 text-white text-xs rounded px-2 py-1 transition"
+            className="bg-black/80 hover:bg-black text-white text-xs rounded-md min-w-[32px] min-h-[32px] md:min-w-[28px] md:min-h-[28px] px-1.5 py-1 flex items-center justify-center transition-colors duration-200 shadow-md"
             onClick={(e) => {
               e.stopPropagation();
               onAction('edit', item);
@@ -116,38 +135,33 @@ const LibraryItemCard = memo(({
             title="Edit"
             aria-label="Edit"
           >
-            ✎
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+            </svg>
           </button>
           <button
-            className="bg-black/70 hover:bg-black/90 text-white text-xs rounded px-2 py-1 transition"
+            className="bg-black/80 hover:bg-black text-white text-xs rounded-md min-w-[32px] min-h-[32px] md:min-w-[28px] md:min-h-[28px] px-1.5 py-1 flex items-center justify-center transition-colors duration-200 shadow-md"
             onClick={(e) => {
               e.stopPropagation();
+              setIsHovered(false);
               setContextMenuPos({ x: e.clientX, y: e.clientY });
               setShowContextMenu(true);
             }}
             title="More actions"
             aria-label="More actions"
           >
-            ⋯
+            <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="2" />
+              <circle cx="12" cy="6" r="2" />
+              <circle cx="12" cy="18" r="2" />
+            </svg>
           </button>
         </div>
 
-        {/* Selection checkmark overlay */}
-        {!isVideo && selected && (
-          <svg
-            className="absolute top-1 left-1 md:top-2 md:left-2 w-6 h-6 md:w-5 md:h-5 text-white pointer-events-none z-30"
-            viewBox="0 0 20 20"
-          >
-            <path
-              fill="currentColor"
-              d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-            />
-          </svg>
-        )}
 
         {/* Video duration badge */}
         {isVideo && (
-          <div className="absolute top-1 left-1 md:top-2 md:left-2 z-20 bg-neutral-800/90 backdrop-blur-sm rounded px-1 py-0.5 flex items-center gap-1 pointer-events-none">
+          <div className="absolute bottom-1 left-1 md:bottom-2 md:left-2 z-20 bg-neutral-800/90 backdrop-blur-sm rounded px-1 py-0.5 flex items-center gap-1 pointer-events-none">
             <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
               <path d="M2 6a2 2 0 012-2h6a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V6zM14.553 7.106A1 1 0 0014 8v4a1 1 0 00.553.894l2 1A1 1 0 0018 13V7a1 1 0 00-1.447-.894l-2 1z" />
             </svg>
@@ -162,23 +176,21 @@ const LibraryItemCard = memo(({
 
         {/* Error state */}
         {hasError && (
-          <div className="absolute inset-0 bg-neutral-900 rounded-lg flex items-center justify-center">
-            <div className="text-center">
-              <svg className="w-8 h-8 text-neutral-600 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <p className="text-xs text-neutral-500">Failed to load</p>
-              <button
-                className="text-xs text-blue-400 hover:text-blue-300 mt-1"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setHasError(false);
-                  setIsLoading(true);
-                }}
-              >
-                Retry
-              </button>
-            </div>
+          <div className="absolute inset-0 bg-neutral-900/95 backdrop-blur-sm rounded-lg flex flex-col items-center justify-center z-30 p-4 text-center">
+            <svg className="w-8 h-8 text-neutral-600 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <p className="text-xs text-neutral-500">Failed to load</p>
+            <button
+              className="text-xs text-blue-400 hover:text-blue-300 mt-1"
+              onClick={(e) => {
+                e.stopPropagation();
+                setHasError(false);
+                setIsLoading(true);
+              }}
+            >
+              Retry
+            </button>
           </div>
         )}
 
@@ -187,7 +199,7 @@ const LibraryItemCard = memo(({
           <video
             ref={videoRef}
             src={`${baseUrl}${item.url}`}
-            className={`rounded-lg border border-neutral-800 transition-all duration-200 hover:scale-105 w-full h-full object-cover ${hasError ? 'hidden' : ''}`}
+            className={`rounded-lg border border-neutral-800 transition-transform duration-200 hover:scale-105 w-full h-full object-cover ${hasError ? 'hidden' : ''}`}
             muted
             loop
             playsInline
@@ -203,7 +215,7 @@ const LibraryItemCard = memo(({
             src={`${baseUrl}${item.url}`}
             alt={item.prompt || `Generated image ${index + 1}`}
             loading="lazy"
-            className={`rounded-lg border border-neutral-800 transition-all duration-200 ${
+            className={`rounded-lg border border-neutral-800 transition-transform duration-200 ${
               selected ? 'ring-2 ring-blue-400 scale-95' : 'hover:scale-105'
             } ${hasError ? 'hidden' : ''}`}
             onLoad={() => setIsLoading(false)}
@@ -214,14 +226,15 @@ const LibraryItemCard = memo(({
           />
         )}
 
-        {/* Hover tooltip with metadata - positioned above/below based on position */}
-        {isHovered && !showContextMenu && item.prompt && (
-          <div className="absolute left-0 right-0 mb-2 p-2 bg-black/95 backdrop-blur-sm rounded-lg text-xs text-white pointer-events-none z-40 max-w-[200px]"
-               style={{
-                 bottom: index < 3 ? 'auto' : '100%',
-                 top: index < 3 ? '100%' : 'auto',
-                 marginTop: index < 3 ? '8px' : '0'
-               }}>
+        {/* Hover tooltip with better positioning */}
+        {isHovered && !showContextMenu && !isTouchDevice && item.prompt && (
+          <div 
+            className="absolute left-1/2 -translate-x-1/2 p-2 bg-black/95 backdrop-blur-sm rounded-lg text-xs text-white pointer-events-none z-40 w-max max-w-[min(200px,90vw)] whitespace-normal"
+            style={{
+              bottom: '100%',
+              marginBottom: '8px'
+            }}
+          >
             <div className="font-medium mb-1 line-clamp-2">{item.prompt}</div>
             <div className="text-neutral-400 text-[10px]">
               {formatDate(item.createdAt)} • {!isVideo && item.size}

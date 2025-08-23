@@ -2,11 +2,97 @@
 
 import { IMAGE_ANALYSIS_SCHEMA, VIDEO_ANALYSIS_SCHEMA, mapToLegacyFormat } from './vision-schemas.js';
 import { withTimeout } from './error-handling.js';
+import { 
+  createResponse, 
+  convertMessagesToResponsesInput, 
+  extractSystemInstructions, 
+  type ResponsesAPIConfig 
+} from './responses-api.js';
 
 import { SYSTEM_PROMPT, createVideoUserMessage, createImageUserMessage } from './vision-prompts.js';
 export { createImageUserMessage as createUserMessage } from './vision-prompts.js';
 
-// API call with strict schema enforcement
+// Detect if we should use Responses API based on deployment name and API version
+function shouldUseResponsesAPI(deployment: string, apiVersion: string): boolean {
+  // Force use of legacy chat completions API endpoint, as the v1/responses endpoint may not be available.
+  return false;
+
+  // Use Responses API for GPT-5 models with 2025-04-01-preview or later
+  const isGPT5 = deployment.toLowerCase().includes('gpt-5');
+  const isNewAPIVersion = apiVersion.includes('2025-04-01-preview');
+  return isGPT5 && isNewAPIVersion;
+}
+
+// New GPT-5 Responses API call with JSON mode
+export async function callVisionAPIWithResponses(
+  messages: any[],
+  schema: typeof IMAGE_ANALYSIS_SCHEMA | typeof VIDEO_ANALYSIS_SCHEMA,
+  config: {
+    endpoint: string;
+    deployment: string;
+    apiVersion: string;
+    authHeaders: Record<string, string>;
+    maxTokens?: number;
+    temperature?: number;
+    seed?: number;
+    timeoutMs?: number;
+    mapToStructured?: boolean;
+  }
+): Promise<any> {
+  const input = convertMessagesToResponsesInput(messages);
+  const instructions = extractSystemInstructions(messages);
+  
+  // Create JSON schema instructions for GPT-5
+  const schemaInstructions = `${instructions || SYSTEM_PROMPT}
+
+IMPORTANT: You must respond with valid JSON that exactly matches this schema:
+${JSON.stringify(schema, null, 2)}
+
+Ensure all required fields are present and data types match exactly. Do not include any text outside the JSON response.`;
+
+  const responsesConfig: ResponsesAPIConfig = {
+    endpoint: config.endpoint,
+    deployment: config.deployment,
+    apiVersion: config.apiVersion,
+    authHeaders: config.authHeaders,
+    maxTokens: config.maxTokens,
+    temperature: config.temperature,
+    seed: config.seed,
+    timeoutMs: config.timeoutMs
+  };
+
+  const response = await createResponse({
+    model: config.deployment,
+    input: input,
+    max_output_tokens: config.maxTokens || 1500,
+    temperature: config.temperature ?? 0.1,
+    verbosity: 'medium', // Use medium verbosity for detailed analysis
+    instructions: schemaInstructions,
+    seed: config.seed
+  }, responsesConfig);
+
+  const content = response?.choices?.[0]?.message?.content;
+  if (!content) {
+    throw new Error('Empty response from Responses API');
+  }
+
+  // Parse the JSON response
+  let parsed;
+  try {
+    parsed = JSON.parse(content);
+  } catch (error) {
+    throw new Error(`Invalid JSON response from Responses API: ${content}`);
+  }
+
+  // Map to legacy/structured app format when requested (default true for images)
+  if (config.mapToStructured !== false) {
+    return mapToLegacyFormat(parsed);
+  }
+
+  return parsed;
+}
+
+// API call with strict schema enforcement (supports both legacy and Responses API)
 export async function callVisionAPI(
   messages: any[],
   schema: typeof IMAGE_ANALYSIS_SCHEMA | typeof VIDEO_ANALYSIS_SCHEMA,
@@ -24,6 +110,12 @@ export async function callVisionAPI(
     mapToStructured?: boolean;
   }
 ): Promise<any> {
+  // Route to Responses API for GPT-5 models
+  if (shouldUseResponsesAPI(config.deployment, config.apiVersion)) {
+    return callVisionAPIWithResponses(messages, schema, config);
+  }
+
+  // Legacy Chat Completions API for other models
   const url = `${config.endpoint}/openai/deployments/${encodeURIComponent(config.deployment)}/chat/completions?api-version=${config.apiVersion}`;
 
   const requestBody = {

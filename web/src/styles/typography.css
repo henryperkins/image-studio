@@ -6,6 +6,9 @@
     -webkit-text-size-adjust: 100%;
     text-rendering: optimizeLegibility;
     font-optical-sizing: auto;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-smooth: always;
   }
 
   body {

@@ -49,25 +49,38 @@ export default function LibraryPromptSuggestions({
           text: result.generation_guidance.suggested_prompt,
           sourceModel: 'gpt-4.1',
           origin: 'vision-analysis',
-          tags: result.content.primary_subjects,
+          tags: result.content?.primary_subjects || [],
           videoId: imageIds[0] // Link to first image
         });
       }
 
-      // Add variations if available
-      if (result.generation_guidance?.variations) {
-        for (const variation of result.generation_guidance.variations) {
+      // Add variations if available (not part of typed schema; access via narrowed any)
+      {
+        const raw = (result as any)?.generation_guidance?.variations as unknown;
+        const rawVariations = Array.isArray(raw) ? (raw as any[]) : [];
+        for (const v of rawVariations) {
+          const text =
+            typeof v === 'string'
+              ? v
+              : (v && typeof v === 'object' && 'text' in v ? (v as any).text : '');
+          if (!text) continue;
           await addSuggestion({
-            text: variation,
+            text,
             sourceModel: 'gpt-4.1',
             origin: 'remix',
-            tags: result.content.primary_subjects,
+            tags: result.content?.primary_subjects || [],
             videoId: imageIds[0]
           });
         }
       }
 
-      showToast(`Generated ${result.generation_guidance?.variations?.length || 1} suggestions`, 'success');
+      {
+        const raw = (result as any)?.generation_guidance?.variations as unknown;
+        const variationCount = Array.isArray(raw) ? (raw as any[]).length : 0;
+        const mainCount = result.generation_guidance?.suggested_prompt ? 1 : 0;
+        const count = Math.max(mainCount + variationCount, 1);
+        showToast(`Generated ${count} suggestions`, 'success');
+      }
       setSelectedForAnalysis(new Set());
     } catch (error) {
       showToast('Analysis failed', 'error');

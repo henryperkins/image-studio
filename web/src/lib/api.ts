@@ -298,17 +298,33 @@ export async function getVisionHealth(): Promise<VisionHealthStatus> {
   return r as VisionHealthStatus;
 }
 
-// Convenience functions for common use cases
+// Enhanced Sora prompt generation with advanced features
 export async function generateSoraPrompt(ids: string[], options: Partial<VisionAnalysisParams> = {}): Promise<string> {
   const result = await analyzeImages(ids, {
     ...options,
     purpose: 'Sora video prompt creation',
-    detail: 'detailed',
-    tone: 'creative',
-    focus: ['motion_potential', 'cinematic_elements', 'scene_continuity']
+    detail: 'detailed', // Always use detailed for best results
+    tone: 'creative', // Creative tone triggers advanced GPT-5 analysis
+    focus: ['motion_potential', 'cinematic_elements', 'scene_continuity', 'lighting_transitions', 'subject_movements']
   });
 
-  return result.generation_guidance.suggested_prompt;
+  // Extract enhanced prompt with technical notes if available
+  const basePrompt = result.generation_guidance.suggested_prompt;
+  const styleKeywords = result.generation_guidance.style_keywords || [];
+  const technicalNotes = result.metadata.processing_notes.filter(note => 
+    note.includes('technical') || note.includes('cinematography') || note.includes('optimal')
+  );
+
+  // Combine base prompt with style enhancements
+  let enhancedPrompt = basePrompt;
+  if (styleKeywords.length > 0) {
+    enhancedPrompt += `\n\nStyle elements: ${styleKeywords.join(', ')}`;
+  }
+  if (technicalNotes.length > 0) {
+    enhancedPrompt += `\n\nTechnical notes: ${technicalNotes.join(' ')}`;
+  }
+
+  return enhancedPrompt;
 }
 
 export async function generateAccessibleAltText(ids: string[], options: { reading_level?: number } = {}): Promise<string> {

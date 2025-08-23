@@ -4,5 +4,6 @@ packages:
   - shared
 
 onlyBuiltDependencies:
+  - '@tailwindcss/oxide'
   - esbuild
   - ffmpeg-static

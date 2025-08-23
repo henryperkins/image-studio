@@ -43,8 +43,8 @@ const AZ = {
   // Video gen (Sora)
   videoDeployment: process.env.AZURE_OPENAI_VIDEO_DEPLOYMENT || "sora",
   // Vision chat
-  chatApiVersion: process.env.AZURE_OPENAI_CHAT_API_VERSION || "2024-02-15-preview",
-  visionDeployment: process.env.AZURE_OPENAI_VISION_DEPLOYMENT || ""
+  chatApiVersion: process.env.AZURE_OPENAI_CHAT_API_VERSION || "2025-04-01-preview",
+  visionDeployment: process.env.AZURE_OPENAI_VISION_DEPLOYMENT || "gpt-5"
 };
 // Allow the server to start even without Azure config.
 // Azure-dependent endpoints below already validate required settings
@@ -255,6 +255,7 @@ app.delete("/api/library/media/:id", async (req, reply) => {
 
 // ----------------- VISION Analysis (Enhanced GPT-4.1) -----------------
 import { VisionService } from './lib/vision-service.js';
+import { createSoraVideoPrompt } from './lib/vision-prompts.js';
 
 // Initialize new modular vision service
 const visionService = new VisionService({
@@ -317,14 +318,18 @@ app.post("/api/vision/describe", async (req, reply) => {
       });
     }
 
-    // Handle external URLs (fallback to old implementation)
+    // Handle external URLs - use enhanced vision service for consistency
     if (body.image_urls?.length) {
-      // Keep old implementation for external URLs for now
+      // For external URLs, create a simplified analysis using our enhanced system
       const parts = body.image_urls.map(u => ({ type: "image_url" as const, image_url: { url: u, detail: body.detail } }));
       const url = `${AZ.endpoint}/openai/deployments/${encodeURIComponent(AZ.visionDeployment)}/chat/completions?api-version=${AZ.chatApiVersion}`;
-      const system = body.style === "concise"
-        ? "You are an expert visual describer for video prompt engineering. Summarize key content, composition, palette, lighting, and style in 3–6 bullets. End with 'Suggested prompt:' line."
-        : "You are an expert visual describer for video prompt engineering. Provide thorough description (subject, composition, palette, lighting, camera, mood, textures). End with 'Suggested prompt:' line.";
+      
+      // Use enhanced Sora prompt for better results
+      const detailLevel = body.style === "concise" ? "brief" : "detailed";
+      const tone = "creative";
+      const soraPrompt = createSoraVideoPrompt({ detail: detailLevel as any, tone: tone as any });
+      
+      const system = `You are an expert vision analyst specializing in video prompt creation. ${soraPrompt}`;
 
       const r = await fetch(url, {
         method: "POST",
@@ -332,10 +337,10 @@ app.post("/api/vision/describe", async (req, reply) => {
         body: JSON.stringify({
           messages: [
             { role: "system", content: system },
-            { role: "user", content: [{ type: "text", text: "Analyze the following image(s)." }, ...parts] }
+            { role: "user", content: [{ type: "text", text: "Analyze the following image(s) for Sora video generation." }, ...parts] }
           ],
-          max_tokens: 400,
-          temperature: 0.2
+          max_tokens: 600, // Increased for better prompts
+          temperature: 0.3 // Slightly more creative
         })
       });
       
@@ -933,6 +938,8 @@ app.post("/api/videos/edit/concat", async (req, reply) => {
 
 // ---------- Video Analysis (Beta) ----------
 import { analyzeVideoSequence } from './lib/video-analysis.js';
+
+// Advanced Sora prompt generation is now integrated into the vision service
 
 app.post("/api/videos/analyze", async (req, reply) => {
   if (!process.env.ENABLE_VIDEO_ANALYSIS) {

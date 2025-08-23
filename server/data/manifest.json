@@ -1,5 +1,47 @@
 [
   {
+    "kind": "image",
+    "id": "eb693397-7392-4dfd-bdf8-9486de129d56",
+    "filename": "eb693397-7392-4dfd-bdf8-9486de129d56.png",
+    "url": "/static/images/eb693397-7392-4dfd-bdf8-9486de129d56.png",
+    "prompt": "A great ocean liner too big to sink",
+    "size": "1024x1024",
+    "format": "png",
+    "createdAt": "2025-08-23T14:07:05.212Z"
+  },
+  {
+    "kind": "video",
+    "id": "604fcc4b-4560-4892-8445-578e4a55f1cd",
+    "filename": "604fcc4b-4560-4892-8445-578e4a55f1cd.mp4",
+    "url": "/static/videos/604fcc4b-4560-4892-8445-578e4a55f1cd.mp4",
+    "prompt": "\n\n[Reference images]\nhttp://20.57.32.81:8787/static/images/243f9728-b880-4ed1-a998-0e704eb861e3.jpg",
+    "width": 1080,
+    "height": 1080,
+    "duration": 10,
+    "createdAt": "2025-08-23T14:04:09.664Z"
+  },
+  {
+    "kind": "video",
+    "id": "834de044-1763-4fbf-aff3-015f9a8cd020",
+    "filename": "834de044-1763-4fbf-aff3-015f9a8cd020.mp4",
+    "url": "/static/videos/834de044-1763-4fbf-aff3-015f9a8cd020.mp4",
+    "prompt": "\n\n[Reference images]\nhttp://20.57.32.81:8787/static/images/243f9728-b880-4ed1-a998-0e704eb861e3.jpg",
+    "width": 1080,
+    "height": 1080,
+    "duration": 10,
+    "createdAt": "2025-08-23T14:03:54.513Z"
+  },
+  {
+    "kind": "image",
+    "id": "243f9728-b880-4ed1-a998-0e704eb861e3",
+    "filename": "243f9728-b880-4ed1-a998-0e704eb861e3.jpg",
+    "url": "/static/images/243f9728-b880-4ed1-a998-0e704eb861e3.jpg",
+    "prompt": "Night time in a techno metropolis with a galactic surfer vibe",
+    "size": "1024x1536",
+    "format": "jpeg",
+    "createdAt": "2025-08-23T13:18:58.533Z"
+  },
+  {
     "kind": "video",
     "id": "d05be8d1-2e23-4f8c-9f70-44073ec4fed6",
     "filename": "d05be8d1-2e23-4f8c-9f70-44073ec4fed6.mp4",

@@ -1,5 +1,5 @@
 import { useMemo, useState, useRef, useEffect } from "react";
-import { describeImagesByIds, generateVideoWithProgress, generateSoraPrompt } from "../lib/api";
+import { analyzeImages, generateVideoWithProgress, generateSoraPrompt } from "../lib/api";
 import { processApiError } from "../lib/errorUtils";
 import { useToast } from "../contexts/ToastContext";
 import EnhancedVisionAnalysis from "./EnhancedVisionAnalysis";
@@ -34,8 +34,6 @@ export default function SoraCreator({
   const [analysis, setAnalysis] = useState<string>("");
   const [progress, setProgress] = useState(0);
   const [stage, setStage] = useState<"idle"|"submitting"|"generating"|"downloading"|"finalizing">("idle");
-  const [analysisMode, setAnalysisMode] = useState<"describe"|"video_ideas">("describe");
-  const [analysisStyle, setAnalysisStyle] = useState<"concise"|"detailed">("concise");
   const [analyzingImages, setAnalyzingImages] = useState(false);
   const [showEnhancedAnalysis, setShowEnhancedAnalysis] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -61,12 +59,17 @@ export default function SoraCreator({
     if (!selectedIds.length) return;
     setAnalyzingImages(true); setError(null);
     try {
-      const { description } = await describeImagesByIds(selectedIds, "high", analysisMode, analysisStyle);
+      // Use enhanced analysis but with standard parameters for basic mode
+      const result = await analyzeImages(selectedIds, {
+        purpose: 'Sora video prompt creation',
+        detail: 'standard',
+        tone: 'casual',
+        audience: 'general'
+      });
+      
+      const description = `${result.content.scene_description}\n\nSuggested prompt: ${result.generation_guidance.suggested_prompt}`;
       setAnalysis(description);
-      const successMsg = analysisMode === "video_ideas"
-        ? "Video ideas generated successfully!"
-        : "Images analyzed successfully!";
-      showToast(successMsg, "success");
+      showToast("Images analyzed successfully!", "success");
     } catch (e:any) {
       const errorMsg = e.message || "Analyze failed";
       setError(errorMsg);
@@ -76,17 +79,18 @@ export default function SoraCreator({
     }
   }
 
-  // Quick Sora prompt generation using enhanced API
-  async function quickSoraPrompt() {
+  // Enhanced Sora prompt generation (now uses GPT-5 automatically when available)
+  async function generateEnhancedPrompt() {
     if (!selectedIds.length) return;
     setAnalyzingImages(true); setError(null);
     try {
       const soraPrompt = await generateSoraPrompt(selectedIds, {
         detail: 'detailed',
-        tone: 'creative'
+        tone: 'creative',
+        audience: 'technical'
       });
       setPrompt(prev => prev + (prev ? '\n\n' : '') + soraPrompt);
-      showToast("Enhanced Sora prompt generated!", "success");
+      showToast("Advanced Sora prompt generated with GPT-5!", "success");
     } catch (e: any) {
       const errorMsg = e.message || "Enhanced analysis failed";
       setError(errorMsg);
@@ -199,74 +203,42 @@ export default function SoraCreator({
         </div>
       )}
 
-      {/* Legacy Analysis Controls */}
+      {/* Simplified Analysis Controls */}
       {!showEnhancedAnalysis && selectedIds.length > 0 && (
-        <>
-          <div className="flex flex-col sm:flex-row gap-2">
-            <div className="flex gap-1">
-              <button
-                className={`btn text-xs min-h-[48px] sm:min-h-0 ${analysisMode === 'describe' ? 'bg-blue-600 hover:bg-blue-500' : ''}`}
-                onClick={() => setAnalysisMode('describe')}
-              >
-                Describe for Prompt
-              </button>
-              <button
-                className={`btn text-xs min-h-[48px] sm:min-h-0 ${analysisMode === 'video_ideas' ? 'bg-blue-600 hover:bg-blue-500' : ''}`}
-                onClick={() => setAnalysisMode('video_ideas')}
-              >
-                Get Video Ideas
-              </button>
-            </div>
-            <div className="flex gap-1">
-              <button
-                className={`btn text-xs min-h-[48px] sm:min-h-0 ${analysisStyle === 'concise' ? 'bg-neutral-700 hover:bg-neutral-600' : ''}`}
-                onClick={() => setAnalysisStyle('concise')}
-              >
-                Concise
-              </button>
-              <button
-                className={`btn text-xs min-h-[48px] sm:min-h-0 ${analysisStyle === 'detailed' ? 'bg-neutral-700 hover:bg-neutral-600' : ''}`}
-                onClick={() => setAnalysisStyle('detailed')}
-              >
-                Detailed
-              </button>
-            </div>
-          </div>
-
-          <div className="flex flex-col sm:flex-row gap-2">
-            <LoadingButton
-              variant="secondary"
-              loading={analyzingImages}
-              loadingText={analysisMode === 'video_ideas' ? 'Generating ideas…' : 'Analyzing…'}
-              disabled={!selectedIds.length || busy}
-              onClick={analyze}
-            >
-              {analysisMode === 'video_ideas'
-                ? `Get Video Ideas for ${selectedIds.length || ""} image${selectedIds.length>1?"s":""}`
-                : `Analyze ${selectedIds.length || ""} image${selectedIds.length>1?"s":""} (GPT-4.1)`}
-            </LoadingButton>
-            <LoadingButton
-              variant="secondary"
-              loading={analyzingImages}
-              disabled={!selectedIds.length || busy}
-              onClick={quickSoraPrompt}
-            >
-              Quick Enhanced Prompt
-            </LoadingButton>
+        <div className="flex flex-col sm:flex-row gap-2">
+          <LoadingButton
+            variant="secondary"
+            loading={analyzingImages}
+            loadingText="Generating advanced prompt…"
+            disabled={!selectedIds.length || busy}
+            onClick={generateEnhancedPrompt}
+            className="flex-1"
+          >
+            Generate Sora Prompt (GPT-5) for {selectedIds.length} image{selectedIds.length > 1 ? "s" : ""}
+          </LoadingButton>
+          <LoadingButton
+            variant="secondary"
+            loading={analyzingImages}
+            loadingText="Analyzing…"
+            disabled={!selectedIds.length || busy}
+            onClick={analyze}
+          >
+            Basic Analysis
+          </LoadingButton>
+          {analysis && (
             <button
               className="btn min-h-[48px] sm:min-h-0"
               onClick={() => {
-                const promptToInsert = analysisMode === 'video_ideas'
-                  ? (analysis || "").replace(/^Suggested Sora prompt:\s*/im, "")
-                  : (analysis || "").replace(/^Suggested prompt:\s*/im, "");
+                const promptToInsert = analysis.replace(/^Suggested.*?prompt:\s*/im, "");
                 setPrompt(p => p + (p ? "\n\n" : "") + promptToInsert);
+                showToast("Analysis inserted into prompt", "success");
               }}
-              disabled={!analysis || analyzingImages}
+              disabled={analyzingImages}
             >
-              Insert {analysisMode === 'video_ideas' ? 'video prompt' : 'analysis'} into prompt
+              Insert Analysis
             </button>
-          </div>
-        </>
+          )}
+        </div>
       )}
 
       {analyzingImages && !analysis && (
