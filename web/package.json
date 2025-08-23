@@ -11,26 +11,26 @@
     "test:ui": "vitest"
   },
   "dependencies": {
+    "@image-studio/shared": "workspace:*",
     "react": "19.0.0",
     "react-dom": "19.0.0",
-    "zod": "3.23.8",
-    "@image-studio/shared": "workspace:*"
+    "zod": "3.23.8"
   },
   "devDependencies": {
     "@eslint/js": "^9.33.0",
-    "@tailwindcss/vite": "4.1.0",
+    "@tailwindcss/vite": "4.1.12",
+    "@testing-library/react": "^16.0.1",
+    "@testing-library/user-event": "^14.6.1",
     "@types/react": "19.0.2",
     "@types/react-dom": "19.0.2",
     "@typescript-eslint/eslint-plugin": "^8.39.1",
     "@typescript-eslint/parser": "^8.39.1",
     "@vitejs/plugin-react": "4.3.1",
-    "@testing-library/react": "^16.0.1",
-    "@testing-library/user-event": "^14.6.1",
     "eslint": "^9.33.0",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^5.2.0",
     "jsdom": "^25.0.1",
-    "tailwindcss": "4.1.0",
+    "tailwindcss": "4.1.12",
     "typescript": "5.5.4",
     "vite": "7.0.2",
     "vitest": "^2.1.5"

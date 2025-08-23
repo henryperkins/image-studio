@@ -5,10 +5,13 @@ import { listLibrary, type LibraryItem, API_BASE_URL, isVideoItem } from "../lib
 import ImageEditor from "./ImageEditor";
 import VideoEditor from "./VideoEditor";
 import ImageViewerModal from "./ImageViewerModal";
+import LibraryItemCard from "../components/LibraryItemCard";
+import { useMediaActions } from "../hooks/useMediaActions";
 import { Heading, Text } from "./typography";
 import { PromptSuggestionsProvider } from "../contexts/PromptSuggestionsContext";
 import { PreferencesProvider } from "../contexts/PreferencesContext";
 import PromptSuggestions from "./PromptSuggestions";
+import LibraryPromptSuggestions from "../components/LibraryPromptSuggestions";
 import { usePromptSuggestions } from "../contexts/PromptSuggestionsContext";
 import { useToast } from "../contexts/ToastContext";
 import ConnectionStatus from "./ConnectionStatus";
@@ -33,6 +36,8 @@ function AppContent() {
   const [editImageId, setEditImageId] = useState<string | null>(null);
   const [editVideoId, setEditVideoId] = useState<string | null>(null);
   const [viewImageId, setViewImageId] = useState<string | null>(null);
+  const [libraryPage, setLibraryPage] = useState(0);
+  const itemsPerPage = 12;
 
   // Lifted state for the prompt (used by visible creator panel)
   const [prompt, setPrompt] = useState("");
@@ -40,12 +45,29 @@ function AppContent() {
   const { showToast } = useToast();
   const { suggestions } = usePromptSuggestions();
   const prevCountRef = useRef<number>(0);
+  
+  // Centralized media actions
+  const { handleAction } = useMediaActions({
+    onRefresh: refreshLibrary,
+    onViewImage: setViewImageId,
+    onEditImage: setEditImageId,
+    onEditVideo: setEditVideoId,
+    onUseInSora: (ids) => {
+      setSelected(ids);
+      setView('sora');
+    },
+    baseUrl: API_BASE_URL
+  });
 
   async function refreshLibrary() {
     setLibraryLoading(true);
     try {
       const items = await listLibrary();
       setLibrary(items);
+      // Reset to first page if current page is out of bounds
+      if (libraryPage * itemsPerPage >= items.length && libraryPage > 0) {
+        setLibraryPage(0);
+      }
     } finally {
       setLibraryLoading(false);
     }
@@ -151,7 +173,6 @@ useEffect(() => {
 
   const imgToEdit = editImageId ? (library.find((i) => i.id === editImageId && !isVideoItem(i)) as any) : null;
   const vidToEdit = editVideoId ? (library.find((i) => i.id === editVideoId && isVideoItem(i)) as any) : null;
-  const imgToView = viewImageId ? (library.find((i) => i.id === viewImageId && !isVideoItem(i)) as any) : null;
 
   return (
     <div className="mx-auto max-w-6xl p-4 space-y-4">
@@ -176,7 +197,7 @@ useEffect(() => {
             selected={view}
             onChange={(id) => setView(id as View)}
             listClassName="inline-flex relative z-10"
-            getTabClassName={(id, isSelected) =>
+            getTabClassName={(_, isSelected) =>
               `px-4 py-2 relative z-10 transition-colors duration-300 ${
                 isSelected ? "text-white" : "text-neutral-400 hover:text-white"
               }`
@@ -300,111 +321,48 @@ useEffect(() => {
               </button>
             </div>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-[320px] md:max-h-[520px] overflow-auto fade-in">
-              {library.map((item, index) => (
-                <div
-                  key={item.id}
-                  className="relative cursor-pointer group"
-                  style={{
-                    animation: `fadeIn 0.3s ease-out ${index * 0.05}s both`,
-                  }}
-                >
-                  {!isVideoItem(item) && (
-                    <input
-                      type="checkbox"
-                      className="absolute top-1 left-1 md:top-2 md:left-2 z-20 w-6 h-6 md:w-5 md:h-5 rounded cursor-pointer appearance-none bg-neutral-800/80 border-2 border-neutral-600 checked:bg-blue-500 checked:border-blue-500 transition-all duration-200 hover:border-neutral-400 checked:hover:bg-blue-400"
-                      checked={selected.includes(item.id)}
-                      onChange={(e) => {
-                        e.stopPropagation();
-                        setSelected((prev) => (e.target.checked ? [...prev, item.id] : prev.filter((x) => x !== item.id)));
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 fade-in">
+                {library
+                  .slice(libraryPage * itemsPerPage, (libraryPage + 1) * itemsPerPage)
+                  .map((item, index) => (
+                    <LibraryItemCard
+                      key={item.id}
+                      item={item}
+                      index={index}
+                      selected={selected.includes(item.id)}
+                      onSelect={(id, isSelected) => {
+                        setSelected(prev => isSelected ? [...prev, id] : prev.filter(x => x !== id));
                       }}
-                      onClick={(e) => e.stopPropagation()}
-                      aria-label={`Select image: ${item.prompt || `Image ${index + 1}`}`}
+                      onAction={handleAction}
+                      onView={(item) => setViewImageId(item.id)}
+                      baseUrl={API_BASE_URL}
                     />
-                  )}
-
-                  {/* Edit button */}
+                  ))}
+              </div>
+              
+              {/* Pagination controls */}
+              {library.length > itemsPerPage && (
+                <div className="flex items-center justify-between">
                   <button
-                    className="absolute top-1 right-1 md:top-2 md:right-2 z-20 bg-black/70 text-white text-xs rounded px-2 py-1 opacity-0 group-hover:opacity-100 transition"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      isVideoItem(item) ? setEditVideoId(item.id) : setEditImageId(item.id);
-                    }}
-                    title="Edit"
-                    aria-label="Edit"
+                    className="btn btn-xs"
+                    onClick={() => setLibraryPage(Math.max(0, libraryPage - 1))}
+                    disabled={libraryPage === 0}
                   >
-                    ✎ Edit
+                    ← Previous
                   </button>
-
-                  {!isVideoItem(item) && selected.includes(item.id) && (
-                    <svg
-                      className="absolute top-1 left-1 md:top-2 md:left-2 w-6 h-6 md:w-5 md:h-5 text-white pointer-events-none z-30"
-                      viewBox="0 0 20 20"
-                    >
-                      <path
-                        fill="currentColor"
-                        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                      />
-                    </svg>
-                  )}
-
-                  {isVideoItem(item) && (
-                    <div className="absolute top-1 left-1 md:top-2 md:left-2 z-20 bg-neutral-800/90 backdrop-blur-sm rounded px-1 py-0.5 flex items-center gap-1 pointer-events-none">
-                      <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
-                        <path d="M2 6a2 2 0 012-2h6a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V6zM14.553 7.106A1 1 0 0014 8v4a1 1 0 00.553.894l2 1A1 1 0 0018 13V7a1 1 0 00-1.447-.894l-2 1z" />
-                      </svg>
-                      <span className="text-xs text-white font-medium">{(item as any).duration}s</span>
-                    </div>
-                  )}
-
-                  {isVideoItem(item) ? (
-                    <video
-                      src={`${API_BASE_URL}${item.url}`}
-                      className={`rounded-lg border border-neutral-800 transition-all duration-200 hover:scale-105 w-full h-full object-cover`}
-                      muted
-                      loop
-                      playsInline
-                      preload="metadata"
-                      onError={(evt) => {
-                        const v = evt.currentTarget as HTMLVideoElement;
-                        console.warn("Video failed to load:", v.src);
-                      }}
-                      onMouseEnter={(e) => {
-                        const v = e.currentTarget;
-                        const NETWORK_NO_SOURCE = (HTMLMediaElement as any).NETWORK_NO_SOURCE ?? 3;
-                        const hasSrc = Boolean(v.currentSrc || v.src);
-                        const hasError = v.error != null;
-                        const noSource = v.networkState === NETWORK_NO_SOURCE;
-                        if (!hasSrc || hasError || noSource) {
-                          // Don't attempt to play if there is no valid, supported source
-                          return;
-                        }
-                        const p = v.play();
-                        if (p && typeof (p as any).catch === "function") {
-                          (p as Promise<void>).catch(() => {
-                            // Suppress NotSupportedError when hovering items with invalid sources
-                          });
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        const v = e.currentTarget;
-                        try { v.pause(); } catch {}
-                        v.currentTime = 0;
-                      }}
-                    />
-                  ) : (
-                    <img
-                      src={`${API_BASE_URL}${item.url}`}
-                      alt={item.prompt || `Generated image ${index + 1}`}
-                      loading="lazy"
-                      className={`rounded-lg border border-neutral-800 transition-all duration-200 ${
-                        selected.includes(item.id) ? "ring-2 ring-blue-400 scale-95" : "hover:scale-105"
-                      }`}
-                      onClick={() => setViewImageId(item.id)}
-                    />
-                  )}
+                  <span className="text-xs text-neutral-400">
+                    Page {libraryPage + 1} of {Math.ceil(library.length / itemsPerPage)}
+                  </span>
+                  <button
+                    className="btn btn-xs"
+                    onClick={() => setLibraryPage(Math.min(Math.ceil(library.length / itemsPerPage) - 1, libraryPage + 1))}
+                    disabled={(libraryPage + 1) * itemsPerPage >= library.length}
+                  >
+                    Next →
+                  </button>
                 </div>
-              ))}
+              )}
             </div>
           )}
 
@@ -444,6 +402,18 @@ useEffect(() => {
 
           {/* Prompt Suggestions panel under the Library panel */}
           <PromptSuggestions onInsert={handleInsertPrompt} onReplace={handleReplacePrompt} />
+          
+          {/* Library-based prompt generation */}
+          <LibraryPromptSuggestions 
+            library={library}
+            onInsert={handleInsertPrompt}
+            onSelectItem={(id) => {
+              const item = library.find(i => i.id === id);
+              if (item && !isVideoItem(item)) {
+                setViewImageId(id);
+              }
+            }}
+          />
         </div>
       </div>
 
@@ -452,14 +422,17 @@ useEffect(() => {
       </footer>
 
       {/* Modals */}
-      {imgToView && (
+      {viewImageId && (
         <ImageViewerModal
-          item={imgToView}
+          items={library}
+          currentItemId={viewImageId}
           onClose={() => setViewImageId(null)}
           onEdit={() => {
             setViewImageId(null);
-            setEditImageId(imgToView.id);
+            if (viewImageId) setEditImageId(viewImageId);
           }}
+          onNavigate={(id) => setViewImageId(id)}
+          onRefresh={refreshLibrary}
           baseUrl={API_BASE_URL}
         />
       )}

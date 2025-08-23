@@ -1,75 +1,19 @@
+/* Import Tailwind CSS v4 */
 @import "tailwindcss";
 
-/* === Typography System Tokens === */
+/* Import theme configuration */
+@import "./styles/theme.css";
 
-:root { 
-  color-scheme: dark;
-  
-  /* Font Families (primary first, fallbacks broad coverage) */
-  --font-sans: "InterVariable", "Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
-  --font-serif: "SourceSerif4Variable", "Source Serif 4", Georgia, "Times New Roman", Times, serif, "Noto Serif", "Noto Serif CJK SC", "Noto Serif CJK JP";
-  --font-mono: "JetBrainsMonoVariable", "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", "Courier New", monospace;
+/* Import typography styles */
+@import "./styles/typography.css";
 
-  /* Variable axes (fallback values) */
-  --w-thin: 100;
-  --w-light: 300;
-  --w-regular: 400;
-  --w-medium: 500;
-  --w-semibold: 600;
-  --w-bold: 700;
-  --w-extrabold: 800;
-
-  /* Scale (Perfect Fourth) */
-  --font-size-xs: 0.75rem;   /* 12 */
-  --font-size-sm: 0.875rem;  /* 14 */
-  --font-size-base: 1rem;    /* 16 */
-  --font-size-md: 1.125rem;  /* 18 (added midpoint) */
-  --font-size-lg: 1.333rem;  /* 21.33 */
-  --font-size-xl: 1.75rem;   /* 28 */
-  --font-size-2xl: 2.375rem; /* 38 */
-  --font-size-3xl: 3.125rem; /* 50 */
-  --font-size-4xl: 4.2rem;   /* 67.2 */
-
-  /* Line Heights (px values converted to unitless multiples for reliability) */
-  --lh-tight: 1.1;
-  --lh-snug: 1.2;
-  --lh-heading: 1.14;
-  --lh-display: 1.18;
-  --lh-body: 1.5;
-  --lh-longform: 1.58;
-  --lh-small: 1.43;
-  
-  /* Letter Spacing (em) */
-  --track-tight-2: -0.02em;
-  --track-tight: -0.01em;
-  --track-normal: 0;
-  --track-wide: 0.02em;
-  --track-wide-2: 0.04em;
-
-  /* Feature Presets */
-  --ff-ui: "kern","liga","calt";
-  --ff-longform: "kern","liga","clig","onum";
-  --ff-numeric: "tnum","lnum","zero";
-  --ff-mono: "kern","zero";
-  --ff-caps: "kern","liga","case";
-
-  /* Variation Settings (Example if future axes added) */
-  --font-opsz: 0; /* 0 => auto for fonts with opsz axis (set via font-optical-sizing) */
-
-  /* Misc */
-  --focus-ring: 2px;
-}
-
-/* === Font Face (self-host example placeholders) === */
-/* Host fonts locally after downloading/subsetting; below are illustrative */
+/* Font faces - consider self-hosting for production */
 @font-face {
   font-family: "InterVariable";
   src: url("https://fonts.gstatic.com/s/inter/v13/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuLyfAZ9hiA.woff2") format("woff2-variations");
   font-weight: 100 900;
   font-display: swap;
   font-style: normal;
-  font-named-instance: "Regular";
-  unicode-range: U+0000-00FF, U+0100-024F, U+0259, U+1E00-1EFF, U+2000-206F, U+20AC;
 }
 
 @font-face {
@@ -78,7 +22,6 @@
   font-weight: 200 900;
   font-display: swap;
   font-style: normal;
-  unicode-range: U+0000-00FF, U+0100-024F, U+1E00-1EFF, U+2000-206F, U+20AC;
 }
 
 @font-face {
@@ -87,335 +30,23 @@
   font-weight: 100 800;
   font-display: swap;
   font-style: normal;
-  unicode-range: U+0000-00FF, U+0100-024F, U+2000-206F;
 }
 
-/* === Base Resets & Rendering === */
-html {
-  font-family: var(--font-sans);
-  font-size: 100%; /* 16px base */
-  -webkit-text-size-adjust: 100%;
-  text-rendering: optimizeLegibility;
-  font-feature-settings: var(--ff-ui);
-  font-variation-settings: "wght" var(--w-regular);
-  font-optical-sizing: auto;
-}
+/* Additional utility classes */
+@layer utilities {
+  .grid2 { 
+    @apply grid md:grid-cols-2 gap-4;
+  }
 
-body {
-  font-size: var(--font-size-base);
-  line-height: var(--lh-body);
-  letter-spacing: var(--track-normal);
-  font-weight: var(--w-regular);
-  background: #0d0d0f;
-  color: #f5f6f7;
-}
+  .fade-in {
+    @apply animate-fade-in;
+  }
 
-.btn { 
-  @apply rounded-2xl px-4 py-2 bg-neutral-800 hover:bg-neutral-700 transition-all duration-200 ease-out;
-  @apply active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-neutral-800;
-  @apply focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:ring-offset-2 focus:ring-offset-neutral-900;
-  @apply text-sm font-medium text-neutral-200;
-}
+  .image-hover {
+    @apply transition-all duration-200 hover:scale-105 hover:shadow-xl;
+  }
 
-.btn-primary {
-  @apply bg-blue-600 hover:bg-blue-500 text-white;
-  @apply shadow-lg hover:shadow-xl;
-  @apply ring-blue-500/30 hover:ring-blue-500/40;
-}
-
-.btn-secondary {
-  @apply bg-neutral-700 hover:bg-neutral-600 text-neutral-100;
-  @apply border border-neutral-600 hover:border-neutral-500;
-}
-
-.btn-danger {
-  @apply bg-red-600 hover:bg-red-500 text-white;
-  @apply ring-red-500/30 hover:ring-red-500/40;
-}
-
-.btn-xs {
-  @apply px-2 py-1 text-xs rounded-lg;
-}
-
-.btn-sm {
-  @apply px-3 py-1.5 text-xs rounded-xl;
-}
-
-.btn-lg {
-  @apply px-6 py-3 text-base rounded-2xl;
-}
-
-.input { 
-  @apply w-full rounded-xl bg-neutral-900 border border-neutral-700 p-3 text-sm;
-  @apply transition-all duration-200 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20;
-  @apply placeholder:text-neutral-400;
-}
-
-.card { 
-  @apply rounded-2xl bg-neutral-900/70 border border-neutral-800 p-4 shadow;
-  @apply backdrop-blur-sm;
-}
-
-.grid2 { @apply grid md:grid-cols-2 gap-4; }
-
-/* Loading skeleton animation */
-@keyframes shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
-}
-
-.skeleton {
-  @apply bg-gradient-to-r from-neutral-800 via-neutral-700 to-neutral-800;
-  background-size: 200% 100%;
-  animation: shimmer 1.5s infinite ease-in-out;
-}
-
-/* (Removed old loading spinner CSS; using shared LoadingButton/Spinner component) */
-
-/* Pulse animation for buttons */
-@keyframes buttonPulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.7; }
-}
-
-.btn.loading {
-  animation: buttonPulse 1.5s infinite ease-in-out;
-  @apply cursor-wait;
-}
-
-/* Fade in animation */
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-.fade-in {
-  animation: fadeIn 0.3s ease-out;
-}
-
-/* Slide up animation */
-@keyframes slideUp {
-  from { opacity: 0; transform: translateY(20px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-.animate-slide-up {
-  animation: slideUp 0.3s ease-out;
-}
-
-/* Toast notifications */
-.toast {
-  @apply fixed right-4 px-4 py-3 rounded-xl shadow-lg;
-  @apply transform transition-all duration-300 ease-out z-50;
-  top: calc(env(safe-area-inset-top, 0px) + 1rem);
-  max-width: calc(100vw - 2rem);
-  animation: slideIn 0.3s ease-out;
-}
-
-@media (min-width: 768px) {
-  .toast {
-    @apply bottom-4;
-    top: auto;
-    max-width: 400px;
+  .btn.loading {
+    @apply animate-pulse-soft cursor-wait;
   }
 }
-
-@supports (height: 100dvh) {
-  .toast {
-    top: calc(env(safe-area-inset-top, 0px) + 1rem);
-  }
-  
-  @media (min-width: 768px) {
-    .toast {
-      @apply bottom-4;
-      top: auto;
-    }
-  }
-}
-
-@keyframes slideIn {
-  from { transform: translateX(100%); opacity: 0; }
-  to { transform: translateX(0); opacity: 1; }
-}
-
-.toast-success {
-  @apply bg-green-900/90 text-green-100 border border-green-800;
-}
-
-.toast-error {
-  @apply bg-red-900/90 text-red-100 border border-red-800;
-}
-
-/* Progress bar */
-.progress-bar {
-  @apply h-1 bg-blue-500 rounded-full transition-all duration-300 ease-out;
-}
-
-/* Indeterminate progress animation */
-@keyframes progressIndeterminate {
-  0% { left: -40%; width: 40%; }
-  50% { left: 20%; width: 60%; }
-  100% { left: 100%; width: 40%; }
-}
-.progress-bar-indeterminate {
-  position: absolute;
-  left: -40%;
-  width: 40%;
-  height: 100%;
-  background: linear-gradient(to right, #3b82f6, #60a5fa); /* blue-500 to blue-400 */
-  animation: progressIndeterminate 1.2s ease-in-out infinite;
-  border-radius: 9999px;
-}
-
-/* Image hover effects */
-.image-hover {
-  @apply transition-all duration-200 hover:scale-105 hover:shadow-xl;
-}
-
-/* (Removed global pulse helper; avoid duplicate animations) */
-
-/* === Heading Classes === */
-.display, .heading-1 {
-  font-family: var(--font-serif);
-  font-size: clamp(2.8rem, 5vw, var(--font-size-4xl));
-  line-height: var(--lh-heading);
-  font-weight: var(--w-semibold);
-  letter-spacing: var(--track-tight);
-  font-feature-settings: var(--ff-ui);
-}
-.heading-2 {
-  font-size: var(--font-size-3xl);
-  line-height: var(--lh-heading);
-  font-weight: var(--w-semibold);
-  letter-spacing: var(--track-tight);
-}
-.heading-3 {
-  font-size: var(--font-size-2xl);
-  line-height: var(--lh-snug);
-  font-weight: var(--w-semibold);
-}
-.heading-4 {
-  font-size: var(--font-size-xl);
-  line-height: var(--lh-snug);
-  font-weight: var(--w-semibold);
-}
-.heading-5 {
-  font-size: var(--font-size-lg);
-  line-height: var(--lh-snug);
-  font-weight: var(--w-medium);
-}
-.heading-6 {
-  font-size: var(--font-size-md);
-  line-height: var(--lh-snug);
-  font-weight: var(--w-medium);
-  letter-spacing: var(--track-normal);
-}
-
-/* Body variants */
-.text-body { font-size: var(--font-size-base); line-height: var(--lh-body); }
-.text-longform {
-  font-family: var(--font-serif);
-  font-size: var(--font-size-base);
-  line-height: var(--lh-longform);
-  font-feature-settings: var(--ff-longform);
-}
-.text-small { font-size: var(--font-size-sm); line-height: var(--lh-small); letter-spacing: var(--track-normal); }
-.text-caption { font-size: var(--font-size-xs); line-height: var(--lh-small); letter-spacing: var(--track-wide); }
-
-/* Code */
-.code, code {
-  font-family: var(--font-mono);
-  font-size: var(--font-size-sm);
-  line-height: var(--lh-small);
-  font-feature-settings: "zero","kern";
-  background: #181a1f;
-  padding: 0.15em 0.35em;
-  border-radius: 4px;
-}
-
-/* Preformatted blocks */
-pre {
-  font-family: var(--font-mono);
-  font-size: var(--font-size-sm);
-  line-height: var(--lh-small);
-  overflow-x: auto;
-  padding: 1rem;
-  background: #111315;
-  border: 1px solid #1f2328;
-  border-radius: 12px;
-  font-feature-settings: "zero","tnum";
-}
-
-/* Numeric */
-.numerical, .numeric {
-  font-feature-settings: var(--ff-numeric);
-  font-variant-numeric: tabular-nums slashed-zero lining-nums;
-  font-family: var(--font-sans);
-}
-
-/* Longform container */
-.longform {
-  max-width: 68ch;
-  font-family: var(--font-serif);
-  font-feature-settings: var(--ff-longform);
-  font-size: var(--font-size-base);
-  line-height: var(--lh-longform);
-  hyphens: auto;
-  hanging-punctuation: first last;
-}
-
-/* Capitals / Label */
-.label, .caps {
-  text-transform: uppercase;
-  letter-spacing: var(--track-wide-2);
-  font-size: var(--font-size-sm);
-  font-weight: var(--w-medium);
-  font-feature-settings: var(--ff-caps);
-}
-
-/* Truncation utilities */
-.truncate-1 {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.truncate-2 {
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-/* Contrast helper for muted text - improved to meet WCAG AA */
-.text-muted { color: #a8a29e; }
-
-/* Avoid synthetic bold/italics in mono */
-.mono {
-  font-family: var(--font-mono);
-  font-feature-settings: "zero";
-  font-style: normal;
-}
-
-/* Accessibility minimum for small text on dark BG */
-small, .text-caption {
-  font-weight: var(--w-medium);
-}
-
-/* Table numeric alignment */
-table td.numeric {
-  font-feature-settings: var(--ff-numeric);
-  text-align: right;
-  font-variant-numeric: tabular-nums slashed-zero;
-}
-
-/* Link styling */
-a {
-  color: #60a5fa;
-  text-decoration: none;
-  text-underline-offset: 3px;
-}
-a:hover { text-decoration: underline; }
-
-/* Inline emphasis */
-em { font-style: italic; }
-strong { font-weight: var(--w-semibold); }

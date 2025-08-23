@@ -1,6 +1,11 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { type PromptSuggestion } from '../lib/api';
 import { recordEvent } from '../lib/analytics';
+
+// Constants
+const MAX_SUGGESTIONS = 100;
+const MAX_TEXT_LENGTH = 5000;
+const DEBOUNCE_DELAY = 500;
 
 // Context shape
 interface PromptSuggestionsContextType {
@@ -23,6 +28,18 @@ const STORAGE_KEY = "promptSuggestions:v2";
 const PIN_KEY = "promptSuggestions:pins:v1";
 const FREQ_KEY = "promptSuggestions:freqs:v1";
 
+// Validation helper
+function isValidSuggestion(item: any): item is PromptSuggestion {
+  return (
+    item &&
+    typeof item === 'object' &&
+    typeof item.id === 'string' &&
+    typeof item.text === 'string' &&
+    typeof item.createdAt === 'string' &&
+    typeof item.dedupeKey === 'string'
+  );
+}
+
 const PromptSuggestionsContext = createContext<PromptSuggestionsContextType | undefined>(undefined);
 
 // Helper for client-side dedupe key generation (normalized lowercase)
@@ -39,33 +56,101 @@ export const PromptSuggestionsProvider: React.FC<{ children: React.ReactNode }> 
   const [isLoading, setIsLoading] = useState(true);
   const [pinnedIds, setPinnedIds] = useState<Set<string>>(new Set());
   const [frequencyByKey, setFrequencyByKey] = useState<Record<string, number>>({});
+  const [error, setError] = useState<Error | null>(null);
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Load persisted
+  // Load persisted data with validation
   useEffect(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       const pins = localStorage.getItem(PIN_KEY);
       const freqs = localStorage.getItem(FREQ_KEY);
-      if (raw) setSuggestions(JSON.parse(raw));
-      if (pins) setPinnedIds(new Set(JSON.parse(pins)));
-      if (freqs) setFrequencyByKey(JSON.parse(freqs));
+      
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          // Validate and filter out invalid entries
+          const valid = parsed.filter(isValidSuggestion).slice(0, MAX_SUGGESTIONS);
+          setSuggestions(valid);
+        } else {
+          console.warn('Invalid suggestions format, clearing storage');
+          localStorage.removeItem(STORAGE_KEY);
+        }
+      }
+      
+      if (pins) {
+        try {
+          const parsedPins = JSON.parse(pins);
+          if (Array.isArray(parsedPins)) {
+            setPinnedIds(new Set(parsedPins.filter(id => typeof id === 'string')));
+          }
+        } catch {
+          localStorage.removeItem(PIN_KEY);
+        }
+      }
+      
+      if (freqs) {
+        try {
+          const parsedFreqs = JSON.parse(freqs);
+          if (typeof parsedFreqs === 'object') {
+            setFrequencyByKey(parsedFreqs);
+          }
+        } catch {
+          localStorage.removeItem(FREQ_KEY);
+        }
+      }
     } catch (e) {
       console.error("Failed to load prompt suggestions", e);
+      setError(e as Error);
+      // Clear corrupted data
+      localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem(PIN_KEY);
+      localStorage.removeItem(FREQ_KEY);
     } finally {
       setIsLoading(false);
     }
   }, []);
 
-  // Persist changes
+  // Debounced save function
+  const debouncedSave = useCallback((key: string, data: any) => {
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+    
+    saveTimeoutRef.current = setTimeout(() => {
+      try {
+        localStorage.setItem(key, JSON.stringify(data));
+      } catch (e) {
+        console.error(`Failed to save ${key}:`, e);
+        // Check if quota exceeded
+        if (e instanceof Error && e.name === 'QuotaExceededError') {
+          setError(new Error('Storage quota exceeded. Please clear some data.'));
+        }
+      }
+    }, DEBOUNCE_DELAY);
+  }, []);
+  
+  // Persist changes with debouncing
   useEffect(() => {
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(suggestions)); } catch {}
-  }, [suggestions]);
+    debouncedSave(STORAGE_KEY, suggestions);
+  }, [suggestions, debouncedSave]);
+  
   useEffect(() => {
-    try { localStorage.setItem(PIN_KEY, JSON.stringify(Array.from(pinnedIds))); } catch {}
-  }, [pinnedIds]);
+    debouncedSave(PIN_KEY, Array.from(pinnedIds));
+  }, [pinnedIds, debouncedSave]);
+  
   useEffect(() => {
-    try { localStorage.setItem(FREQ_KEY, JSON.stringify(frequencyByKey)); } catch {}
-  }, [frequencyByKey]);
+    debouncedSave(FREQ_KEY, frequencyByKey);
+  }, [frequencyByKey, debouncedSave]);
+  
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const upsertSuggestion = useCallback((s: PromptSuggestion) => {
     setSuggestions(prev => {
@@ -74,16 +159,20 @@ export const PromptSuggestionsProvider: React.FC<{ children: React.ReactNode }> 
         // Already present, keep original item (stable id); do not duplicate visually
         return prev;
       }
-      // New suggestions at the top
-      return [s, ...prev];
+      // New suggestions at the top, enforce max limit
+      const updated = [s, ...prev];
+      return updated.slice(0, MAX_SUGGESTIONS);
     });
   }, []);
 
   const addSuggestion = useCallback(async (data: Omit<PromptSuggestion, 'id' | 'createdAt' | 'dedupeKey'>) => {
     const text = data.text?.trim() || "";
     if (!text) return;
-    const sanitized = text.replace(/\u0000/g, '').slice(0, 10000); // guard extremes
+    
+    // Enforce text length limit
+    const sanitized = text.replace(/\u0000/g, '').slice(0, MAX_TEXT_LENGTH);
     const dedupeKey = await hashText(sanitized.toLowerCase());
+    
     const suggestion: PromptSuggestion = {
       ...data,
       id: crypto.randomUUID(),
@@ -91,16 +180,79 @@ export const PromptSuggestionsProvider: React.FC<{ children: React.ReactNode }> 
       dedupeKey,
       text: sanitized
     };
+    
     upsertSuggestion(suggestion);
     setFrequencyByKey(prev => ({ ...prev, [dedupeKey]: (prev[dedupeKey] || 0) + 1 }));
     recordEvent('suggestion_impression', { id: suggestion.id, dedupeKey, sourceModel: data.sourceModel, origin: data.origin });
   }, [upsertSuggestion]);
 
   const addSuggestionsBatch = useCallback(async (items: Array<Omit<PromptSuggestion, 'id' | 'createdAt' | 'dedupeKey'>>) => {
-    for (const it of items) {
-      await addSuggestion(it);
-    }
-  }, [addSuggestion]);
+    // Process all items in parallel for better performance
+    const processed = await Promise.all(
+      items.map(async (data) => {
+        const text = data.text?.trim() || "";
+        if (!text) return null;
+        
+        const sanitized = text.replace(/\u0000/g, '').slice(0, MAX_TEXT_LENGTH);
+        const dedupeKey = await hashText(sanitized.toLowerCase());
+        
+        return {
+          ...data,
+          id: crypto.randomUUID(),
+          createdAt: new Date().toISOString(),
+          dedupeKey,
+          text: sanitized
+        } as PromptSuggestion;
+      })
+    );
+    
+    const validSuggestions = processed.filter((s): s is PromptSuggestion => s !== null);
+    
+    if (validSuggestions.length === 0) return;
+    
+    // Update all at once
+    setSuggestions(prev => {
+      const keyMap = new Map(prev.map(s => [s.dedupeKey, s]));
+      
+      // Add new suggestions, avoiding duplicates
+      validSuggestions.forEach(s => {
+        if (!keyMap.has(s.dedupeKey)) {
+          keyMap.set(s.dedupeKey, s);
+        }
+      });
+      
+      // Convert back to array, newest first, with size limit
+      const updated = Array.from(keyMap.values())
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        .slice(0, MAX_SUGGESTIONS);
+      
+      return updated;
+    });
+    
+    // Update frequencies
+    const newFreqs: Record<string, number> = {};
+    validSuggestions.forEach(s => {
+      newFreqs[s.dedupeKey] = 1;
+    });
+    
+    setFrequencyByKey(prev => {
+      const updated = { ...prev };
+      Object.entries(newFreqs).forEach(([key, count]) => {
+        updated[key] = (updated[key] || 0) + count;
+      });
+      return updated;
+    });
+    
+    // Record analytics
+    validSuggestions.forEach(s => {
+      recordEvent('suggestion_impression', { 
+        id: s.id, 
+        dedupeKey: s.dedupeKey, 
+        sourceModel: s.sourceModel, 
+        origin: s.origin 
+      });
+    });
+  }, []);
 
   const deleteSuggestion = useCallback((id: string) => {
     setSuggestions(prev => prev.filter(s => s.id !== id));
@@ -159,6 +311,26 @@ export const PromptSuggestionsProvider: React.FC<{ children: React.ReactNode }> 
     incrementFrequency
   };
 
+  // Show error state if critical error occurred
+  if (error && !isLoading) {
+    return (
+      <div className="p-4 bg-red-900/20 border border-red-800 rounded-lg">
+        <p className="text-red-400">Error loading suggestions: {error.message}</p>
+        <button 
+          className="mt-2 btn btn-sm"
+          onClick={() => {
+            setError(null);
+            setSuggestions([]);
+            setPinnedIds(new Set());
+            setFrequencyByKey({});
+          }}
+        >
+          Reset
+        </button>
+      </div>
+    );
+  }
+  
   return (
     <PromptSuggestionsContext.Provider value={value}>
       {children}
