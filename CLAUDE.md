@@ -91,11 +91,11 @@ Web (`/web`):
 The server requires Azure OpenAI environment variables (configured in `server/.env`):
 - `AZURE_OPENAI_ENDPOINT` (required)
 - `AZURE_OPENAI_API_KEY` or `AZURE_OPENAI_BEARER` (for authentication)
-- `AZURE_OPENAI_IMAGE_DEPLOYMENT` (for gpt-image-1)
-- `AZURE_OPENAI_IMAGE_API_VERSION` (for image generation/editing, e.g., "2025-04-01-preview")
+- `AZURE_OPENAI_IMAGE_DEPLOYMENT` (deployment name for gpt-image-1)
+- `AZURE_OPENAI_VIDEO_DEPLOYMENT` (deployment name for Sora/video)
 - `AZURE_OPENAI_VISION_DEPLOYMENT` (for GPT-4.1 vision)
 - `AZURE_OPENAI_CHAT_API_VERSION` (for vision/chat completions, e.g., "2024-04-01-preview")
-- `AZURE_OPENAI_API_VERSION` (for Sora video generation, set to "preview")
+- `AZURE_OPENAI_API_VERSION` (for v1 image/video endpoints; set to "preview")
 - `PORT` (server port, defaults to 8787)
 - `CORS_ORIGIN` (comma-separated allowed origins, defaults to localhost:5174 in dev)
 

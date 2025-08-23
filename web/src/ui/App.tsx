@@ -290,7 +290,7 @@ useEffect(() => {
                 </Text>
               </div>
               <button
-                className="btn-primary mx-auto"
+                className="btn btn-primary mx-auto"
                 onClick={() => {
                   setView("images");
                   setTimeout(() => promptInputRef.current?.focus(), 100);

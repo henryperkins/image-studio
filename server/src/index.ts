@@ -39,8 +39,9 @@ const AZ = {
   // Sora preview
   apiVersion: process.env.AZURE_OPENAI_API_VERSION || "preview",
   // Images gen
-  imageApiVersion: process.env.AZURE_OPENAI_IMAGE_API_VERSION || "2025-04-01-preview",
-  imageDeployment: process.env.AZURE_OPENAI_IMAGE_DEPLOYMENT || "",
+  imageDeployment: process.env.AZURE_OPENAI_IMAGE_DEPLOYMENT || "gpt-image-1",
+  // Video gen (Sora)
+  videoDeployment: process.env.AZURE_OPENAI_VIDEO_DEPLOYMENT || "sora",
   // Vision chat
   chatApiVersion: process.env.AZURE_OPENAI_CHAT_API_VERSION || "2024-02-15-preview",
   visionDeployment: process.env.AZURE_OPENAI_VISION_DEPLOYMENT || ""
@@ -95,15 +96,17 @@ const ImageReq = z.object({
 
 app.post("/api/images/generate", async (req, reply) => {
   const body = ImageReq.parse(req.body);
-  if (!AZ.imageDeployment) return reply.status(400).send({ error: "Missing AZURE_OPENAI_IMAGE_DEPLOYMENT" });
+  // Use default deployment name if env var not provided (gpt-image-1)
 
   try {
-    const url = `${AZ.endpoint}/openai/deployments/${encodeURIComponent(AZ.imageDeployment)}/images/generations?api-version=${AZ.imageApiVersion}`;
+    // Align with v1 Images API: pass deployment name in model
+    const url = `${AZ.endpoint}/openai/v1/images/generations?api-version=${AZ.apiVersion}`;
     const r = await fetch(url, {
       method: "POST",
       headers: { ...authHeaders(), "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "gpt-image-1",
+        // Use deployment name per v1 API docs
+        model: AZ.imageDeployment,
         prompt: body.prompt,
         size: body.size,
         quality: body.quality,
@@ -134,7 +137,7 @@ app.post("/api/images/generate", async (req, reply) => {
     items.unshift(item);
     await writeManifest(items);
 
-    return reply.send({ image_base64: b64, model: "gpt-image-1", size: body.size, format: body.output_format, library_item: item });
+    return reply.send({ image_base64: b64, model: AZ.imageDeployment, size: body.size, format: body.output_format, library_item: item });
   } catch (e: any) {
     req.log.error(e);
     return reply.status(400).send({ error: e.message || "Image generation failed" });
@@ -166,7 +169,8 @@ app.post("/api/images/edit", async (req, reply) => {
 
     // Build multipart for v1 preview images/edits
     const form = new FormData();
-    form.set("model", "gpt-image-1");
+    // Align with v1 Images API: pass deployment name in model
+    form.set("model", AZ.imageDeployment);
     form.set("prompt", body.prompt);
     form.set("size", body.size);
     form.set("output_format", body.output_format);
@@ -446,6 +450,9 @@ function soraHeaders(): Record<string, string> {
 app.post("/api/videos/sora/generate", async (req, reply) => {
   const body = SoraReq.parse(req.body);
   try {
+    if (!AZ.videoDeployment) {
+      return reply.status(400).send({ error: "Missing AZURE_OPENAI_VIDEO_DEPLOYMENT" });
+    }
     const base = `${AZ.endpoint}/openai/v1`;
     const createUrl = `${base}/video/generations/jobs?api-version=${AZ.apiVersion}`;
     const refBlock = (body.reference_image_urls?.length ?? 0) > 0 ? `\n\n[Reference images]\n${body.reference_image_urls!.join("\n")}` : "";
@@ -454,7 +461,8 @@ app.post("/api/videos/sora/generate", async (req, reply) => {
     const created = await fetch(createUrl, {
       method: "POST",
       headers: { ...soraHeaders(), "Content-Type": "application/json" },
-      body: JSON.stringify({ model: "sora", prompt: finalPrompt, width: body.width, height: body.height, n_seconds: body.n_seconds })
+      // Align with v1 Video Jobs API: pass deployment name in model
+      body: JSON.stringify({ model: AZ.videoDeployment, prompt: finalPrompt, width: body.width, height: body.height, n_seconds: body.n_seconds })
     });
     if (!created.ok) throw new Error(await created.text());
     const job = await created.json() as any;
