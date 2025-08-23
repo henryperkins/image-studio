@@ -376,6 +376,54 @@ export async function generateVideo(prompt: string, width: number, height: numbe
   return await r.json();
 }
 
+/**
+ * Generate a video and report download progress of the JSON response.
+ * Note: Progress here reflects the response download only (final phase), not Azure job processing.
+ */
+export async function generateVideoWithProgress(
+  prompt: string,
+  width: number,
+  height: number,
+  n_seconds: number,
+  reference_image_urls: string[],
+  onDownloadProgress?: (loadedBytes: number, totalBytes: number) => void
+): Promise<{ data: any; bytesRead: number; total?: number }> {
+  const url = `${API_BASE_URL}/api/videos/sora/generate`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({ prompt, width, height, n_seconds, reference_image_urls })
+  });
+  if (!res.ok) throw new Error(await res.text());
+
+  const total = Number(res.headers.get("Content-Length") || 0);
+
+  // If streaming is not available, fall back to standard json() (no progress)
+  if (!res.body || typeof (res.body as any).getReader !== "function") {
+    const data = await res.json();
+    return { data, bytesRead: 0, total };
+  }
+
+  const reader = (res.body as ReadableStream<Uint8Array>).getReader();
+  let received = 0;
+  const chunks: Uint8Array[] = [];
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    if (value) {
+      chunks.push(value);
+      received += value.length;
+      onDownloadProgress?.(received, total);
+    }
+  }
+
+  const decoder = new TextDecoder();
+  const text = chunks.map(c => decoder.decode(c, { stream: true })).join("") + decoder.decode();
+  const data = JSON.parse(text);
+  return { data, bytesRead: received, total };
+}
+
 export async function trimVideo(video_id: string, start: number, duration: number) {
   const r = await fetch(`${API_BASE_URL}/api/videos/edit/trim`, {
     method: "POST", headers: {"Content-Type":"application/json"},

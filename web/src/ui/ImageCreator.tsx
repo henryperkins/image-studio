@@ -131,6 +131,17 @@ export default function ImageCreator({ onSaved, promptInputRef, prompt, setPromp
           Download
         </LoadingButton>
       </div>
+
+      {busy && !result && (
+        <div className="space-y-1 mt-1">
+          <div className="flex justify-between text-xs text-neutral-400">
+            <span>Generating image…</span>
+          </div>
+          <div className="w-full bg-neutral-800 rounded-full h-1 overflow-hidden relative">
+            <div className="progress-bar progress-bar-indeterminate h-full" />
+          </div>
+        </div>
+      )}
       {error && (
         <div className="fade-in space-y-2">
           <Text size="sm" tone="danger">{error}</Text>

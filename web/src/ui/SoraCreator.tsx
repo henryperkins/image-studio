@@ -1,5 +1,5 @@
 import { useMemo, useState, useRef, useEffect } from "react";
-import { describeImagesByIds, generateVideo, generateSoraPrompt } from "../lib/api";
+import { describeImagesByIds, generateVideoWithProgress, generateSoraPrompt } from "../lib/api";
 import { processApiError } from "../lib/errorUtils";
 import { useToast } from "../contexts/ToastContext";
 import EnhancedVisionAnalysis from "./EnhancedVisionAnalysis";
@@ -33,6 +33,7 @@ export default function SoraCreator({
   const [videoUrl, setVideoUrl] = useState<string|null>(null);
   const [analysis, setAnalysis] = useState<string>("");
   const [progress, setProgress] = useState(0);
+  const [stage, setStage] = useState<"idle"|"submitting"|"generating"|"downloading"|"finalizing">("idle");
   const [analysisMode, setAnalysisMode] = useState<"describe"|"video_ideas">("describe");
   const [analysisStyle, setAnalysisStyle] = useState<"concise"|"detailed">("concise");
   const [analyzingImages, setAnalyzingImages] = useState(false);
@@ -101,7 +102,9 @@ export default function SoraCreator({
   };
 
   async function generate(isRetry = false) {
-    setBusy(true); setError(null); setProgress(0);
+    setBusy(true); setError(null);
+    setProgress(1);
+    setStage("submitting");
     
     // Clean up previous video URL to prevent memory leaks
     if (videoDataRef.current) {
@@ -110,14 +113,31 @@ export default function SoraCreator({
     }
     setVideoUrl(null);
 
-    // Simulate progress for long operations
-    const progressInterval = setInterval(() => {
-      setProgress(prev => Math.min(prev + 10, 90));
-    }, 1000);
+    // Smooth simulated progress up to ~85% while Azure job runs
+    // Eases as it approaches the cap so it feels natural.
+    setTimeout(() => setStage("generating"), 250);
+    const simInterval = setInterval(() => {
+      setProgress(prev => {
+        if (prev >= 85) return prev;
+        const remaining = 85 - prev;
+        const step = Math.max(0.5, remaining * 0.06); // ease toward 85
+        return Math.min(85, +(prev + step).toFixed(1));
+      });
+      return;
+    }, 350);
 
     try {
-      const data = await generateVideo(finalPrompt, width, height, seconds, selectedUrls);
-      
+      const { data } = await generateVideoWithProgress(finalPrompt, width, height, seconds, selectedUrls, (loaded, total) => {
+        setStage("downloading");
+        if (total > 0) {
+          const pct = 85 + Math.min(14, Math.floor((loaded / total) * 14));
+          setProgress(Math.min(99, pct));
+        } else {
+          // Unknown size: nudge toward 99% slowly
+          setProgress(prev => Math.min(99, prev + 0.5));
+        }
+      });
+
       // Create a blob from the base64 data to avoid issues with large data URLs
       const byteCharacters = atob(data.video_base64);
       const byteNumbers = new Array(byteCharacters.length);
@@ -128,6 +148,7 @@ export default function SoraCreator({
       const blob = new Blob([byteArray], { type: 'video/mp4' });
       const blobUrl = URL.createObjectURL(blob);
       
+      setStage("finalizing");
       videoDataRef.current = blobUrl;
       setVideoUrl(blobUrl);
       setProgress(100);
@@ -141,9 +162,10 @@ export default function SoraCreator({
       }
       showToast(detailedMessage, "error");
     } finally {
-      clearInterval(progressInterval);
+      clearInterval(simInterval);
+      setStage("idle");
       setBusy(false);
-      setTimeout(() => setProgress(0), 500);
+      setTimeout(() => setProgress(0), 800);
     }
   }
 
@@ -400,18 +422,30 @@ export default function SoraCreator({
         <span id="video-prompt-required" className="sr-only">Enter a prompt to generate a video</span>
       )}
 
-      {busy && progress > 0 && (
+      {busy && (
         <div className="space-y-1">
           <div className="flex justify-between text-xs text-neutral-400">
-            <span>Generating video...</span>
-            <span>{progress}%</span>
+            <span>
+              {stage === "submitting" && "Submitting job…"}
+              {stage === "generating" && "Generating on Azure…"}
+              {stage === "downloading" && "Downloading result…"}
+              {stage === "finalizing" && "Finalizing…"}
+              {stage === "idle" && "Working…"}
+            </span>
+            {progress > 0 ? <span>{Math.round(progress)}%</span> : null}
           </div>
-          <div className="w-full bg-neutral-800 rounded-full h-1 overflow-hidden">
-            <div
-              className="progress-bar h-full"
-              style={{ width: `${progress}%` }}
-            />
-          </div>
+          {progress > 0 ? (
+            <div className="w-full bg-neutral-800 rounded-full h-1 overflow-hidden">
+              <div
+                className="progress-bar h-full"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+          ) : (
+            <div className="w-full bg-neutral-800 rounded-full h-1 overflow-hidden relative">
+              <div className="progress-bar progress-bar-indeterminate h-full" />
+            </div>
+          )}
         </div>
       )}
       {error && (

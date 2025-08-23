@@ -84,6 +84,14 @@ export default function VideoEditor({ item, onClose, onEdited, baseUrl }: Props)
           <button className="btn" onClick={onClose}>Close</button>
         </div>
 
+        {busy && (
+          <div className="px-4">
+            <div className="w-full bg-neutral-800 rounded-full h-1 overflow-hidden relative">
+              <div className="progress-bar progress-bar-indeterminate h-full" />
+            </div>
+          </div>
+        )}
+
         <div className="grid md:grid-cols-2 gap-4 p-4">
           <video 
             className="w-full rounded-lg border border-neutral-800" 

@@ -1,6 +1,27 @@
 [
   {
     "kind": "video",
+    "id": "d05be8d1-2e23-4f8c-9f70-44073ec4fed6",
+    "filename": "d05be8d1-2e23-4f8c-9f70-44073ec4fed6.mp4",
+    "url": "/static/videos/d05be8d1-2e23-4f8c-9f70-44073ec4fed6.mp4",
+    "prompt": "Downtown metropolis, riverside with bridge views.Cinematic video of a modern city skyline at sunset, viewed from across a calm river. The camera glides along a curved park path lined with green trees and lampposts, passing under a stone bridge. Skyscrapers reflect golden hour light, and soft clouds drift across the sky. Emphasize smooth lighting transitions, tranquil mood, and gentle movement in water and clouds.\n\n[Reference images]\nhttp://localhost:8787/static/images/e35a71f3-30ef-4972-83ff-39256757aa91.png",
+    "width": 1920,
+    "height": 1080,
+    "duration": 10,
+    "createdAt": "2025-08-23T10:05:23.465Z"
+  },
+  {
+    "kind": "image",
+    "id": "e35a71f3-30ef-4972-83ff-39256757aa91",
+    "filename": "e35a71f3-30ef-4972-83ff-39256757aa91.png",
+    "url": "/static/images/e35a71f3-30ef-4972-83ff-39256757aa91.png",
+    "prompt": "Downtown metropolis, riverside with bridge views.",
+    "size": "1536x1024",
+    "format": "png",
+    "createdAt": "2025-08-23T10:00:46.388Z"
+  },
+  {
+    "kind": "video",
     "id": "93cf1348-dcfe-4aab-9830-11c4f9054460",
     "filename": "93cf1348-dcfe-4aab-9830-11c4f9054460.mp4",
     "url": "/static/videos/93cf1348-dcfe-4aab-9830-11c4f9054460.mp4",
