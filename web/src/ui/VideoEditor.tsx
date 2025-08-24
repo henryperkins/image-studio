@@ -318,7 +318,7 @@ export default function VideoEditor({ item, onClose, onEdited, baseUrl }: Props)
                         }}
                       />
                       <video 
-                        src={`${API_BASE_URL}${v.url}`} 
+                        src={`${baseUrl}${v.url}`} 
                         className="rounded border border-neutral-800" 
                         muted 
                       />

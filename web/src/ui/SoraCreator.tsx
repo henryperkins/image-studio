@@ -1,5 +1,5 @@
 import { useMemo, useState, useRef, useEffect } from "react";
-import { analyzeImages, generateVideoWithProgress, generateSoraPrompt } from "../lib/api";
+import { analyzeImages, generateVideoWithProgress, generateSoraPrompt, getSoraVideoContent } from "../lib/api";
 import { processApiError } from "../lib/errorUtils";
 import { useToast } from "../contexts/ToastContext";
 import EnhancedVisionAnalysis from "./EnhancedVisionAnalysis";
@@ -25,12 +25,16 @@ export default function SoraCreator({
   const [width, setWidth] = useState(1080);
   const [height, setHeight] = useState(1080);
   const [seconds, setSeconds] = useState(10);
+  const [quality, setQuality] = useState<'high' | 'low'>('high');
   const [aspectLocked, setAspectLocked] = useState(true);
   const [aspectRatio, setAspectRatio] = useState(1);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string|null>(null);
   const [retryCount, setRetryCount] = useState(0);
   const [videoUrl, setVideoUrl] = useState<string|null>(null);
+  const [generationId, setGenerationId] = useState<string|null>(null);
+  const [currentQuality, setCurrentQuality] = useState<'high' | 'low'>('high');
+  const [fetchingQuality, setFetchingQuality] = useState(false);
   const [analysis, setAnalysis] = useState<string>("");
   const [progress, setProgress] = useState(0);
   const [stage, setStage] = useState<"idle"|"submitting"|"generating"|"downloading"|"finalizing">("idle");
@@ -131,7 +135,7 @@ export default function SoraCreator({
     }, 350);
 
     try {
-      const { data } = await generateVideoWithProgress(finalPrompt, width, height, seconds, selectedUrls, (loaded, total) => {
+      const { data } = await generateVideoWithProgress(finalPrompt, width, height, seconds, selectedUrls, { quality }, (loaded, total) => {
         setStage("downloading");
         if (total > 0) {
           const pct = 85 + Math.min(14, Math.floor((loaded / total) * 14));
@@ -153,6 +157,8 @@ export default function SoraCreator({
       const blobUrl = URL.createObjectURL(blob);
       
       setStage("finalizing");
+      setGenerationId(data.generation_id || null);
+      setCurrentQuality((quality));
       videoDataRef.current = blobUrl;
       setVideoUrl(blobUrl);
       setProgress(100);
@@ -309,73 +315,50 @@ export default function SoraCreator({
           <button
             type="button"
             className="btn text-xs min-h-[48px] sm:min-h-0"
-            onClick={() => { setWidth(1080); setHeight(1920); setAspectRatio(9/16); }}
-          >Portrait 1080×1920</button>
+            onClick={() => { setWidth(1920); setHeight(1080); setAspectRatio(16/9); }}
+          >Landscape 1920×1080</button>
           <button
             type="button"
             className="btn text-xs min-h-[48px] sm:min-h-0"
-            onClick={() => { setWidth(1920); setHeight(1080); setAspectRatio(16/9); }}
-          >Landscape 1920×1080</button>
+            onClick={() => { setWidth(1280); setHeight(720); setAspectRatio(16/9); }}
+          >HD 1280×720</button>
         </div>
         
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          <label className="text-sm min-w-0">Width
-            <input 
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <label className="text-sm min-w-0">
+            Resolution
+            <select 
               className="input mt-1 w-full" 
-              type="number" 
-              min={256} 
-              max={1920} 
-              value={width} 
+              value={`${width}x${height}`}
               onChange={e => {
-                const newWidth = +e.target.value || 1080;
-                setWidth(newWidth);
-                if (aspectLocked && newWidth > 0) {
-                  setHeight(Math.round(newWidth / aspectRatio));
-                }
+                const [w, h] = e.target.value.split('x').map(Number);
+                setWidth(w);
+                setHeight(h);
+                setAspectRatio(w / h);
               }} 
-            />
-          </label>
-          <label className="text-sm min-w-0">Height
-            <div className="flex items-center gap-2 mt-1">
-              <input 
-                className="input flex-1 min-w-0" 
-                type="number" 
-                min={256} 
-                max={1920} 
-                value={height} 
-                onChange={e => {
-                  const newHeight = +e.target.value || 1080;
-                  setHeight(newHeight);
-                  if (aspectLocked && newHeight > 0) {
-                    setWidth(Math.round(newHeight * aspectRatio));
-                  }
-                }} 
-              />
-              <button
-                type="button"
-                className={`flex-shrink-0 p-2 rounded border min-h-[48px] sm:min-h-0 ${aspectLocked ? 'bg-blue-500 border-blue-500 text-white' : 'border-neutral-700 text-neutral-400 hover:text-white'} transition-colors`}
-                onClick={() => {
-                  setAspectLocked(!aspectLocked);
-                  if (!aspectLocked && width > 0 && height > 0) {
-                    setAspectRatio(width / height);
-                  }
-                }}
-                aria-label={aspectLocked ? "Unlock aspect ratio" : "Lock aspect ratio"}
-                title={aspectLocked ? "Aspect ratio locked" : "Aspect ratio unlocked"}
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  {aspectLocked ? (
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                  ) : (
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" />
-                  )}
-                </svg>
-              </button>
-            </div>
+            >
+              <option value="480x480">480×480 (Square)</option>
+              <option value="854x480">854×480 (Wide)</option>
+              <option value="720x720">720×720 (Square)</option>
+              <option value="1280x720">1280×720 (HD)</option>
+              <option value="1080x1080">1080×1080 (Square HD)</option>
+              <option value="1920x1080">1920×1080 (Full HD)</option>
+            </select>
           </label>
           <label className="text-sm min-w-0 sm:col-span-2 lg:col-span-1">Duration (s)
             <input className="input mt-1 w-full" type="number" min={1} max={20} value={seconds} onChange={e=>setSeconds(+e.target.value||10)} />
             <span className="text-xs text-neutral-500 block mt-1">Max 20s, up to 1920×1920</span>
+          </label>
+          <label className="text-sm min-w-0">
+            Quality
+            <select
+              className="input mt-1 w-full"
+              value={quality}
+              onChange={e => setQuality(e.target.value as 'high' | 'low')}
+            >
+              <option value="high">High</option>
+              <option value="low">Low</option>
+            </select>
           </label>
         </div>
       </div>
@@ -440,6 +423,67 @@ export default function SoraCreator({
 
       {videoUrl && (
         <div className="space-y-2 fade-in">
+          {/* Post-generation quality toggle without re-running */}
+          {generationId && (
+            <div className="flex items-center gap-2 text-xs">
+              <span className="text-neutral-400">View quality:</span>
+              <div className="inline-flex rounded-md overflow-hidden border border-neutral-700">
+                <button
+                  className={`px-2 py-1 ${currentQuality === 'high' ? 'bg-neutral-700' : 'bg-neutral-900 hover:bg-neutral-800'}`}
+                  disabled={fetchingQuality || currentQuality === 'high'}
+                  onClick={async () => {
+                    if (!generationId) return;
+                    setFetchingQuality(true);
+                    try {
+                      const r = await getSoraVideoContent(generationId, 'high');
+                      const bytes = atob(r.video_base64);
+                      const arr = new Uint8Array(bytes.length);
+                      for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
+                      const blob = new Blob([arr], { type: r.content_type || 'video/mp4' });
+                      const url = URL.createObjectURL(blob);
+                      if (videoDataRef.current) URL.revokeObjectURL(videoDataRef.current);
+                      videoDataRef.current = url;
+                      setVideoUrl(url);
+                      setCurrentQuality('high');
+                    } catch (e:any) {
+                      showToast(e.message || 'Failed to fetch high quality', 'error');
+                    } finally {
+                      setFetchingQuality(false);
+                    }
+                  }}
+                >
+                  High
+                </button>
+                <button
+                  className={`px-2 py-1 ${currentQuality === 'low' ? 'bg-neutral-700' : 'bg-neutral-900 hover:bg-neutral-800'}`}
+                  disabled={fetchingQuality || currentQuality === 'low'}
+                  onClick={async () => {
+                    if (!generationId) return;
+                    setFetchingQuality(true);
+                    try {
+                      const r = await getSoraVideoContent(generationId, 'low');
+                      const bytes = atob(r.video_base64);
+                      const arr = new Uint8Array(bytes.length);
+                      for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
+                      const blob = new Blob([arr], { type: r.content_type || 'video/mp4' });
+                      const url = URL.createObjectURL(blob);
+                      if (videoDataRef.current) URL.revokeObjectURL(videoDataRef.current);
+                      videoDataRef.current = url;
+                      setVideoUrl(url);
+                      setCurrentQuality('low');
+                    } catch (e:any) {
+                      showToast(e.message || 'Failed to fetch low quality', 'error');
+                    } finally {
+                      setFetchingQuality(false);
+                    }
+                  }}
+                >
+                  Low
+                </button>
+              </div>
+              {fetchingQuality && <span className="text-neutral-500">Loading…</span>}
+            </div>
+          )}
           <video
             key={videoUrl}
             ref={videoRef}
@@ -455,7 +499,7 @@ export default function SoraCreator({
           <a
             className="btn inline-block"
             href={videoUrl}
-            download={`sora_${Date.now()}.mp4`}
+            download={`sora_${currentQuality}_${Date.now()}.mp4`}
             onClick={() => showToast("Video downloaded!", "success")}
           >
             Download MP4

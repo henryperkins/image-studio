@@ -7,6 +7,34 @@ import { createResponse, convertMessagesToResponsesInput } from './src/lib/respo
 // Load environment variables
 dotenv.config();
 
+// Helper to extract text from GPT-5 response format
+function extractResponseText(response: any): string {
+  // Try direct output_text first
+  if (response?.output_text) {
+    return response.output_text;
+  }
+  
+  // Look for message type in output array
+  if (response?.output) {
+    const messageOutput = response.output.find((o: any) => o.type === 'message');
+    if (messageOutput?.content) {
+      const textContent = messageOutput.content.find((c: any) => 
+        c.type === 'output_text' || c.type === 'text'
+      );
+      if (textContent?.text) {
+        return textContent.text;
+      }
+    }
+  }
+  
+  // Fallback to choices format
+  if (response?.choices?.[0]?.message?.content) {
+    return response.choices[0].message.content;
+  }
+  
+  return 'No text found in response';
+}
+
 async function testGPT5() {
   console.log('Testing Azure OpenAI GPT-5 with Responses API...\n');
 
@@ -46,7 +74,8 @@ async function testGPT5() {
     });
 
     console.log('✅ Success!');
-    console.log('Response:', response.output_text || response);
+    const text = extractResponseText(response);
+    console.log('Response:', text);
   } catch (error: any) {
     console.error('❌ Failed:', error.message);
     if (error.body) {
@@ -94,7 +123,8 @@ async function testGPT5() {
     });
 
     console.log('✅ Success!');
-    console.log('Response:', response.output_text || response);
+    const text = extractResponseText(response);
+    console.log('Response:', text);
   } catch (error: any) {
     console.error('❌ Failed:', error.message);
     if (error.body) {
@@ -108,7 +138,11 @@ async function testGPT5() {
   console.log('Test 3: Direct API test (equivalent to cURL)');
   console.log('-------------------------------------------');
   
-  const testUrl = `${endpoint.replace(/\/+$/, '')}/openai/v1/responses?api-version=preview`;
+  let baseUrl = endpoint.replace(/\/+$/, ''); // Remove trailing slashes
+  if (!baseUrl.includes('/openai/v1')) {
+    baseUrl = `${baseUrl}/openai/v1`;
+  }
+  const testUrl = `${baseUrl}/responses?api-version=preview`;
   console.log('URL:', testUrl);
   
   try {
@@ -129,7 +163,8 @@ async function testGPT5() {
     
     if (response.ok) {
       console.log('✅ Success!');
-      console.log('Response:', data.output_text || data);
+      const text = extractResponseText(data);
+      console.log('Response:', text);
     } else {
       console.error('❌ Failed with status:', response.status);
       console.error('Response:', data);

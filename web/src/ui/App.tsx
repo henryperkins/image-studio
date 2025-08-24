@@ -444,6 +444,7 @@ useEffect(() => {
             setEditImageId(null);
             await refreshLibrary();
             setSelected([newId]);
+            setView('sora');
           }}
           baseUrl={API_BASE_URL}
         />

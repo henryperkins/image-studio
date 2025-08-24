@@ -169,7 +169,13 @@ export async function deleteLibraryItem(id: string) {
   return true;
 }
 
-export async function generateImage(prompt: string, size: string, quality: string, format: "png"|"jpeg") {
+export async function generateImage(
+  prompt: string,
+  size: string,
+  quality: string,
+  format: "png"|"jpeg"|"webp",
+  options: { output_compression?: number; background?: "transparent" | "opaque" | "auto" } = {}
+) {
   const url = `${API_BASE_URL}/api/images/generate`;
   console.log(`🎨 Generating image at: ${url}`);
 
@@ -177,7 +183,7 @@ export async function generateImage(prompt: string, size: string, quality: strin
     const r = await fetch(url, {
       method: "POST",
       headers: {"Content-Type":"application/json"},
-      body: JSON.stringify({ prompt, size, quality, output_format: format, n: 1 })
+      body: JSON.stringify({ prompt, size, quality, output_format: format, n: 1, ...options })
     });
 
     if (!r.ok) {
@@ -209,7 +215,7 @@ export async function editImage(
   prompt: string,
   mask_data_url?: string,
   size: string = "1024x1024",
-  output_format: "png" | "jpeg" = "png",
+  output_format: "png" | "jpeg" | "webp" = "png",
   options: {
     quality?: "auto" | "low" | "medium" | "high" | "standard";
     background?: "transparent" | "opaque" | "auto";
@@ -383,10 +389,17 @@ export async function batchAnalyzeImages(
   });
 }
 
-export async function generateVideo(prompt: string, width: number, height: number, n_seconds: number, reference_image_urls: string[]) {
+export async function generateVideo(
+  prompt: string,
+  width: number,
+  height: number,
+  n_seconds: number,
+  reference_image_urls: string[],
+  options: { n_variants?: number; quality?: 'high' | 'low' } = {}
+) {
   const r = await fetch(`${API_BASE_URL}/api/videos/sora/generate`, {
     method: "POST", headers: {"Content-Type":"application/json"},
-    body: JSON.stringify({ prompt, width, height, n_seconds, reference_image_urls })
+    body: JSON.stringify({ prompt, width, height, n_seconds, reference_image_urls, ...options })
   });
   if (!r.ok) throw new Error(await r.text());
   return await r.json();
@@ -402,13 +415,14 @@ export async function generateVideoWithProgress(
   height: number,
   n_seconds: number,
   reference_image_urls: string[],
+  options: { n_variants?: number; quality?: 'high' | 'low' } = {},
   onDownloadProgress?: (loadedBytes: number, totalBytes: number) => void
 ): Promise<{ data: any; bytesRead: number; total?: number }> {
   const url = `${API_BASE_URL}/api/videos/sora/generate`;
   const res = await fetch(url, {
     method: "POST",
     headers: {"Content-Type":"application/json"},
-    body: JSON.stringify({ prompt, width, height, n_seconds, reference_image_urls })
+    body: JSON.stringify({ prompt, width, height, n_seconds, reference_image_urls, ...options })
   });
   if (!res.ok) throw new Error(await res.text());
 
@@ -438,6 +452,17 @@ export async function generateVideoWithProgress(
   const text = chunks.map(c => decoder.decode(c, { stream: true })).join("") + decoder.decode();
   const data = JSON.parse(text);
   return { data, bytesRead: received, total };
+}
+/**
+ * Retrieve alternate-quality video content by generation id without re-running the job.
+ */
+export async function getSoraVideoContent(generation_id: string, quality: 'high' | 'low' = 'high') {
+  const r = await fetchJson(`${API_BASE_URL}/api/videos/sora/content/${encodeURIComponent(generation_id)}?quality=${quality}`, {
+    method: "GET",
+    headers: { "Accept": "application/json" },
+    timeoutMs: 300000
+  });
+  return r as { generation_id: string; quality?: 'high' | 'low'; content_type: string; video_base64: string };
 }
 
 export async function trimVideo(video_id: string, start: number, duration: number) {

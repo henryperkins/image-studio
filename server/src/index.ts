@@ -36,6 +36,7 @@ await app.register(multipart);
 const AZ = {
   endpoint: (process.env.AZURE_OPENAI_ENDPOINT || "").replace(/\/+$/, ""),
   key: process.env.AZURE_OPENAI_API_KEY || "",
+  token: process.env.AZURE_OPENAI_AUTH_TOKEN || "",
   // Sora preview
   apiVersion: process.env.AZURE_OPENAI_API_VERSION || "preview",
   // Images gen
@@ -81,17 +82,24 @@ await app.register(fstatic, { root: VID_DIR, prefix: "/static/videos/", decorate
 
 function authHeaders(): Record<string, string> {
   const h: Record<string, string> = {};
-  if (AZ.key) h["api-key"] = AZ.key;
+  // Prefer OAuth bearer token if provided; otherwise use API key
+  if (AZ.token) {
+    h["Authorization"] = `Bearer ${AZ.token}`;
+  } else if (AZ.key) {
+    h["api-key"] = AZ.key;
+  }
   return h;
 }
 
 // ----------------- IMAGES: generate -----------------
 const ImageReq = z.object({
   prompt: z.string().min(1),
-  size: z.enum(["1024x1024", "1536x1024", "1024x1536"]).default("1024x1024"),
+  size: z.enum(["auto", "1024x1024", "1536x1024", "1024x1536"]).default("auto"),
   quality: z.enum(["low", "medium", "high"]).default("high"),
-  output_format: z.enum(["png", "jpeg"]).default("png"),
-  n: z.number().int().min(1).max(10).default(1)
+  output_format: z.enum(["png", "jpeg", "webp"]).default("png"),
+  n: z.number().int().min(1).max(10).default(1),
+  output_compression: z.number().int().min(0).max(100).optional(),
+  background: z.enum(["transparent","opaque","auto"]).optional()
 });
 
 app.post("/api/images/generate", async (req, reply) => {
@@ -111,7 +119,17 @@ app.post("/api/images/generate", async (req, reply) => {
         size: body.size,
         quality: body.quality,
         output_format: body.output_format,
-        n: body.n
+        n: body.n,
+        ...(typeof body.output_compression === "number" ? { output_compression: body.output_compression } : {}),
+        // Only include background if provided; if transparent+jpeg, normalize to opaque to avoid API errors
+        ...(body.background
+          ? {
+              background:
+                body.background === "transparent" && body.output_format === "jpeg"
+                  ? "opaque"
+                  : body.background
+            }
+          : {})
       })
     });
     if (!r.ok) throw new Error(`Azure image gen failed: ${r.status} ${await r.text()}`);
@@ -120,7 +138,7 @@ app.post("/api/images/generate", async (req, reply) => {
     if (!b64) throw new Error("No image payload returned");
 
     const id = crypto.randomUUID();
-    const ext = body.output_format === "jpeg" ? "jpg" : "png";
+    const ext = body.output_format === "jpeg" ? "jpg" : (body.output_format === "webp" ? "webp" : "png");
     const filename = `${id}.${ext}`;
     await fs.writeFile(path.join(IMG_DIR, filename), Buffer.from(b64, "base64"));
 
@@ -150,8 +168,8 @@ const ImageEditReq = z.object({
   prompt: z.string().min(1),
   // PNG data URL for mask; transparent pixels mark regions to change
   mask_data_url: z.string().url().optional(),
-  size: z.enum(["1024x1024", "1536x1024", "1024x1536"]).default("1024x1024"),
-  output_format: z.enum(["png", "jpeg"]).default("png"),
+  size: z.enum(["auto", "1024x1024", "1536x1024", "1024x1536"]).default("auto"),
+  output_format: z.enum(["png", "jpeg", "webp"]).default("png"),
   // API enhancements (optional)
   quality: z.enum(["auto","low","medium","high","standard"]).optional(),
   background: z.enum(["transparent","opaque","auto"]).optional(),
@@ -206,7 +224,7 @@ app.post("/api/images/edit", async (req, reply) => {
     if (!b64) throw new Error("No edited image returned");
 
     const id = crypto.randomUUID();
-    const ext = body.output_format === "jpeg" ? "jpg" : "png";
+    const ext = body.output_format === "jpeg" ? "jpg" : (body.output_format === "webp" ? "webp" : "png");
     const filename = `${id}.${ext}`;
     await fs.writeFile(path.join(IMG_DIR, filename), Buffer.from(b64, "base64"));
 
@@ -448,13 +466,36 @@ app.post("/api/vision/accessibility", async (req, reply) => {
 });
 
 // ----------------- SORA: generate (and save to library) -----------------
+// Supported resolutions from API: (480, 480), (854, 480), (720, 720), (1280, 720), (1080, 1080), (1920, 1080)
+const SUPPORTED_VIDEO_RESOLUTIONS = [
+  { width: 480, height: 480 },
+  { width: 854, height: 480 },
+  { width: 720, height: 720 },
+  { width: 1280, height: 720 },
+  { width: 1080, height: 1080 },
+  { width: 1920, height: 1080 }
+] as const;
+
 const SoraReq = z.object({
   prompt: z.string().min(1),
-  width: z.number().int().min(256).max(1920).default(1080),
-  height: z.number().int().min(256).max(1920).default(1080),
+  width: z.number().int().refine(
+    w => SUPPORTED_VIDEO_RESOLUTIONS.some(r => r.width === w),
+    { message: "Width must match a supported resolution" }
+  ).default(1080),
+  height: z.number().int().refine(
+    h => SUPPORTED_VIDEO_RESOLUTIONS.some(r => r.height === h),
+    { message: "Height must match a supported resolution" }
+  ).default(1080),
   n_seconds: z.number().int().min(1).max(20).default(10),
+  // Optional variants; API supports 1–5 variants depending on resolution
+  n_variants: z.number().int().min(1).max(5).optional(),
+  // Retrieval quality for content download (if supported by service)
+  quality: z.enum(['high', 'low']).optional(),
   reference_image_urls: z.array(z.string().url()).optional()
-});
+}).refine(
+  data => SUPPORTED_VIDEO_RESOLUTIONS.some(r => r.width === data.width && r.height === data.height),
+  { message: `Resolution must be one of: ${SUPPORTED_VIDEO_RESOLUTIONS.map(r => `${r.width}x${r.height}`).join(', ')}` }
+);
 function soraHeaders(): Record<string, string> {
   const h: Record<string, string> = {};
   if (AZ.key) h["api-key"] = AZ.key;
@@ -466,6 +507,8 @@ app.post("/api/videos/sora/generate", async (req, reply) => {
     if (!AZ.videoDeployment) {
       return reply.status(400).send({ error: "Missing AZURE_OPENAI_VIDEO_DEPLOYMENT" });
     }
+    
+    // Use v1 endpoint format which is currently working
     const base = `${AZ.endpoint}/openai/v1`;
     const createUrl = `${base}/video/generations/jobs?api-version=${AZ.apiVersion}`;
     const refBlock = (body.reference_image_urls?.length ?? 0) > 0 ? `\n\n[Reference images]\n${body.reference_image_urls!.join("\n")}` : "";
@@ -473,9 +516,16 @@ app.post("/api/videos/sora/generate", async (req, reply) => {
 
     const created = await fetch(createUrl, {
       method: "POST",
-      headers: { ...soraHeaders(), "Content-Type": "application/json" },
-      // Align with v1 Video Jobs API: pass deployment name in model
-      body: JSON.stringify({ model: AZ.videoDeployment, prompt: finalPrompt, width: body.width, height: body.height, n_seconds: body.n_seconds })
+      headers: { ...soraHeaders(), "Content-Type": "application/json", "Accept": "application/json" },
+      // v1 endpoint requires model field
+      body: JSON.stringify({
+        model: AZ.videoDeployment,
+        prompt: finalPrompt,
+        width: body.width,
+        height: body.height,
+        n_seconds: body.n_seconds,
+        ...(body.n_variants ? { n_variants: body.n_variants } : {})
+      })
     });
     if (!created.ok) throw new Error(await created.text());
     const job = await created.json() as any;
@@ -496,9 +546,10 @@ app.post("/api/videos/sora/generate", async (req, reply) => {
       generations = s?.generations || [];
     }
     if (status !== "succeeded") return reply.status(400).send({ error: `Job ${status}` });
-
+    
     const generationId = generations?.[0]?.id; if (!generationId) throw new Error("No generation id");
-    const contentUrl = `${base}/video/generations/${generationId}/content/video?api-version=${AZ.apiVersion}`;
+    const qualityParam = body.quality ? `&quality=${encodeURIComponent(body.quality)}` : "";
+    const contentUrl = `${base}/video/generations/${generationId}/content/video?api-version=${AZ.apiVersion}${qualityParam}`;
     const vRes = await fetch(contentUrl, { headers: soraHeaders() });
     if (!vRes.ok) throw new Error(await vRes.text());
     const ab = await vRes.arrayBuffer();
@@ -525,6 +576,27 @@ app.post("/api/videos/sora/generate", async (req, reply) => {
   } catch (e: any) {
     req.log.error(e);
     return reply.status(400).send({ error: e.message || "Sora generation failed" });
+  }
+});
+// Retrieve alternate quality content for an existing generation (no re-run)
+app.get("/api/videos/sora/content/:generationId", async (req, reply) => {
+  const generationId = (req.params as any)?.generationId as string | undefined;
+  const { quality } = (req.query as any) as { quality?: 'high' | 'low' };
+  if (!generationId) return reply.status(400).send({ error: "Missing generationId" });
+  if (!AZ.endpoint) return reply.status(400).send({ error: "Azure endpoint not configured" });
+  try {
+    const base = `${AZ.endpoint}/openai/v1`;
+    const qualityParam = quality ? `&quality=${encodeURIComponent(quality)}` : "";
+    const contentUrl = `${base}/video/generations/${generationId}/content/video?api-version=${AZ.apiVersion}${qualityParam}`;
+    const vRes = await fetch(contentUrl, { headers: { ...soraHeaders(), "Accept": "video/mp4" } });
+    if (!vRes.ok) throw new Error(await vRes.text());
+    const ab = await vRes.arrayBuffer();
+    const b64 = Buffer.from(ab).toString("base64");
+    const ct = vRes.headers.get("content-type") || "video/mp4";
+    return reply.send({ generation_id: generationId, quality: quality || null, content_type: ct, video_base64: b64 });
+  } catch (e: any) {
+    req.log.error(e);
+    return reply.status(400).send({ error: e.message || "Failed to retrieve video content" });
   }
 });
 

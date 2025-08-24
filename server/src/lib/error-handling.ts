@@ -406,8 +406,11 @@ export async function checkVisionServiceHealth(
     
     if (isGPT5 && process.env.AZURE_OPENAI_USE_RESPONSES_API !== 'false') {
       // Use Responses API for GPT-5 with v1 preview path
-      const baseUrl = azureConfig.endpoint.replace(/\/+$/, ''); // Remove trailing slashes
-      testUrl = `${baseUrl}/openai/v1/responses?api-version=preview`;
+      let baseUrl = azureConfig.endpoint.replace(/\/+$/, ''); // Remove trailing slashes
+      if (!baseUrl.includes('/openai/v1')) {
+        baseUrl = `${baseUrl}/openai/v1`;
+      }
+      testUrl = `${baseUrl}/responses?api-version=preview`;
       requestBody = {
         model: azureConfig.visionDeployment,
         input: [{ role: "user", content: "Health check" }],

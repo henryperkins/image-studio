@@ -21,7 +21,7 @@ export default function ImageEditor({ item, onClose, onEdited, baseUrl }: Props)
   const [prompt, setPrompt] = useState(``);
   const [busy, setBusy] = useState(false);
   const [size, setSize] = useState(item.size);
-  const [format, setFormat] = useState<"png"|"jpeg">(item.format);
+  const [format, setFormat] = useState<"png"|"jpeg"|"webp">(item.format as any);
   // API enhancements
   const [quality, setQuality] = useState<"auto"|"low"|"medium"|"high">("high");
   const [background, setBackground] = useState<"transparent"|"opaque"|"auto">("opaque");
@@ -128,8 +128,8 @@ export default function ImageEditor({ item, onClose, onEdited, baseUrl }: Props)
       const maskPng = hasMask ? canvasRef.current!.toDataURL("image/png") : undefined;
       const res = await editImage(item.id, prompt || "Apply the painted mask changes", maskPng, size, format, {
         quality,
-        background: format === "png" ? background : undefined,
-        output_compression: format === "jpeg" ? outputCompression : undefined
+        background: (format === "png" || format === "webp") ? background : undefined,
+        output_compression: (format === "jpeg" || format === "webp") ? outputCompression : undefined
       });
       onEdited(res.library_item.id);
       showToast("Image edited and saved", "success");
@@ -174,7 +174,7 @@ export default function ImageEditor({ item, onClose, onEdited, baseUrl }: Props)
               value={prompt}
               onChange={setPrompt}
               onSubmit={runEdit}
-              maxLength={2000}
+              maxLength={32000}
               minLength={0}
               busy={busy}
             />
@@ -184,11 +184,12 @@ export default function ImageEditor({ item, onClose, onEdited, baseUrl }: Props)
               </label>
               <label className="text-sm">Format
                 <select className="input mt-1" value={format} onChange={e=>setFormat(e.target.value as any)}>
-                  <option>png</option><option>jpeg</option>
+                  <option>png</option><option>jpeg</option><option>webp</option>
                 </select>
               </label>
               <label className="text-sm">Size
                 <select className="input mt-1" value={size} onChange={e=>setSize(e.target.value as any)}>
+                  <option>auto</option>
                   <option>1024x1024</option>
                   <option>1536x1024</option>
                   <option>1024x1536</option>
@@ -202,8 +203,8 @@ export default function ImageEditor({ item, onClose, onEdited, baseUrl }: Props)
                   <option value="high">high</option>
                 </select>
               </label>
-              {format === "png" && (
-                <label className="text-sm col-span-2">Background (PNG only)
+              {(format === "png" || format === "webp") && (
+                <label className="text-sm col-span-2">Background (PNG/WEBP)
                   <select className="input mt-1" value={background} onChange={e=>setBackground(e.target.value as any)}>
                     <option value="opaque">opaque</option>
                     <option value="transparent">transparent</option>
@@ -211,13 +212,14 @@ export default function ImageEditor({ item, onClose, onEdited, baseUrl }: Props)
                   </select>
                 </label>
               )}
-              {format === "jpeg" && (
-                <label className="text-sm col-span-2">JPEG compression (0–100)
+              {(format === "jpeg" || format === "webp") && (
+                <label className="text-sm col-span-2">Compression ({outputCompression}%)
                   <input
-                    className="input mt-1"
-                    type="number"
+                    className="mt-2 w-full"
+                    type="range"
                     min={0}
                     max={100}
+                    step={1}
                     value={outputCompression}
                     onChange={e=>setOutputCompression(Math.min(100, Math.max(0, +e.target.value || 0)))} />
                 </label>

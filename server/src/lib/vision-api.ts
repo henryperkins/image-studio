@@ -72,10 +72,24 @@ Ensure all required fields are present and data types match exactly. Do not incl
     seed: config.seed
   }, responsesConfig);
 
-  // GPT-5 Responses API returns output_text or output array
-  const content = response?.output_text ||
-                  response?.output?.[0]?.content?.[0]?.text ||
-                  response?.choices?.[0]?.message?.content;
+  // GPT-5 Responses API returns output array with message type
+  // Look for the message type output which contains the actual response
+  let content = response?.output_text;
+  
+  if (!content && response?.output) {
+    // Find the message output (type: "message")
+    const messageOutput = response.output.find(o => o.type === 'message');
+    if (messageOutput?.content) {
+      // Extract text from content array
+      const textContent = messageOutput.content.find((c: any) => c.type === 'output_text' || c.type === 'text');
+      content = textContent?.text;
+    }
+  }
+  
+  // Fallback to old format
+  if (!content) {
+    content = response?.choices?.[0]?.message?.content;
+  }
 
   if (!content) {
     throw new Error('Empty response from Responses API');
@@ -158,7 +172,8 @@ export async function callVisionAPI(
       method: "POST",
       headers: {
         ...config.authHeaders,
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
+        "Accept": "application/json"
       },
       body: JSON.stringify(requestBody)
     }),

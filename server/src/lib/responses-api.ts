@@ -38,14 +38,19 @@ export interface ResponsesCreateParams {
 export interface ResponsesAPIResponse {
   id: string;
   object: string;
-  created: number;
+  created?: number;
+  created_at?: number;
   model: string;
   output_text?: string;
   output?: Array<{
+    id?: string;
+    type?: string;
+    status?: string;
     content?: Array<{
       text?: string;
       type?: string;
     }>;
+    role?: string;
   }>;
   choices?: Array<{
     index: number;
@@ -56,9 +61,15 @@ export interface ResponsesAPIResponse {
     finish_reason: string;
   }>;
   usage?: {
-    prompt_tokens: number;
-    completion_tokens: number;
-    total_tokens: number;
+    prompt_tokens?: number;
+    input_tokens?: number;
+    completion_tokens?: number;
+    output_tokens?: number;
+    total_tokens?: number;
+  };
+  status?: string;
+  incomplete_details?: {
+    reason?: string;
   };
 }
 
@@ -71,10 +82,17 @@ export async function createResponse(
   config: ResponsesAPIConfig
 ): Promise<ResponsesAPIResponse> {
   // Azure OpenAI Responses API uses /openai/v1/responses with api-version=preview
-  // IMPORTANT: The endpoint must NOT already include /openai/v1/ path
-  // We ensure the correct v1 preview path format here
-  const baseUrl = config.endpoint.replace(/\/+$/, ''); // Remove trailing slashes
-  const url = `${baseUrl}/openai/v1/responses?api-version=preview`;
+  // IMPORTANT: Handle both endpoint formats:
+  // - If endpoint already includes /openai/v1, use it as-is
+  // - Otherwise, append /openai/v1
+  let baseUrl = config.endpoint.replace(/\/+$/, ''); // Remove trailing slashes
+  
+  // Check if endpoint already has the path
+  if (!baseUrl.includes('/openai/v1')) {
+    baseUrl = `${baseUrl}/openai/v1`;
+  }
+  
+  const url = `${baseUrl}/responses?api-version=preview`;
 
   const requestBody = {
     model: config.deployment, // Use deployment name for model
@@ -94,7 +112,8 @@ export async function createResponse(
       method: "POST",
       headers: {
         ...config.authHeaders,
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
+        "Accept": "application/json"
       },
       body: JSON.stringify(requestBody)
     }),
@@ -126,35 +145,37 @@ export function convertMessagesToResponsesInput(
   messages: any[]
 ): Array<{ role: 'developer' | 'user' | 'assistant'; content: any }> {
   // Convert messages array to Responses API format
-  return messages.map(msg => {
-    // Convert 'system' role to 'developer' for GPT-5
-    const role = msg.role === 'system' ? 'developer' : msg.role;
+  return messages
+    .filter(msg => msg && typeof msg === 'object' && msg.role) // Filter out invalid messages
+    .map(msg => {
+      // Convert 'system' role to 'developer' for GPT-5
+      const role = msg.role === 'system' ? 'developer' : msg.role;
 
-    // Convert content format if it contains images
-    let content = msg.content;
-    if (Array.isArray(content)) {
-      content = content.map((part: any) => {
-        if (part.type === 'text') {
-          return { type: 'input_text', text: part.text };
-        } else if (part.type === 'image_url') {
-          // Convert Chat Completions image_url format to Responses API input_image format
-          // Responses API expects: { type: "input_image", image_url: "<url>" }
-          // Note: Responses API doesn't support 'detail' field, just the URL string
-          const imageUrl = typeof part.image_url === 'object' ? part.image_url.url : part.image_url;
-          return {
-            type: 'input_image',
-            image_url: imageUrl
-          };
-        }
-        return part;
-      });
-    }
+      // Convert content format if it contains images
+      let content = msg.content;
+      if (Array.isArray(content)) {
+        content = content.map((part: any) => {
+          if (part.type === 'text') {
+            return { type: 'input_text', text: part.text };
+          } else if (part.type === 'image_url') {
+            // Convert Chat Completions image_url format to Responses API input_image format
+            // Responses API expects: { type: "input_image", image_url: "<url>" }
+            // Note: Responses API doesn't support 'detail' field, just the URL string
+            const imageUrl = typeof part.image_url === 'object' ? part.image_url.url : part.image_url;
+            return {
+              type: 'input_image',
+              image_url: imageUrl
+            };
+          }
+          return part;
+        });
+      }
 
-    return {
-      role,
-      content
-    };
-  });
+      return {
+        role,
+        content
+      };
+    });
 }
 
 /**

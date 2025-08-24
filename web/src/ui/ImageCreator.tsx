@@ -11,14 +11,14 @@ type Resp = {
   image_base64: string;
   model: string;
   size: string;
-  format: "png" | "jpeg";
+  format: "png" | "jpeg" | "webp";
   library_item: {
     id: string;
     url: string;
     filename: string;
     prompt: string;
-    size: "1024x1024" | "1536x1024" | "1024x1536";
-    format: "png" | "jpeg";
+    size: "auto" | "1024x1024" | "1536x1024" | "1024x1536";
+    format: "png" | "jpeg" | "webp";
     createdAt: string;
   };
 };
@@ -31,20 +31,61 @@ type ImageCreatorProps = {
 };
 
 export default function ImageCreator({ onSaved, promptInputRef, prompt, setPrompt }: ImageCreatorProps) {
-  const [size, setSize] = useState("1024x1024");
+  const [size, setSize] = useState("auto");
   const [quality, setQuality] = useState("high");
-  const [format, setFormat] = useState<"png" | "jpeg">("png");
+  const [format, setFormat] = useState<"png" | "jpeg" | "webp">("png");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
   const [result, setResult] = useState<Resp | null>(null);
   const [isImageLoading, setIsImageLoading] = useState(false);
+  const [outputCompression, setOutputCompression] = useState(100);
+  const [background, setBackground] = useState<"transparent" | "opaque" | "auto">("auto");
   const { showToast } = useToast();
+  // Persist user preferences for seamless UX
+  // Load saved settings on mount
+  useState(() => {
+    try {
+      const saved = localStorage.getItem("IMG_CREATOR_SETTINGS");
+      if (saved) {
+        const s = JSON.parse(saved);
+        if (s.size) setSize(s.size);
+        if (s.quality) setQuality(s.quality);
+        if (s.format) setFormat(s.format);
+        if (typeof s.outputCompression === "number") setOutputCompression(s.outputCompression);
+        if (s.background) setBackground(s.background);
+      }
+    } catch {}
+  });
+  // Save on change
+  useState(() => {
+    const settings = { size, quality, format, outputCompression, background };
+    try { localStorage.setItem("IMG_CREATOR_SETTINGS", JSON.stringify(settings)); } catch {}
+    return settings;
+  });
+  // Keep background/format coherent for transparent output
+  function onBackgroundChange(next: "transparent" | "opaque" | "auto") {
+    if (next === "transparent" && format === "jpeg") {
+      setFormat("png");
+      showToast("Format set to PNG for transparent background", "info");
+    }
+    setBackground(next);
+  }
+  function onFormatChange(next: "png" | "jpeg" | "webp") {
+    if (next === "jpeg" && background === "transparent") {
+      setBackground("opaque");
+      showToast("Background set to opaque for JPEG", "info");
+    }
+    setFormat(next);
+  }
 
   const generate = async (isRetry = false) => {
     setBusy(true); setError(null); setResult(null); setIsImageLoading(true);
     try {
-      const data = await generateImage(prompt, size, quality, format);
+      const data = await generateImage(prompt, size, quality, format, {
+        output_compression: (format === "jpeg" || format === "webp") ? outputCompression : undefined,
+        background: (format === "png" || format === "webp") ? background : undefined
+      });
       setResult(data);
       setRetryCount(0);
       showToast("Image generated successfully!", "success");
@@ -88,15 +129,17 @@ export default function ImageCreator({ onSaved, promptInputRef, prompt, setPromp
         onChange={setPrompt}
         onSubmit={generate}
         placeholder="Describe the image…"
-        maxLength={1000}
+        maxLength={32000}
         disabled={busy}
         busy={busy}
         error={error}
         ariaLabel="Image description prompt"
       />
+      <Text size="xs" tone="muted">{prompt.length} / 32000</Text>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
         <Label size="sm">Size
           <select className="input mt-1" value={size} onChange={e=>setSize(e.target.value)}>
+            <option>auto</option>
             <option>1024x1024</option>
             <option>1536x1024</option>
             <option>1024x1536</option>
@@ -108,10 +151,31 @@ export default function ImageCreator({ onSaved, promptInputRef, prompt, setPromp
           </select>
         </Label>
         <Label size="sm">Format
-          <select className="input mt-1" value={format} onChange={e=>setFormat(e.target.value as any)}>
-            <option>png</option><option>jpeg</option>
+          <select className="input mt-1" value={format} onChange={e=>onFormatChange(e.target.value as any)}>
+            <option>png</option><option>jpeg</option><option>webp</option>
           </select>
         </Label>
+        {(format === "png" || format === "webp") && (
+          <Label size="sm">Background
+            <select className="input mt-1" value={background} onChange={e=>onBackgroundChange(e.target.value as any)}>
+              <option value="auto">auto</option>
+              <option value="opaque">opaque</option>
+              <option value="transparent">transparent</option>
+            </select>
+          </Label>
+        )}
+        {(format === "jpeg" || format === "webp") && (
+          <Label size="sm">Compression ({outputCompression}%)
+            <input
+              className="mt-2 w-full"
+              type="range"
+              min={0}
+              max={100}
+              step={1}
+              value={outputCompression}
+              onChange={e => setOutputCompression(Math.min(100, Math.max(0, +e.target.value || 0)))} />
+          </Label>
+        )}
       </div>
       <div className="flex gap-2">
         <LoadingButton
