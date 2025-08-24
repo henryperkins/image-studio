@@ -397,16 +397,36 @@ export async function checkVisionServiceHealth(
   const start = Date.now();
   
   try {
-    const testUrl = `${azureConfig.endpoint}/openai/deployments/${encodeURIComponent(azureConfig.visionDeployment)}/chat/completions?api-version=${azureConfig.chatApiVersion}`;
+    // Check if this is a GPT-5 deployment that should use Responses API
+    const isGPT5 = azureConfig.visionDeployment.toLowerCase().includes('gpt-5') || 
+                   azureConfig.visionDeployment.toLowerCase().includes('gpt5');
+    
+    let testUrl: string;
+    let requestBody: any;
+    
+    if (isGPT5 && process.env.AZURE_OPENAI_USE_RESPONSES_API !== 'false') {
+      // Use Responses API for GPT-5 with v1 preview path
+      const baseUrl = azureConfig.endpoint.replace(/\/+$/, ''); // Remove trailing slashes
+      testUrl = `${baseUrl}/openai/v1/responses?api-version=preview`;
+      requestBody = {
+        model: azureConfig.visionDeployment,
+        input: [{ role: "user", content: "Health check" }],
+        max_output_tokens: 1
+      };
+    } else {
+      // Use Chat Completions API for other models
+      testUrl = `${azureConfig.endpoint}/openai/deployments/${encodeURIComponent(azureConfig.visionDeployment)}/chat/completions?api-version=${azureConfig.chatApiVersion}`;
+      requestBody = {
+        messages: [{ role: "user", content: "Health check" }],
+        max_tokens: 1
+      };
+    }
     
     const response = await withTimeout(
       fetch(testUrl, {
         method: "POST",
         headers: { ...authHeaders, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          messages: [{ role: "user", content: "Health check" }],
-          max_tokens: 1
-        })
+        body: JSON.stringify(requestBody)
       }),
       5000,
       'Health check'

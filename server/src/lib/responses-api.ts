@@ -7,7 +7,6 @@ export interface ResponsesAPIConfig {
   apiVersion: string;
   authHeaders: Record<string, string>;
   maxTokens?: number;
-  temperature?: number;
   seed?: number;
   timeoutMs?: number;
 }
@@ -23,7 +22,6 @@ export interface ResponsesCreateParams {
     }>;
   }>;
   max_output_tokens?: number;
-  temperature?: number;
   text?: {
     verbosity?: 'low' | 'medium' | 'high';
     format?: { type: 'text' };
@@ -73,8 +71,10 @@ export async function createResponse(
   config: ResponsesAPIConfig
 ): Promise<ResponsesAPIResponse> {
   // Azure OpenAI Responses API uses /openai/v1/responses with api-version=preview
-  // This is the correct format for GPT-5 and other models supporting the Responses API
-  const url = `${config.endpoint}/openai/v1/responses?api-version=preview`;
+  // IMPORTANT: The endpoint must NOT already include /openai/v1/ path
+  // We ensure the correct v1 preview path format here
+  const baseUrl = config.endpoint.replace(/\/+$/, ''); // Remove trailing slashes
+  const url = `${baseUrl}/openai/v1/responses?api-version=preview`;
 
   const requestBody = {
     model: config.deployment, // Use deployment name for model
@@ -139,9 +139,11 @@ export function convertMessagesToResponsesInput(
         } else if (part.type === 'image_url') {
           // Convert Chat Completions image_url format to Responses API input_image format
           // Responses API expects: { type: "input_image", image_url: "<url>" }
+          // Note: Responses API doesn't support 'detail' field, just the URL string
+          const imageUrl = typeof part.image_url === 'object' ? part.image_url.url : part.image_url;
           return {
             type: 'input_image',
-            image_url: part.image_url.url
+            image_url: imageUrl
           };
         }
         return part;

@@ -58,7 +58,6 @@ Ensure all required fields are present and data types match exactly. Do not incl
     apiVersion: config.apiVersion,
     authHeaders: config.authHeaders,
     maxTokens: config.maxTokens,
-    temperature: config.temperature,
     seed: config.seed,
     timeoutMs: config.timeoutMs
   };
@@ -67,7 +66,6 @@ Ensure all required fields are present and data types match exactly. Do not incl
     model: config.deployment,
     input: input,
     max_output_tokens: config.maxTokens || 1500,
-    // temperature not supported by GPT-5
     text: { verbosity: 'medium' }, // Use medium verbosity for detailed analysis
     reasoning: { effort: 'low' }, // Use low effort for faster responses
     instructions: schemaInstructions,
