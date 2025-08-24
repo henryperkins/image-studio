@@ -93,11 +93,21 @@ The server requires Azure OpenAI environment variables (configured in `server/.e
 - `AZURE_OPENAI_API_KEY` or `AZURE_OPENAI_BEARER` (for authentication)
 - `AZURE_OPENAI_IMAGE_DEPLOYMENT` (deployment name for gpt-image-1)
 - `AZURE_OPENAI_VIDEO_DEPLOYMENT` (deployment name for Sora/video)
-- `AZURE_OPENAI_VISION_DEPLOYMENT` (for GPT-4.1 vision)
-- `AZURE_OPENAI_CHAT_API_VERSION` (for vision/chat completions, e.g., "2024-04-01-preview")
+- `AZURE_OPENAI_VISION_DEPLOYMENT` (for GPT-4.1 vision or GPT-5)
+- `AZURE_OPENAI_CHAT_API_VERSION` (for vision/chat completions, e.g., "2025-04-01-preview")
 - `AZURE_OPENAI_API_VERSION` (for v1 image/video endpoints; set to "preview")
 - `PORT` (server port, defaults to 8787)
 - `CORS_ORIGIN` (comma-separated allowed origins, defaults to localhost:5174 in dev)
+
+### Azure GPT-5 Sanity Checklist
+When using GPT-5 models with Azure OpenAI:
+- ✅ `AZURE_OPENAI_ENDPOINT` and `AZURE_OPENAI_API_KEY` are set
+- ✅ A deployment exists for GPT-5 in your Azure resource
+- ✅ API version is set to a preview version (e.g., "2025-04-01-preview") 
+- ✅ Using Responses API format with `input` (not `messages`)
+- ✅ Using `max_output_tokens` (not `max_tokens` or `max_completion_tokens`)
+- ✅ Using `developer` role instead of `system` role
+- ✅ Model parameter uses your Azure deployment name (e.g., "gpt5-prod")
 
 ### Enhanced Vision System Configuration
 For the new modular vision system with enhanced safety:

@@ -12,15 +12,12 @@ import {
 import { SYSTEM_PROMPT, createVideoUserMessage, createImageUserMessage } from './vision-prompts.js';
 export { createImageUserMessage as createUserMessage } from './vision-prompts.js';
 
-// Detect if we should use Responses API based on deployment name and API version
+// Detect if we should use Responses API based on deployment name
 function shouldUseResponsesAPI(deployment: string, apiVersion: string): boolean {
-  // Force use of legacy chat completions API endpoint, as the v1/responses endpoint may not be available.
-  return false;
-
-  // Use Responses API for GPT-5 models with 2025-04-01-preview or later
-  const isGPT5 = deployment.toLowerCase().includes('gpt-5');
-  const isNewAPIVersion = apiVersion.includes('2025-04-01-preview');
-  return isGPT5 && isNewAPIVersion;
+  // Use Responses API for GPT-5 models
+  // Note: When using Responses API, we'll use api-version=preview regardless of config
+  const isGPT5 = deployment.toLowerCase().includes('gpt-5') || deployment.toLowerCase().includes('gpt5');
+  return isGPT5;
 }
 
 // New GPT-5 Responses API call with JSON mode
@@ -65,13 +62,18 @@ Ensure all required fields are present and data types match exactly. Do not incl
     model: config.deployment,
     input: input,
     max_output_tokens: config.maxTokens || 1500,
-    temperature: config.temperature ?? 0.1,
-    verbosity: 'medium', // Use medium verbosity for detailed analysis
+    // temperature not supported by GPT-5
+    text: { verbosity: 'medium' }, // Use medium verbosity for detailed analysis
+    reasoning: { effort: 'low' }, // Use low effort for faster responses
     instructions: schemaInstructions,
     seed: config.seed
   }, responsesConfig);
 
-  const content = response?.choices?.[0]?.message?.content;
+  // GPT-5 Responses API returns output_text or output array
+  const content = response?.output_text || 
+                  response?.output?.[0]?.content?.[0]?.text || 
+                  response?.choices?.[0]?.message?.content;
+  
   if (!content) {
     throw new Error('Empty response from Responses API');
   }

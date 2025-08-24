@@ -1,4 +1,4 @@
-import { forwardRef, KeyboardEvent, DragEvent } from "react";
+import { forwardRef, KeyboardEvent, DragEvent, useState } from "react";
 import { Text } from "../ui/typography";
 
 interface PromptTextareaProps {
@@ -34,6 +34,7 @@ export const PromptTextarea = forwardRef<HTMLTextAreaElement, PromptTextareaProp
     },
     ref
   ) => {
+    const [hasInteracted, setHasInteracted] = useState(false);
     const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
       if ((e.ctrlKey || e.metaKey) && e.key === "Enter" && !busy && !disabled && value.trim() && onSubmit) {
         e.preventDefault();
@@ -70,9 +71,9 @@ export const PromptTextarea = forwardRef<HTMLTextAreaElement, PromptTextareaProp
     };
 
     const getHelpText = () => {
-      if (value.length === 0) return "Prompt is required";
-      if (value.length < minLength) return "Consider adding more detail for better results";
-      if (onSubmit) return "Press Ctrl+Enter to generate";
+      if (value.length === 0 && hasInteracted) return "Prompt is required";
+      if (value.length > 0 && value.length < minLength) return "Consider adding more detail for better results";
+      if (onSubmit && value.length >= minLength) return "Press Ctrl+Enter to generate";
       return "";
     };
 
@@ -86,7 +87,11 @@ export const PromptTextarea = forwardRef<HTMLTextAreaElement, PromptTextareaProp
           className={`input resize-none ${className}`}
           placeholder={placeholder}
           value={value}
-          onChange={(e) => onChange(e.target.value)}
+          onChange={(e) => {
+            setHasInteracted(true);
+            onChange(e.target.value);
+          }}
+          onBlur={() => setHasInteracted(true)}
           onKeyDown={handleKeyDown}
           onDragOver={handleDragOver}
           onDrop={handleDrop}

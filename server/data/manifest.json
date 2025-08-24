@@ -1,5 +1,27 @@
 [
   {
+    "kind": "video",
+    "id": "7bd04a1c-fbae-4f8d-b05a-fbe22804dcb1",
+    "filename": "7bd04a1c-fbae-4f8d-b05a-fbe22804dcb1.mp4",
+    "url": "/static/videos/7bd04a1c-fbae-4f8d-b05a-fbe22804dcb1.mp4",
+    "prompt": "\n\n[Reference images]\nhttp://20.57.32.81:8787/static/images/243f9728-b880-4ed1-a998-0e704eb861e3.jpg",
+    "width": 1080,
+    "height": 1080,
+    "duration": 10,
+    "createdAt": "2025-08-23T23:50:48.163Z"
+  },
+  {
+    "kind": "video",
+    "id": "91155f00-d3de-4303-89b0-ea4f558f9105",
+    "filename": "91155f00-d3de-4303-89b0-ea4f558f9105.mp4",
+    "url": "/static/videos/91155f00-d3de-4303-89b0-ea4f558f9105.mp4",
+    "prompt": "great, ocean, liner, sink, Night, time, techno, metropolis, with, galactic\n\n[Reference images]\nhttp://20.57.32.81:8787/static/images/eb693397-7392-4dfd-bdf8-9486de129d56.png",
+    "width": 1080,
+    "height": 1920,
+    "duration": 10,
+    "createdAt": "2025-08-23T23:15:27.872Z"
+  },
+  {
     "kind": "image",
     "id": "eb693397-7392-4dfd-bdf8-9486de129d56",
     "filename": "eb693397-7392-4dfd-bdf8-9486de129d56.png",

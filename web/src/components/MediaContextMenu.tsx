@@ -20,6 +20,7 @@ export default function MediaContextMenu({
   const menuRef = useRef<HTMLDivElement>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [menuPosition, setMenuPosition] = useState(position);
+  const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -44,30 +45,36 @@ export default function MediaContextMenu({
   useEffect(() => {
     if (!menuRef.current) return;
     
-    const rect = menuRef.current.getBoundingClientRect();
-    const viewportWidth = window.innerWidth;
-    const viewportHeight = window.innerHeight;
-    const scrollX = window.scrollX;
-    const scrollY = window.scrollY;
-    
-    let newX = position.x;
-    let newY = position.y;
-    
-    // Adjust horizontal position
-    if (position.x + rect.width > viewportWidth) {
-      newX = Math.max(10, viewportWidth - rect.width - 10);
-    }
-    
-    // Adjust vertical position
-    if (position.y + rect.height > viewportHeight) {
-      newY = Math.max(10, viewportHeight - rect.height - 10);
-    }
-    
-    // Account for scroll
-    newX += scrollX;
-    newY += scrollY;
-    
-    setMenuPosition({ x: newX, y: newY });
+    // First render: position off-screen to measure
+    requestAnimationFrame(() => {
+      if (!menuRef.current) return;
+      
+      const rect = menuRef.current.getBoundingClientRect();
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
+      const scrollX = window.scrollX;
+      const scrollY = window.scrollY;
+      
+      let newX = position.x;
+      let newY = position.y;
+      
+      // Adjust horizontal position
+      if (position.x + rect.width > viewportWidth) {
+        newX = Math.max(10, viewportWidth - rect.width - 10);
+      }
+      
+      // Adjust vertical position
+      if (position.y + rect.height > viewportHeight) {
+        newY = Math.max(10, viewportHeight - rect.height - 10);
+      }
+      
+      // Account for scroll
+      newX += scrollX;
+      newY += scrollY;
+      
+      setMenuPosition({ x: newX, y: newY });
+      setIsVisible(true);
+    });
   }, [position]);
 
   const handleMenuAction = (action: MediaAction) => {
@@ -100,6 +107,8 @@ export default function MediaContextMenu({
       style={{
         left: `${menuPosition.x}px`,
         top: `${menuPosition.y}px`,
+        opacity: isVisible ? 1 : 0,
+        pointerEvents: isVisible ? 'auto' : 'none',
       }}
       role="menu"
       aria-label="Media context menu"

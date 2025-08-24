@@ -215,7 +215,7 @@ useEffect(() => {
         {/* Left column (main content) */}
         <div className="md:col-span-2">
           <div className="card transition-opacity duration-200">
-            <div className="relative overflow-hidden">
+            <div className="relative overflow-hidden min-h-[600px]">
               <div
                 className="transition-all duration-200 ease-in-out"
                 id="panel-images"
@@ -224,7 +224,10 @@ useEffect(() => {
                 style={{
                   transform: view === "images" ? "translateX(0)" : "translateX(-100%)",
                   opacity: view === "images" ? 1 : 0,
-                  display: view === "images" ? "block" : "none",
+                  pointerEvents: view === "images" ? "auto" : "none",
+                  position: "absolute" as const,
+                  inset: 0,
+                  visibility: view === "images" ? "visible" : "hidden",
                 }}
                 tabIndex={0}
               >
@@ -239,7 +242,10 @@ useEffect(() => {
                 style={{
                   transform: view === "sora" ? "translateX(0)" : "translateX(100%)",
                   opacity: view === "sora" ? 1 : 0,
-                  display: view === "sora" ? "block" : "none",
+                  pointerEvents: view === "sora" ? "auto" : "none",
+                  position: "absolute" as const,
+                  inset: 0,
+                  visibility: view === "sora" ? "visible" : "hidden",
                 }}
                 tabIndex={0}
               >
@@ -322,7 +328,7 @@ useEffect(() => {
             </div>
           ) : (
             <div className="space-y-3">
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 fade-in">
+              <div className="grid grid-cols-2 gap-2 fade-in">
                 {library
                   .slice(libraryPage * itemsPerPage, (libraryPage + 1) * itemsPerPage)
                   .map((item, index) => (
@@ -345,19 +351,19 @@ useEffect(() => {
               
               {/* Pagination controls */}
               {library.length > itemsPerPage && (
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row items-center gap-2 sm:justify-between">
                   <button
-                    className="btn btn-xs"
+                    className="btn btn-xs w-full sm:w-auto"
                     onClick={() => setLibraryPage(Math.max(0, libraryPage - 1))}
                     disabled={libraryPage === 0}
                   >
                     ← Previous
                   </button>
-                  <span className="text-xs text-neutral-400">
+                  <span className="text-xs text-neutral-400 flex-1 text-center min-w-[100px]">
                     Page {libraryPage + 1} of {Math.ceil(library.length / itemsPerPage)}
                   </span>
                   <button
-                    className="btn btn-xs"
+                    className="btn btn-xs w-full sm:w-auto"
                     onClick={() => setLibraryPage(Math.min(Math.ceil(library.length / itemsPerPage) - 1, libraryPage + 1))}
                     disabled={(libraryPage + 1) * itemsPerPage >= library.length}
                   >
@@ -377,7 +383,7 @@ useEffect(() => {
               title={selected.length === 0 ? "Select at least one image" : "Clear selection"}
             >
               <span className="relative z-10">Clear</span>
-              <span className="absolute inset-0 bg-neutral-600 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-200 origin-left" />
+              {selected.length > 0 && <span className="absolute inset-0 bg-neutral-600 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-200 origin-left pointer-events-none" />}
             </button>
             <button
               className="btn group relative overflow-hidden min-w-[48px] min-h-[48px] md:min-h-0"
@@ -390,7 +396,7 @@ useEffect(() => {
               title={selected.length === 0 ? "Select at least one image" : "Use selected images in Sora"}
             >
               <span className="relative z-10">Use in Sora</span>
-              <span className="absolute inset-0 bg-blue-600 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-200 origin-left" />
+              {selected.length > 0 && <span className="absolute inset-0 bg-blue-600 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-200 origin-left pointer-events-none" />}
             </button>
           </div>
 

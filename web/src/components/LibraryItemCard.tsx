@@ -40,18 +40,28 @@ const LibraryItemCard = memo(({
     setShowContextMenu(true);
   };
 
+  const hoverTimeoutRef = useRef<NodeJS.Timeout>();
+  
   const handleMouseEnter = () => {
     setIsHovered(true);
     if (isVideo && videoRef.current && !hasError) {
-      const playPromise = videoRef.current.play();
-      if (playPromise) {
-        playPromise.catch(() => {});
-      }
+      // Add delay before playing video to reduce flicker
+      hoverTimeoutRef.current = setTimeout(() => {
+        if (videoRef.current) {
+          const playPromise = videoRef.current.play();
+          if (playPromise) {
+            playPromise.catch(() => {});
+          }
+        }
+      }, 300);
     }
   };
 
   const handleMouseLeave = () => {
     setIsHovered(false);
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+    }
     if (isVideo && videoRef.current) {
       videoRef.current.pause();
       videoRef.current.currentTime = 0;
@@ -174,22 +184,22 @@ const LibraryItemCard = memo(({
           <div className="absolute inset-0 bg-neutral-800 rounded-lg animate-pulse" />
         )}
 
-        {/* Error state */}
+        {/* Error state - lighter weight for small cards */}
         {hasError && (
-          <div className="absolute inset-0 bg-neutral-900/95 backdrop-blur-sm rounded-lg flex flex-col items-center justify-center z-30 p-4 text-center">
-            <svg className="w-8 h-8 text-neutral-600 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <p className="text-xs text-neutral-500">Failed to load</p>
+          <div className="absolute inset-0 bg-neutral-900/90 rounded-lg flex items-center justify-center z-30 p-2">
             <button
-              className="text-xs text-blue-400 hover:text-blue-300 mt-1"
+              className="flex flex-col items-center gap-1 hover:bg-neutral-800/50 rounded p-2 transition-colors"
               onClick={(e) => {
                 e.stopPropagation();
                 setHasError(false);
                 setIsLoading(true);
               }}
+              title="Failed to load - Click to retry"
             >
-              Retry
+              <svg className="w-6 h-6 text-neutral-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              <span className="text-xs text-neutral-400">Retry</span>
             </button>
           </div>
         )}
@@ -199,7 +209,7 @@ const LibraryItemCard = memo(({
           <video
             ref={videoRef}
             src={`${baseUrl}${item.url}`}
-            className={`rounded-lg border border-neutral-800 transition-transform duration-200 hover:scale-105 w-full h-full object-cover ${hasError ? 'hidden' : ''}`}
+            className={`rounded-lg border border-neutral-800 transition-all duration-200 hover:shadow-lg hover:shadow-blue-500/20 w-full h-full object-cover ${hasError ? 'hidden' : ''}`}
             muted
             loop
             playsInline
@@ -215,8 +225,8 @@ const LibraryItemCard = memo(({
             src={`${baseUrl}${item.url}`}
             alt={item.prompt || `Generated image ${index + 1}`}
             loading="lazy"
-            className={`rounded-lg border border-neutral-800 transition-transform duration-200 ${
-              selected ? 'ring-2 ring-blue-400 scale-95' : 'hover:scale-105'
+            className={`rounded-lg border border-neutral-800 transition-all duration-200 ${
+              selected ? 'ring-2 ring-blue-400' : 'hover:shadow-lg hover:shadow-blue-500/20'
             } ${hasError ? 'hidden' : ''}`}
             onLoad={() => setIsLoading(false)}
             onError={() => {

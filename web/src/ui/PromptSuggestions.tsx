@@ -163,19 +163,19 @@ export default function PromptSuggestions({ onInsert, onReplace }: PromptSuggest
               style={{ minHeight: 44 }}
             >
               <div
-                className="flex items-start gap-2 p-2"
+                className="flex items-start gap-2 p-2 overflow-hidden"
                 draggable
                 onDragStart={(e) => onDragStart(e, s.text)}
               >
                 <input
                   type="checkbox"
-                  className="mt-1"
+                  className="mt-1 flex-shrink-0"
                   checked={selectedIds.has(s.id)}
                   onChange={() => toggleSelect(s.id)}
                   aria-label="Select suggestion"
                 />
                 <button
-                  className="text-left flex-1"
+                  className="text-left flex-1 min-w-0"
                   onClick={() => { onInsert(s.text); recordEvent('suggestion_insert', { id: s.id }); }}
                   onKeyDown={(e) => onItemKeyDown(e, s.id, s.text)}
                   title={s.text} // full text tooltip
@@ -183,25 +183,27 @@ export default function PromptSuggestions({ onInsert, onReplace }: PromptSuggest
                 >
                   <Text size="sm" className="truncate">{s.text}</Text>
                   <div className="flex items-center gap-2 mt-1">
-                    <Text size="xs" tone="muted">
+                    <Text size="xs" tone="muted" className="flex-shrink-0">
                       {new Date(s.createdAt).toLocaleTimeString()} • {s.sourceModel}
                       {frequencyByKey[s.dedupeKey] ? ` • ${frequencyByKey[s.dedupeKey]}×` : ''}
                     </Text>
-                    {s.tags?.slice(0, 3).map(t => (
-                      <span key={t} className="text-xs px-2 py-0.5 rounded-full bg-purple-600/20 text-purple-300">{t}</span>
-                    ))}
+                    <div className="flex gap-1 overflow-hidden">
+                      {s.tags?.slice(0, 2).map(t => (
+                        <span key={t} className="text-xs px-2 py-0.5 rounded-full bg-purple-600/20 text-purple-300 whitespace-nowrap flex-shrink-0">{t}</span>
+                      ))}
+                    </div>
                   </div>
                 </button>
-                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity ml-auto">
-                  <button className="btn btn-xs" onClick={() => { onInsert(s.text); recordEvent('suggestion_insert', { id: s.id }); }} title="Insert">Insert</button>
-                  <button className="btn btn-xs" onClick={() => { onReplace(s.text); recordEvent('suggestion_replace', { id: s.id }); }} title="Replace">Replace</button>
-                  <button className="btn btn-xs" onClick={() => onCopy(s.text)} title="Copy">Copy</button>
+                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                  <button className="btn btn-xs" onClick={() => { onInsert(s.text); recordEvent('suggestion_insert', { id: s.id }); }} title="Insert">Ins</button>
+                  <button className="btn btn-xs" onClick={() => { onReplace(s.text); recordEvent('suggestion_replace', { id: s.id }); }} title="Replace">Rep</button>
+                  <button className="btn btn-xs" onClick={() => onCopy(s.text)} title="Copy">📋</button>
                   {isPinned(s.id) ? (
-                    <button className="btn btn-xs" onClick={() => unpin(s.id)} title="Unpin">Unpin</button>
+                    <button className="btn btn-xs" onClick={() => unpin(s.id)} title="Unpin">📌</button>
                   ) : (
-                    <button className="btn btn-xs" onClick={() => pin(s.id)} title="Pin">Pin</button>
+                    <button className="btn btn-xs" onClick={() => pin(s.id)} title="Pin">📍</button>
                   )}
-                  <button className="btn btn-xs" onClick={() => deleteSuggestion(s.id)} title="Delete" aria-label="Delete suggestion">Del</button>
+                  <button className="btn btn-xs" onClick={() => deleteSuggestion(s.id)} title="Delete" aria-label="Delete suggestion">🗑</button>
                 </div>
               </div>
             </li>

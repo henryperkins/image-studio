@@ -59,6 +59,8 @@ export default function Toast({ message, type, onClose, duration = 3000, actionL
       aria-atomic="true"
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
+      onFocus={() => setIsPaused(true)}
+      onBlur={() => setIsPaused(false)}
       onKeyDown={(e) => {
         if (e.key === "Escape") {
           handleClose();

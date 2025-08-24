@@ -13,20 +13,28 @@ export interface ResponsesAPIConfig {
 }
 
 export interface ResponsesCreateParams {
-  model: string;
+  model: string; // Deployment name for Azure OpenAI
   input: string | Array<{
-    type: 'text' | 'image_url';
-    text?: string;
-    image_url?: {
-      url: string;
-      detail?: 'low' | 'high' | 'auto';
-    };
+    role: 'developer' | 'user' | 'assistant';
+    content: string | Array<{
+      type: 'input_text' | 'input_image';
+      text?: string; // For input_text type
+      image_url?: string; // For input_image type - URL or data:image/... base64
+    }>;
   }>;
   max_output_tokens?: number;
   temperature?: number;
-  verbosity?: 'low' | 'medium' | 'high';
+  text?: {
+    verbosity?: 'low' | 'medium' | 'high';
+    format?: { type: 'text' };
+  };
+  reasoning?: {
+    effort?: 'minimal' | 'low' | 'medium' | 'high';
+  };
   seed?: number;
   instructions?: string;
+  tools?: any[];
+  tool_choice?: string | object;
 }
 
 export interface ResponsesAPIResponse {
@@ -34,7 +42,14 @@ export interface ResponsesAPIResponse {
   object: string;
   created: number;
   model: string;
-  choices: Array<{
+  output_text?: string;
+  output?: Array<{
+    content?: Array<{
+      text?: string;
+      type?: string;
+    }>;
+  }>;
+  choices?: Array<{
     index: number;
     message: {
       role: string;
@@ -57,17 +72,21 @@ export async function createResponse(
   params: ResponsesCreateParams,
   config: ResponsesAPIConfig
 ): Promise<ResponsesAPIResponse> {
-  // Use the new v1 responses endpoint
-  const url = `${config.endpoint}/openai/v1/responses?api-version=${config.apiVersion}`;
+  // Use the new v1 responses endpoint with "preview" API version
+  // IMPORTANT: v1 path requires api-version=preview, NOT dated versions
+  const url = `${config.endpoint}/openai/v1/responses?api-version=preview`;
 
   const requestBody = {
     model: config.deployment, // Use deployment name for model
     input: params.input,
     max_output_tokens: params.max_output_tokens || config.maxTokens || 1500,
-    temperature: params.temperature ?? config.temperature ?? 0.1,
-    verbosity: params.verbosity || 'medium',
-    instructions: params.instructions,
-    ...(config.seed && { seed: config.seed })
+    // Note: GPT-5 doesn't support temperature parameter
+    ...(params.text && { text: params.text }),
+    ...(params.reasoning && { reasoning: params.reasoning }),
+    ...(params.instructions && { instructions: params.instructions }),
+    ...(params.seed !== undefined && { seed: params.seed }),
+    ...(params.tools && { tools: params.tools }),
+    ...(params.tool_choice && { tool_choice: params.tool_choice })
   };
 
   const response = await withTimeout(
@@ -105,37 +124,35 @@ export async function createResponse(
  */
 export function convertMessagesToResponsesInput(
   messages: any[]
-): string | Array<{ type: 'text' | 'image_url'; text?: string; image_url?: any }> {
-  // Find the user message with content
-  const userMessage = messages.find(m => m.role === 'user');
-  if (!userMessage) {
-    throw new Error('No user message found in messages array');
-  }
-
-  // If content is a string, return it directly
-  if (typeof userMessage.content === 'string') {
-    return userMessage.content;
-  }
-
-  // If content is an array, convert it to the responses API format
-  if (Array.isArray(userMessage.content)) {
-    return userMessage.content.map((item: any) => {
-      if (item.type === 'text') {
-        return {
-          type: 'text' as const,
-          text: item.text
-        };
-      } else if (item.type === 'image_url') {
-        return {
-          type: 'image_url' as const,
-          image_url: item.image_url
-        };
-      }
-      return item;
-    });
-  }
-
-  return userMessage.content;
+): Array<{ role: 'developer' | 'user' | 'assistant'; content: any }> {
+  // Convert messages array to Responses API format
+  return messages.map(msg => {
+    // Convert 'system' role to 'developer' for GPT-5
+    const role = msg.role === 'system' ? 'developer' : msg.role;
+    
+    // Convert content format if it contains images
+    let content = msg.content;
+    if (Array.isArray(content)) {
+      content = content.map((part: any) => {
+        if (part.type === 'text') {
+          return { type: 'input_text', text: part.text };
+        } else if (part.type === 'image_url') {
+          // Convert Chat Completions image_url format to Responses API input_image format
+          // Responses API expects: { type: "input_image", image_url: "<url>" }
+          return {
+            type: 'input_image',
+            image_url: part.image_url.url
+          };
+        }
+        return part;
+      });
+    }
+    
+    return {
+      role,
+      content
+    };
+  });
 }
 
 /**
