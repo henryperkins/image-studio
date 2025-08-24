@@ -62,7 +62,7 @@ function withTimeout(ms: number) {
 }
 
 async function fetchJson(input: RequestInfo, init: RequestInit & { timeoutMs?: number } = {}) {
-  const { timeoutMs = 30000, ...rest } = init;
+  const { timeoutMs = 300000, ...rest } = init;
   const { signal, cancel } = withTimeout(timeoutMs);
 
   // Log API calls for debugging (especially mobile)
@@ -264,7 +264,7 @@ export async function analyzeImages(ids: string[], options: VisionAnalysisParams
     method: "POST",
     headers: {"Content-Type":"application/json"},
     body: JSON.stringify({ library_ids: ids, ...options }),
-    timeoutMs: 45000
+    timeoutMs: 300000
   });
   return r as StructuredVisionResult;
 }
@@ -287,7 +287,7 @@ export async function analyzeImagesForAccessibility(
       include_color_info: options.include_color_info ?? true,
       reading_level: options.reading_level ?? 8
     }),
-    timeoutMs: 45000
+    timeoutMs: 300000
   });
   return r as AccessibilityAnalysisResult;
 }
@@ -311,7 +311,7 @@ export async function generateSoraPrompt(ids: string[], options: Partial<VisionA
   // Extract enhanced prompt with technical notes if available
   const basePrompt = result.generation_guidance.suggested_prompt;
   const styleKeywords = result.generation_guidance.style_keywords || [];
-  const technicalNotes = result.metadata.processing_notes.filter(note => 
+  const technicalNotes = result.metadata.processing_notes.filter(note =>
     note.includes('technical') || note.includes('cinematography') || note.includes('optimal')
   );
 

@@ -443,7 +443,7 @@ export default function SoraCreator({
           <video
             key={videoUrl}
             ref={videoRef}
-            className="w-full rounded-xl border border-neutral-800 image-hover"
+            className="w-full h-auto max-h-[80vh] rounded-xl border border-neutral-800 image-hover object-contain"
             src={videoUrl}
             controls
             preload="metadata"

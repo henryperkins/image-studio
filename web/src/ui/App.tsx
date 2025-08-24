@@ -215,7 +215,7 @@ useEffect(() => {
         {/* Left column (main content) */}
         <div className="md:col-span-2">
           <div className="card transition-opacity duration-200">
-            <div className="relative overflow-hidden min-h-[600px]">
+            <div className="relative min-h-[600px]">
               <div
                 className="transition-all duration-200 ease-in-out"
                 id="panel-images"

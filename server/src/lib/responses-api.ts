@@ -72,8 +72,8 @@ export async function createResponse(
   params: ResponsesCreateParams,
   config: ResponsesAPIConfig
 ): Promise<ResponsesAPIResponse> {
-  // Use the new v1 responses endpoint with "preview" API version
-  // IMPORTANT: v1 path requires api-version=preview, NOT dated versions
+  // Azure OpenAI Responses API uses /openai/v1/responses with api-version=preview
+  // This is the correct format for GPT-5 and other models supporting the Responses API
   const url = `${config.endpoint}/openai/v1/responses?api-version=preview`;
 
   const requestBody = {
@@ -98,7 +98,7 @@ export async function createResponse(
       },
       body: JSON.stringify(requestBody)
     }),
-    config.timeoutMs || 30000,
+    config.timeoutMs || 300000,
     'Responses API call'
   );
 
@@ -129,7 +129,7 @@ export function convertMessagesToResponsesInput(
   return messages.map(msg => {
     // Convert 'system' role to 'developer' for GPT-5
     const role = msg.role === 'system' ? 'developer' : msg.role;
-    
+
     // Convert content format if it contains images
     let content = msg.content;
     if (Array.isArray(content)) {
@@ -147,7 +147,7 @@ export function convertMessagesToResponsesInput(
         return part;
       });
     }
-    
+
     return {
       role,
       content

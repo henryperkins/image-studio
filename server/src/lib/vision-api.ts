@@ -2,18 +2,23 @@
 
 import { IMAGE_ANALYSIS_SCHEMA, VIDEO_ANALYSIS_SCHEMA, mapToLegacyFormat } from './vision-schemas.js';
 import { withTimeout } from './error-handling.js';
-import { 
-  createResponse, 
-  convertMessagesToResponsesInput, 
-  extractSystemInstructions, 
-  type ResponsesAPIConfig 
+import {
+  createResponse,
+  convertMessagesToResponsesInput,
+  extractSystemInstructions,
+  type ResponsesAPIConfig
 } from './responses-api.js';
 
 import { SYSTEM_PROMPT, createVideoUserMessage, createImageUserMessage } from './vision-prompts.js';
 export { createImageUserMessage as createUserMessage } from './vision-prompts.js';
 
-// Detect if we should use Responses API based on deployment name
+// Detect if we should use Responses API based on deployment name and configuration
 function shouldUseResponsesAPI(deployment: string, apiVersion: string): boolean {
+  // Check if Responses API is explicitly disabled via environment variable
+  if (process.env.AZURE_OPENAI_USE_RESPONSES_API === 'false') {
+    return false;
+  }
+  
   // Use Responses API for GPT-5 models
   // Note: When using Responses API, we'll use api-version=preview regardless of config
   const isGPT5 = deployment.toLowerCase().includes('gpt-5') || deployment.toLowerCase().includes('gpt5');
@@ -38,7 +43,7 @@ export async function callVisionAPIWithResponses(
 ): Promise<any> {
   const input = convertMessagesToResponsesInput(messages);
   const instructions = extractSystemInstructions(messages);
-  
+
   // Create JSON schema instructions for GPT-5
   const schemaInstructions = `${instructions || SYSTEM_PROMPT}
 
@@ -70,10 +75,10 @@ Ensure all required fields are present and data types match exactly. Do not incl
   }, responsesConfig);
 
   // GPT-5 Responses API returns output_text or output array
-  const content = response?.output_text || 
-                  response?.output?.[0]?.content?.[0]?.text || 
+  const content = response?.output_text ||
+                  response?.output?.[0]?.content?.[0]?.text ||
                   response?.choices?.[0]?.message?.content;
-  
+
   if (!content) {
     throw new Error('Empty response from Responses API');
   }
@@ -112,9 +117,21 @@ export async function callVisionAPI(
     mapToStructured?: boolean;
   }
 ): Promise<any> {
-  // Route to Responses API for GPT-5 models
+  // Try Responses API for GPT-5 models, with fallback to Chat Completions
   if (shouldUseResponsesAPI(config.deployment, config.apiVersion)) {
-    return callVisionAPIWithResponses(messages, schema, config);
+    try {
+      return await callVisionAPIWithResponses(messages, schema, config);
+    } catch (error: any) {
+      // If Responses API returns 404, fall back to Chat Completions API
+      // This handles cases where deployment is named "gpt-5" but doesn't support Responses API
+      if (error.status === 404) {
+        console.log(`Responses API not available for deployment ${config.deployment}, falling back to Chat Completions API`);
+        // Continue to Chat Completions API below
+      } else {
+        // Re-throw other errors
+        throw error;
+      }
+    }
   }
 
   // Legacy Chat Completions API for other models
@@ -147,7 +164,7 @@ export async function callVisionAPI(
       },
       body: JSON.stringify(requestBody)
     }),
-    config.timeoutMs || 30000,
+    config.timeoutMs || 300000,
     'Vision API call'
   );
 

@@ -371,7 +371,7 @@ export function createFallbackResponse(
 // Request timeout wrapper
 export function withTimeout<T>(
   promise: Promise<T>, 
-  timeoutMs = 30000,
+  timeoutMs = 45000,
   context = 'Vision API call'
 ): Promise<T> {
   return Promise.race([

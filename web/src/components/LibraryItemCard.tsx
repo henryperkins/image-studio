@@ -1,6 +1,7 @@
 import type React from 'react';
 import { useState, useRef, memo } from 'react';
 import { LibraryItem, isVideoItem, API_BASE_URL } from '../lib/api';
+import { ImageFallback, ResilientImage } from './ImageFallback';
 import MediaContextMenu from './MediaContextMenu';
 import type { MediaAction } from '../hooks/useMediaActions';
 
@@ -29,6 +30,7 @@ const LibraryItemCard = memo(({
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
   const [isTouchDevice] = useState(() => 'ontouchstart' in window);
+  const [showControls, setShowControls] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const cardRef = useRef<HTMLDivElement>(null);
   const isVideo = isVideoItem(item);
@@ -44,6 +46,7 @@ const LibraryItemCard = memo(({
   
   const handleMouseEnter = () => {
     setIsHovered(true);
+    if (isVideo) setShowControls(true);
     if (isVideo && videoRef.current && !hasError) {
       // Add delay before playing video to reduce flicker
       hoverTimeoutRef.current = setTimeout(() => {
@@ -59,6 +62,7 @@ const LibraryItemCard = memo(({
 
   const handleMouseLeave = () => {
     setIsHovered(false);
+    if (isVideo) setShowControls(false);
     if (hoverTimeoutRef.current) {
       clearTimeout(hoverTimeoutRef.current);
     }
@@ -214,6 +218,7 @@ const LibraryItemCard = memo(({
             loop
             playsInline
             preload="metadata"
+            controls={isTouchDevice || showControls}
             onLoadedMetadata={() => setIsLoading(false)}
             onError={() => {
               setIsLoading(false);
@@ -221,13 +226,16 @@ const LibraryItemCard = memo(({
             }}
           />
         ) : (
-          <img
+          <ResilientImage
             src={`${baseUrl}${item.url}`}
             alt={item.prompt || `Generated image ${index + 1}`}
-            loading="lazy"
             className={`rounded-lg border border-neutral-800 transition-all duration-200 ${
               selected ? 'ring-2 ring-blue-400' : 'hover:shadow-lg hover:shadow-blue-500/20'
             } ${hasError ? 'hidden' : ''}`}
+            fallbackType="image"
+            prompt={item.prompt}
+            retryAttempts={3}
+            retryDelay={1000}
             onLoad={() => setIsLoading(false)}
             onError={() => {
               setIsLoading(false);

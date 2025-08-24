@@ -82,7 +82,7 @@ function handleBlockedContent(moderation: ModerationResult): any {
       scene_description: "Content blocked by safety filters",
       visual_elements: {
         composition: "unavailable",
-        lighting: "unavailable", 
+        lighting: "unavailable",
         colors: [],
         style: "unavailable",
         mood: "unavailable"
@@ -181,7 +181,7 @@ export class VisionService {
   // Main image processing pipeline
   async processImageDescription(
     imageIds: string[],
-    options: DescriptionParams & { 
+    options: DescriptionParams & {
       force?: boolean;
       enableModeration?: boolean;
       targetAge?: number;
@@ -271,7 +271,7 @@ export class VisionService {
         // Enhanced age appropriateness check
         if (options.targetAge) {
           const isAppropriate = isContentAppropriateForAge(moderationResult, options.targetAge);
-          
+
           // For children under 13, be extra conservative
           if (options.targetAge < 13 && moderationResult) {
             const hasAnyFlags = Object.values(moderationResult.flags || {}).some(f => f);
@@ -328,10 +328,10 @@ export class VisionService {
 
     } catch (error: any) {
       const latency = Date.now() - startTime;
-      
+
       if (error instanceof VisionAPIError) {
         this.metrics.recordRequest(false, latency, error.code);
-        
+
         // Handle fallback strategies
         if (error.fallbackStrategy) {
           const fallback = createFallbackResponse(error.fallbackStrategy, error, imageIds);
@@ -362,26 +362,26 @@ export class VisionService {
     } = {} as VideoParams
   ): Promise<VideoAnalysis> {
     const startTime = Date.now();
-    
+
     try {
       // Use two-pass strategy by default for efficiency
-      const useTwoPass = options.extractionMethod === 'two-pass' || 
+      const useTwoPass = options.extractionMethod === 'two-pass' ||
                         (options.extractionMethod === undefined && frames.length > 10);
-      
+
       if (useTwoPass) {
         return await this.analyzeVideoTwoPass(videoId, frames, options);
       }
-      
+
       // Single-pass analysis for smaller videos
       return await this.analyzeVideoSinglePass(videoId, frames, options);
-      
+
     } catch (error: any) {
       const latency = Date.now() - startTime;
       this.metrics.recordRequest(false, latency);
       throw error;
     }
   }
-  
+
   // Two-pass video analysis for cost efficiency (25-40% token savings)
   private async analyzeVideoTwoPass(
     videoId: string,
@@ -390,24 +390,24 @@ export class VisionService {
   ): Promise<VideoAnalysis> {
     // Pass 1: Sparse outline (6-10 frames at low detail)
     const sparseFrames = frames.filter((_, i) => i % Math.ceil(frames.length / 8) === 0);
-    
+
     const pass1Messages = this.constructVideoMessages(sparseFrames, {
       ...options,
       detail: 'brief' as any,
       purpose: 'initial video overview'
     });
-    
+
     const pass1Result = await this.callVideoVisionAPI(pass1Messages, options as any);
     const pass1Analysis = this.validateAndParseVideoResponse(pass1Result);
-    
+
     // Determine if Pass 2 is needed
     const needsDetail = pass1Analysis.uncertainty_notes?.length > 3 ||
                        options.detail === 'comprehensive';
-    
+
     if (!needsDetail) {
       return pass1Analysis;
     }
-    
+
     // Pass 2: Targeted drilling on uncertain segments
     const uncertainSegments = pass1Analysis.scene_segments?.slice(0, 2) || [];
     const detailFrames = frames.filter(f =>
@@ -415,24 +415,24 @@ export class VisionService {
         f.timestamp >= s.start_time && f.timestamp <= s.end_time
       )
     );
-    
+
     if (detailFrames.length === 0) {
       return pass1Analysis;
     }
-    
+
     const pass2Messages = this.constructVideoMessages(detailFrames, {
       ...options,
       detail: 'standard' as any,
       purpose: 'detailed segment analysis'
     });
-    
+
     const pass2Result = await this.callVideoVisionAPI(pass2Messages, options as any);
     const pass2Analysis = this.validateAndParseVideoResponse(pass2Result);
-    
+
     // Merge results from both passes
     return this.mergeVideoAnalyses(pass1Analysis, pass2Analysis);
   }
-  
+
   private async analyzeVideoSinglePass(
     videoId: string,
     frames: Array<{ timestamp: number; dataUrl: string }>,
@@ -524,11 +524,11 @@ export class VisionService {
 
   private async loadImages(imageIds: string[]): Promise<Array<{ id: string; dataUrl: string; filename: string }>> {
     const results = [];
-    
+
     // Load manifest to find images
     const manifestPath = path.join(path.dirname(this.config.imagePath), 'manifest.json');
     const manifest = JSON.parse(await fs.readFile(manifestPath, 'utf-8'));
-    
+
     for (const id of imageIds) {
       const item = manifest.find((i: any) => i.kind === 'image' && i.id === id);
       if (!item) {
@@ -558,7 +558,7 @@ export class VisionService {
   private constructMessages(imageDataUrls: string[], options: DescriptionParams): any[] {
     // Choose appropriate user message based on context
     let userMessage: string;
-    
+
     if (options.purpose?.includes('accessibility')) {
       userMessage = createAccessibilityFocusedPrompt(options);
     } else if (options.purpose?.includes('sora') || options.purpose?.includes('video')) {
@@ -613,7 +613,7 @@ export class VisionService {
         mapToStructured: true
       }
     );
-    
+
     // The centralized API returns the parsed object, but we need the raw JSON string here
     return JSON.stringify(result);
   }
@@ -727,16 +727,16 @@ export class VisionService {
       ]
     };
   }
-  
+
   // Get schema instructions for the prompt
   private getSchemaInstructions(): string {
     return `\n\nOutput must be valid JSON matching the provided response schema with all required fields. Ensure alt_text is ≤125 characters. Do not include extra commentary.`;
   }
-  
+
   // Helper methods for video analysis
   private constructVideoMessages(frames: Array<{ timestamp: number; dataUrl: string }>, options: any): any[] {
     const videoUserMessage = createVideoUserMessage(frames, options);
-    
+
     const frameParts = frames.map(f => ({
       type: "image_url" as const,
       image_url: {
@@ -744,7 +744,7 @@ export class VisionService {
         detail: options.detail === 'brief' ? 'low' as const : 'high' as const
       }
     }));
-    
+
     return [
       { role: "system", content: SYSTEM_PROMPT + this.getSchemaInstructions() },
       {
@@ -756,7 +756,7 @@ export class VisionService {
       }
     ];
   }
-  
+
   private validateAndParseVideoResponse(responseContent: string): VideoAnalysis {
     if (!responseContent) {
       throw new VisionAPIError(
@@ -765,7 +765,7 @@ export class VisionService {
         true
       );
     }
-    
+
     let parsed;
     try {
       parsed = JSON.parse(responseContent);
@@ -776,7 +776,7 @@ export class VisionService {
         false
       );
     }
-    
+
     // Validate against video schema
     const result = VideoAnalysisSchema.safeParse(parsed);
     if (!result.success) {
@@ -784,14 +784,14 @@ export class VisionService {
       // Try to salvage partial response
       return this.salvagePartialVideoResponse(parsed);
     }
-    
+
     return result.data;
   }
-  
+
   private salvagePartialVideoResponse(partial: any): VideoAnalysis {
     // Create a valid video response with defaults for missing fields
     const baseResponse = this.salvagePartialResponse(partial) as any;
-    
+
     return {
       ...baseResponse,
       duration_seconds: partial.duration_seconds || 0,
@@ -805,7 +805,7 @@ export class VisionService {
       }
     } as VideoAnalysis;
   }
-  
+
   private mergeVideoAnalyses(pass1: VideoAnalysis, pass2: VideoAnalysis): VideoAnalysis {
     return {
       ...pass1,
@@ -820,14 +820,14 @@ export class VisionService {
       }
     } as VideoAnalysis;
   }
-  
+
   private async postProcessResponse(
     structured: StructuredDescription,
     moderationResult: ModerationResult | null
   ): Promise<StructuredDescription> {
     // Post-moderate the text content
     const textModeration = await moderateText<StructuredDescription>(structured);
-    
+
     if (!textModeration.safe) {
       structured.metadata.processing_notes.push(...textModeration.issues);
     }
@@ -889,7 +889,7 @@ export function createVisionService(config: {
     performance: {
       maxTokens: config.maxTokens ?? 1500,
       temperature: 0.1,
-      timeout: 30000 // 30 seconds
+      timeout: 300000 // 300 seconds (5 minutes)
     }
   };
 

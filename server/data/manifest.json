@@ -1,6 +1,27 @@
 [
   {
     "kind": "video",
+    "id": "503abff2-11e1-4c04-9101-73229d5df457",
+    "filename": "503abff2-11e1-4c04-9101-73229d5df457.mp4",
+    "url": "/static/videos/503abff2-11e1-4c04-9101-73229d5df457.mp4",
+    "prompt": "Night time in a techno metropolis with a galactic surfer vibe\n\n\n[Reference images]\nhttp://localhost:8787/static/images/aafb2d73-0ade-4c2b-9744-7ef5f3739e97.jpg",
+    "width": 1080,
+    "height": 1080,
+    "duration": 10,
+    "createdAt": "2025-08-24T04:33:55.505Z"
+  },
+  {
+    "kind": "image",
+    "id": "aafb2d73-0ade-4c2b-9744-7ef5f3739e97",
+    "filename": "aafb2d73-0ade-4c2b-9744-7ef5f3739e97.jpg",
+    "url": "/static/images/aafb2d73-0ade-4c2b-9744-7ef5f3739e97.jpg",
+    "prompt": "Night time in a techno metropolis with a galactic surfer vibe\n",
+    "size": "1536x1024",
+    "format": "jpeg",
+    "createdAt": "2025-08-24T04:31:49.433Z"
+  },
+  {
+    "kind": "video",
     "id": "7bd04a1c-fbae-4f8d-b05a-fbe22804dcb1",
     "filename": "7bd04a1c-fbae-4f8d-b05a-fbe22804dcb1.mp4",
     "url": "/static/videos/7bd04a1c-fbae-4f8d-b05a-fbe22804dcb1.mp4",
