@@ -94,51 +94,131 @@ function authHeaders(): Record<string, string> {
 // ----------------- IMAGES: generate -----------------
 const ImageReq = z.object({
   prompt: z.string().min(1),
-  size: z.enum(["auto", "1024x1024", "1536x1024", "1024x1536"]).default("auto"),
-  quality: z.enum(["low", "medium", "high"]).default("high"),
-  output_format: z.enum(["png", "jpeg", "webp"]).default("png"),
+  size: z.enum([
+    "auto",
+    "1024x1024",
+    "1536x1024",
+    "1024x1536",
+    // DALL·E 3 sizes
+    "1792x1024",
+    "1024x1792"
+  ]).default("auto"),
+  // Include 'auto' to match preview docs; also allow 'standard'/'hd' for DALL·E 3
+  quality: z.enum(["auto", "low", "medium", "high", "standard", "hd"]).default("auto"),
+  // Only supported for gpt-image-1; we'll include conditionally at request time
+  output_format: z.enum(["png", "jpeg", "webp"]).optional(),
   n: z.number().int().min(1).max(10).default(1),
   output_compression: z.number().int().min(0).max(100).optional(),
-  background: z.enum(["transparent","opaque","auto"]).optional()
+  background: z.enum(["transparent","opaque","auto"]).optional(),
+  // Preview extras
+  moderation: z.enum(["auto", "low"]).optional(),
+  style: z.enum(["vivid", "natural"]).optional(),
+  response_format: z.enum(["url", "b64_json"]).optional(),
+  user: z.string().optional()
 });
 
 app.post("/api/images/generate", async (req, reply) => {
   const body = ImageReq.parse(req.body);
-  // Use default deployment name if env var not provided (gpt-image-1)
+
+  // Validate Azure configuration
+  if (!AZ.endpoint) {
+    return reply.status(400).send({ error: "Azure OpenAI endpoint not configured" });
+  }
+  if (!AZ.key && !AZ.token) {
+    return reply.status(400).send({ error: "Azure OpenAI authentication not configured" });
+  }
 
   try {
-    // Align with v1 Images API: pass deployment name in model
-    const url = `${AZ.endpoint}/openai/v1/images/generations?api-version=${AZ.apiVersion}`;
+    // Ensure endpoint format is correct (no trailing slash, proper resource format)
+    const baseEndpoint = AZ.endpoint.replace(/\/+$/, "");
+    const url = `${baseEndpoint}/openai/v1/images/generations?api-version=${AZ.apiVersion}`;
+
+    // Log diagnostic info for debugging
+    req.log.info({
+      msg: "Image generation request",
+      endpoint: baseEndpoint,
+      fullUrl: url,
+      deployment: AZ.imageDeployment,
+      apiVersion: AZ.apiVersion,
+      hasAuth: !!(AZ.key || AZ.token)
+    });
+
+    const isGptImage = /gpt-image-1/i.test(AZ.imageDeployment);
+    const fmt = body.output_format;
+    const requestBody: any = {
+      model: AZ.imageDeployment,
+      prompt: body.prompt,
+      size: body.size,
+      quality: body.quality,
+      n: body.n,
+      ...(body.moderation ? { moderation: body.moderation } : {}),
+      ...(body.style ? { style: body.style } : {}),
+      ...(body.response_format ? { response_format: body.response_format } : {}),
+      ...(body.user ? { user: body.user } : {})
+    };
+    // gpt-image-1 only
+    if (isGptImage) {
+      if (fmt) requestBody.output_format = fmt;
+      if (typeof body.output_compression === "number" && (fmt === "jpeg" || fmt === "webp")) {
+        requestBody.output_compression = body.output_compression;
+      }
+      if (body.background) {
+        requestBody.background = (body.background === "transparent" && fmt === "jpeg") ? "opaque" : body.background;
+      }
+    }
+
     const r = await fetch(url, {
       method: "POST",
-      headers: { ...authHeaders(), "Content-Type": "application/json" },
-      body: JSON.stringify({
-        // Use deployment name per v1 API docs
-        model: AZ.imageDeployment,
-        prompt: body.prompt,
-        size: body.size,
-        quality: body.quality,
-        output_format: body.output_format,
-        n: body.n,
-        ...(typeof body.output_compression === "number" ? { output_compression: body.output_compression } : {}),
-        // Only include background if provided; if transparent+jpeg, normalize to opaque to avoid API errors
-        ...(body.background
-          ? {
-              background:
-                body.background === "transparent" && body.output_format === "jpeg"
-                  ? "opaque"
-                  : body.background
-            }
-          : {})
-      })
+      headers: { ...authHeaders(), "Content-Type": "application/json", "Accept": "application/json" },
+      body: JSON.stringify(requestBody)
     });
-    if (!r.ok) throw new Error(`Azure image gen failed: ${r.status} ${await r.text()}`);
+
+    if (!r.ok) {
+      const errorText = await r.text();
+      req.log.error({
+        msg: "Azure image generation failed",
+        status: r.status,
+        error: errorText,
+        url: url,
+        deployment: AZ.imageDeployment
+      });
+
+      // Provide more specific error messages for common issues
+      if (r.status === 404) {
+        throw new Error(
+          `404 Not Found - Verify: 1) Endpoint format: ${baseEndpoint}, ` +
+          `2) Deployment name: ${AZ.imageDeployment}, ` +
+          `3) API version: ${AZ.apiVersion}, ` +
+          `4) Azure OpenAI Foundry models (Preview) is enabled in your resource`
+        );
+      }
+      throw new Error(`Azure image gen failed: ${r.status} ${errorText}`);
+    }
     const data = await r.json() as any;
-    const b64: string | undefined = data?.data?.[0]?.b64_json;
-    if (!b64) throw new Error("No image payload returned");
+    let b64: string | undefined = data?.data?.[0]?.b64_json;
+    let contentType: string | null = null;
+    // If response is URL (e.g., dall-e-3 default), fetch the image bytes
+    if (!b64) {
+      const urlRef: string | undefined = data?.data?.[0]?.url;
+      if (!urlRef) throw new Error("No image payload returned (neither b64_json nor url)");
+      const fetchRes = await fetch(urlRef, { headers: { Accept: "image/*" } });
+      if (!fetchRes.ok) throw new Error(`Failed to fetch image URL: ${fetchRes.status}`);
+      const ab = await fetchRes.arrayBuffer();
+      b64 = Buffer.from(ab).toString("base64");
+      contentType = fetchRes.headers.get("content-type");
+    }
 
     const id = crypto.randomUUID();
-    const ext = body.output_format === "jpeg" ? "jpg" : (body.output_format === "webp" ? "webp" : "png");
+    // Canonical format for type, and extension for file
+    let format: "png" | "jpeg" | "webp" = "png";
+    if (isGptImage && fmt) {
+      format = fmt;
+    } else if (contentType) {
+      if (contentType.includes("jpeg") || contentType.includes("jpg")) format = "jpeg";
+      else if (contentType.includes("webp")) format = "webp";
+      else if (contentType.includes("png")) format = "png";
+    }
+    const ext = format === "jpeg" ? "jpg" : format;
     const filename = `${id}.${ext}`;
     await fs.writeFile(path.join(IMG_DIR, filename), Buffer.from(b64, "base64"));
 
@@ -148,14 +228,14 @@ app.post("/api/images/generate", async (req, reply) => {
       url: `/static/images/${filename}`,
       prompt: body.prompt,
       size: body.size,
-      format: body.output_format,
+      format: format,
       createdAt: new Date().toISOString()
     };
     const items = await readManifest();
     items.unshift(item);
     await writeManifest(items);
 
-    return reply.send({ image_base64: b64, model: AZ.imageDeployment, size: body.size, format: body.output_format, library_item: item });
+    return reply.send({ image_base64: b64, model: AZ.imageDeployment, size: body.size, format: ext, library_item: item });
   } catch (e: any) {
     req.log.error(e);
     return reply.status(400).send({ error: e.message || "Image generation failed" });
@@ -316,7 +396,7 @@ const VisionReq = z.object({
 app.post("/api/vision/describe", async (req, reply) => {
   const body = VisionReq.parse(req.body);
   if (!AZ.visionDeployment) return reply.status(400).send({ error: "Missing AZURE_OPENAI_VISION_DEPLOYMENT" });
-  
+
   try {
     if (!body.library_ids?.length && !body.image_urls?.length) {
       return reply.status(400).send({ error: "No images provided" });
@@ -341,12 +421,12 @@ app.post("/api/vision/describe", async (req, reply) => {
       // For external URLs, create a simplified analysis using our enhanced system
       const parts = body.image_urls.map(u => ({ type: "image_url" as const, image_url: { url: u, detail: body.detail } }));
       const url = `${AZ.endpoint}/openai/deployments/${encodeURIComponent(AZ.visionDeployment)}/chat/completions?api-version=${AZ.chatApiVersion}`;
-      
+
       // Use enhanced Sora prompt for better results
       const detailLevel = body.style === "concise" ? "brief" : "detailed";
       const tone = "creative";
       const soraPrompt = createSoraVideoPrompt({ detail: detailLevel as any, tone: tone as any });
-      
+
       const system = `You are an expert vision analyst specializing in video prompt creation. ${soraPrompt}`;
 
       const r = await fetch(url, {
@@ -361,7 +441,7 @@ app.post("/api/vision/describe", async (req, reply) => {
           temperature: 0.3 // Slightly more creative
         })
       });
-      
+
       if (!r.ok) return reply.status(400).send({ error: await r.text() });
       const j = await r.json() as any;
       return reply.send({ description: j?.choices?.[0]?.message?.content ?? "" });
@@ -390,10 +470,10 @@ const EnhancedVisionReq = z.object({
 
 app.post("/api/vision/analyze", async (req, reply) => {
   if (!AZ.visionDeployment) return reply.status(400).send({ error: "Missing AZURE_OPENAI_VISION_DEPLOYMENT" });
-  
+
   try {
     const body = EnhancedVisionReq.parse(req.body);
-    
+
     const result = await visionService.analyzeImages(body.library_ids, {
       purpose: body.purpose,
       audience: body.audience,
@@ -435,10 +515,10 @@ const AccessibilityReq = z.object({
 
 app.post("/api/vision/accessibility", async (req, reply) => {
   if (!AZ.visionDeployment) return reply.status(400).send({ error: "Missing AZURE_OPENAI_VISION_DEPLOYMENT" });
-  
+
   try {
     const body = AccessibilityReq.parse(req.body);
-    
+
     const result = await visionService.analyzeImages(body.library_ids, {
       purpose: "accessibility compliance",
       audience: "general",
@@ -498,18 +578,23 @@ const SoraReq = z.object({
 );
 function soraHeaders(): Record<string, string> {
   const h: Record<string, string> = {};
-  if (AZ.key) h["api-key"] = AZ.key;
+  // Support either OAuth bearer or API key (docs allow either)
+  if (AZ.token) {
+    h["Authorization"] = `Bearer ${AZ.token}`;
+  } else if (AZ.key) {
+    h["api-key"] = AZ.key;
+  }
   return h;
 }
 app.post("/api/videos/sora/generate", async (req, reply) => {
   const body = SoraReq.parse(req.body);
   try {
-    if (!AZ.videoDeployment) {
-      return reply.status(400).send({ error: "Missing AZURE_OPENAI_VIDEO_DEPLOYMENT" });
-    }
-    
+    if (!AZ.endpoint) return reply.status(400).send({ error: "Azure OpenAI endpoint not configured" });
+    if (!AZ.key && !AZ.token) return reply.status(400).send({ error: "Azure OpenAI authentication not configured" });
+    if (!AZ.videoDeployment) return reply.status(400).send({ error: "Missing AZURE_OPENAI_VIDEO_DEPLOYMENT" });
+
     // Use v1 endpoint format which is currently working
-    const base = `${AZ.endpoint}/openai/v1`;
+    const base = `${AZ.endpoint.replace(/\/+$/, "")}/openai/v1`;
     const createUrl = `${base}/video/generations/jobs?api-version=${AZ.apiVersion}`;
     const refBlock = (body.reference_image_urls?.length ?? 0) > 0 ? `\n\n[Reference images]\n${body.reference_image_urls!.join("\n")}` : "";
     const finalPrompt = `${body.prompt}${refBlock}`;
@@ -539,18 +624,18 @@ app.post("/api/videos/sora/generate", async (req, reply) => {
     while (!["succeeded", "failed", "cancelled"].includes(status)) {
       if (Date.now() - started > 6 * 60 * 1000) throw new Error("Timed out waiting for Sora job");
       await new Promise(r => setTimeout(r, 5000));
-      const sRes = await fetch(statusUrl, { headers: soraHeaders() });
+      const sRes = await fetch(statusUrl, { headers: { ...soraHeaders(), "Accept": "application/json" } });
       if (!sRes.ok) throw new Error(await sRes.text());
       const s = await sRes.json();
       status = s?.status;
       generations = s?.generations || [];
     }
     if (status !== "succeeded") return reply.status(400).send({ error: `Job ${status}` });
-    
+
     const generationId = generations?.[0]?.id; if (!generationId) throw new Error("No generation id");
     const qualityParam = body.quality ? `&quality=${encodeURIComponent(body.quality)}` : "";
     const contentUrl = `${base}/video/generations/${generationId}/content/video?api-version=${AZ.apiVersion}${qualityParam}`;
-    const vRes = await fetch(contentUrl, { headers: soraHeaders() });
+    const vRes = await fetch(contentUrl, { headers: { ...soraHeaders(), "Accept": "video/mp4" } });
     if (!vRes.ok) throw new Error(await vRes.text());
     const ab = await vRes.arrayBuffer();
     const b64 = Buffer.from(ab).toString("base64");
@@ -663,25 +748,25 @@ app.post("/api/videos/edit/trim", async (req, reply) => {
 });
 
 // ---------- Video Edits: CROP ----------
-const CropReq = z.object({ 
-  video_id: z.string(), 
-  x: z.number().int().min(0), 
-  y: z.number().int().min(0), 
-  width: z.number().int().min(16), 
-  height: z.number().int().min(16) 
+const CropReq = z.object({
+  video_id: z.string(),
+  x: z.number().int().min(0),
+  y: z.number().int().min(0),
+  width: z.number().int().min(16),
+  height: z.number().int().min(16)
 });
 app.post("/api/videos/edit/crop", async (req, reply) => {
   const b = CropReq.parse(req.body);
-  const lib = await readManifest(); 
+  const lib = await readManifest();
   const src = lib.find(i => i.kind === "video" && i.id === b.video_id) as VideoItem | undefined;
   if (!src) return reply.status(404).send({ error: "Video not found" });
-  
+
   const inPath = path.join(VID_DIR, src.filename);
   const id = crypto.randomUUID();
   const out = `${id}.mp4`;
   const outPath = path.join(VID_DIR, out);
   const vf = `crop=${b.width}:${b.height}:${b.x}:${b.y}`;
-  
+
   const ffmpegPath = ffmpegStatic as string;
   await new Promise<void>((resolve, reject) => {
     const args = ["-i", inPath, "-filter:v", vf, "-c:a", "copy", "-movflags", "+faststart", outPath, "-y"];
@@ -690,30 +775,30 @@ app.post("/api/videos/edit/crop", async (req, reply) => {
     p.stderr.on("data", d => req.log.debug({ ffmpeg: d.toString() }));
     p.on("close", code => code === 0 ? resolve() : reject(new Error(`ffmpeg exited ${code}`)));
   });
-  
-  const item: VideoItem = { 
-    kind: "video", id, filename: out, url: `/static/videos/${out}`, 
-    prompt: `${src.prompt} (crop ${b.width}x${b.height}+${b.x}+${b.y})`, 
-    width: b.width, height: b.height, duration: src.duration, 
-    createdAt: new Date().toISOString() 
+
+  const item: VideoItem = {
+    kind: "video", id, filename: out, url: `/static/videos/${out}`,
+    prompt: `${src.prompt} (crop ${b.width}x${b.height}+${b.x}+${b.y})`,
+    width: b.width, height: b.height, duration: src.duration,
+    createdAt: new Date().toISOString()
   };
-  const all = await readManifest(); 
-  all.unshift(item); 
+  const all = await readManifest();
+  all.unshift(item);
   await writeManifest(all);
   return reply.send({ library_item: item });
 });
 
 // ---------- Video Edits: RESIZE / FIT ----------
-const ResizeReq = z.object({ 
-  video_id: z.string(), 
-  width: z.number().int().min(16), 
-  height: z.number().int().min(16), 
-  fit: z.enum(["contain", "cover", "stretch"]).default("contain"), 
-  bg: z.string().default("black") 
+const ResizeReq = z.object({
+  video_id: z.string(),
+  width: z.number().int().min(16),
+  height: z.number().int().min(16),
+  fit: z.enum(["contain", "cover", "stretch"]).default("contain"),
+  bg: z.string().default("black")
 });
 app.post("/api/videos/edit/resize", async (req, reply) => {
   const b = ResizeReq.parse(req.body);
-  const lib = await readManifest(); 
+  const lib = await readManifest();
   const src = lib.find(i => i.kind === "video" && i.id === b.video_id) as VideoItem | undefined;
   if (!src) return reply.status(404).send({ error: "Video not found" });
   // Validate pad color to a safe subset (#RRGGBB or common names)
@@ -723,7 +808,7 @@ app.post("/api/videos/edit/resize", async (req, reply) => {
   if (b.fit === "contain" && !safeColor(b.bg)) {
     return reply.status(400).send({ error: "Invalid pad color" });
   }
-  
+
   const inPath = path.join(VID_DIR, src.filename);
   const id = crypto.randomUUID();
   const out = `${id}.mp4`;
@@ -733,7 +818,7 @@ app.post("/api/videos/edit/resize", async (req, reply) => {
     : b.fit === "cover"
       ? `scale=${b.width}:${b.height}:force_original_aspect_ratio=increase,crop=${b.width}:${b.height}`
       : `scale=${b.width}:${b.height}`;
-  
+
   const ffmpegPath = ffmpegStatic as string;
   await new Promise<void>((resolve, reject) => {
     const args = ["-i", inPath, "-vf", vf, "-c:a", "copy", "-movflags", "+faststart", outPath, "-y"];
@@ -742,26 +827,26 @@ app.post("/api/videos/edit/resize", async (req, reply) => {
     p.stderr.on("data", d => req.log.debug({ ffmpeg: d.toString() }));
     p.on("close", code => code === 0 ? resolve() : reject(new Error(`ffmpeg exited ${code}`)));
   });
-  
-  const item: VideoItem = { 
-    kind: "video", id, filename: out, url: `/static/videos/${out}`, 
-    prompt: `${src.prompt} (resize ${b.width}x${b.height} ${b.fit})`, 
-    width: b.width, height: b.height, duration: src.duration, 
-    createdAt: new Date().toISOString() 
+
+  const item: VideoItem = {
+    kind: "video", id, filename: out, url: `/static/videos/${out}`,
+    prompt: `${src.prompt} (resize ${b.width}x${b.height} ${b.fit})`,
+    width: b.width, height: b.height, duration: src.duration,
+    createdAt: new Date().toISOString()
   };
-  const all = await readManifest(); 
-  all.unshift(item); 
+  const all = await readManifest();
+  all.unshift(item);
   await writeManifest(all);
   return reply.send({ library_item: item });
 });
 
 // ---------- Video Edits: SPEED (with audio) ----------
-const SpeedReq = z.object({ 
-  video_id: z.string(), 
-  speed: z.number().min(0.25).max(4) 
+const SpeedReq = z.object({
+  video_id: z.string(),
+  speed: z.number().min(0.25).max(4)
 });
-function atempoChain(speed: number) { 
-  const parts: string[] = []; 
+function atempoChain(speed: number) {
+  const parts: string[] = [];
   let s = speed;
   while (s < 0.5) { parts.push("atempo=0.5"); s /= 0.5; }
   while (s > 2.0) { parts.push("atempo=2.0"); s /= 2.0; }
@@ -770,17 +855,17 @@ function atempoChain(speed: number) {
 }
 app.post("/api/videos/edit/speed", async (req, reply) => {
   const b = SpeedReq.parse(req.body);
-  const lib = await readManifest(); 
+  const lib = await readManifest();
   const src = lib.find(i => i.kind === "video" && i.id === b.video_id) as VideoItem | undefined;
   if (!src) return reply.status(404).send({ error: "Video not found" });
-  
+
   const inPath = path.join(VID_DIR, src.filename);
   const id = crypto.randomUUID();
   const out = `${id}.mp4`;
   const outPath = path.join(VID_DIR, out);
   const vset = `setpts=${(1 / b.speed).toFixed(6)}*PTS`;
   const aset = atempoChain(b.speed);
-  
+
   const ffmpegPath = ffmpegStatic as string;
   await new Promise<void>((resolve, reject) => {
     const args = ["-i", inPath, "-filter:v", vset, "-filter:a", aset, "-movflags", "+faststart", outPath, "-y"];
@@ -789,16 +874,16 @@ app.post("/api/videos/edit/speed", async (req, reply) => {
     p.stderr.on("data", d => req.log.debug({ ffmpeg: d.toString() }));
     p.on("close", code => code === 0 ? resolve() : reject(new Error(`ffmpeg exited ${code}`)));
   });
-  
+
   const dur = Number((src.duration / b.speed).toFixed(3));
-  const item: VideoItem = { 
-    kind: "video", id, filename: out, url: `/static/videos/${out}`, 
-    prompt: `${src.prompt} (speed x${b.speed})`, 
-    width: src.width, height: src.height, duration: dur, 
-    createdAt: new Date().toISOString() 
+  const item: VideoItem = {
+    kind: "video", id, filename: out, url: `/static/videos/${out}`,
+    prompt: `${src.prompt} (speed x${b.speed})`,
+    width: src.width, height: src.height, duration: dur,
+    createdAt: new Date().toISOString()
   };
-  const all = await readManifest(); 
-  all.unshift(item); 
+  const all = await readManifest();
+  all.unshift(item);
   await writeManifest(all);
   return reply.send({ library_item: item });
 });
@@ -807,15 +892,15 @@ app.post("/api/videos/edit/speed", async (req, reply) => {
 const MuteReq = z.object({ video_id: z.string() });
 app.post("/api/videos/edit/mute", async (req, reply) => {
   const b = MuteReq.parse(req.body);
-  const lib = await readManifest(); 
+  const lib = await readManifest();
   const src = lib.find(i => i.kind === "video" && i.id === b.video_id) as VideoItem | undefined;
   if (!src) return reply.status(404).send({ error: "Video not found" });
-  
+
   const inPath = path.join(VID_DIR, src.filename);
   const id = crypto.randomUUID();
   const out = `${id}.mp4`;
   const outPath = path.join(VID_DIR, out);
-  
+
   const ffmpegPath = ffmpegStatic as string;
   await new Promise<void>((resolve, reject) => {
     const args = ["-i", inPath, "-an", "-c:v", "copy", "-movflags", "+faststart", outPath, "-y"];
@@ -824,34 +909,34 @@ app.post("/api/videos/edit/mute", async (req, reply) => {
     p.stderr.on("data", d => req.log.debug({ ffmpeg: d.toString() }));
     p.on("close", code => code === 0 ? resolve() : reject(new Error(`ffmpeg exited ${code}`)));
   });
-  
-  const item: VideoItem = { 
-    kind: "video", id, filename: out, url: `/static/videos/${out}`, 
-    prompt: `${src.prompt} (muted)`, 
-    width: src.width, height: src.height, duration: src.duration, 
-    createdAt: new Date().toISOString() 
+
+  const item: VideoItem = {
+    kind: "video", id, filename: out, url: `/static/videos/${out}`,
+    prompt: `${src.prompt} (muted)`,
+    width: src.width, height: src.height, duration: src.duration,
+    createdAt: new Date().toISOString()
   };
-  const all = await readManifest(); 
-  all.unshift(item); 
+  const all = await readManifest();
+  all.unshift(item);
   await writeManifest(all);
   return reply.send({ library_item: item });
 });
 
-const VolumeReq = z.object({ 
-  video_id: z.string(), 
-  gain_db: z.number().min(-30).max(30).default(0) 
+const VolumeReq = z.object({
+  video_id: z.string(),
+  gain_db: z.number().min(-30).max(30).default(0)
 });
 app.post("/api/videos/edit/volume", async (req, reply) => {
   const b = VolumeReq.parse(req.body);
-  const lib = await readManifest(); 
+  const lib = await readManifest();
   const src = lib.find(i => i.kind === "video" && i.id === b.video_id) as VideoItem | undefined;
   if (!src) return reply.status(404).send({ error: "Video not found" });
-  
+
   const inPath = path.join(VID_DIR, src.filename);
   const id = crypto.randomUUID();
   const out = `${id}.mp4`;
   const outPath = path.join(VID_DIR, out);
-  
+
   const ffmpegPath = ffmpegStatic as string;
   await new Promise<void>((resolve, reject) => {
     const args = ["-i", inPath, "-filter:a", `volume=${b.gain_db}dB`, "-movflags", "+faststart", outPath, "-y"];
@@ -860,15 +945,15 @@ app.post("/api/videos/edit/volume", async (req, reply) => {
     p.stderr.on("data", d => req.log.debug({ ffmpeg: d.toString() }));
     p.on("close", code => code === 0 ? resolve() : reject(new Error(`ffmpeg exited ${code}`)));
   });
-  
-  const item: VideoItem = { 
-    kind: "video", id, filename: out, url: `/static/videos/${out}`, 
-    prompt: `${src.prompt} (vol ${b.gain_db}dB)`, 
-    width: src.width, height: src.height, duration: src.duration, 
-    createdAt: new Date().toISOString() 
+
+  const item: VideoItem = {
+    kind: "video", id, filename: out, url: `/static/videos/${out}`,
+    prompt: `${src.prompt} (vol ${b.gain_db}dB)`,
+    width: src.width, height: src.height, duration: src.duration,
+    createdAt: new Date().toISOString()
   };
-  const all = await readManifest(); 
-  all.unshift(item); 
+  const all = await readManifest();
+  all.unshift(item);
   await writeManifest(all);
   return reply.send({ library_item: item });
 });
@@ -907,7 +992,7 @@ app.post("/api/videos/edit/overlay", async (req, reply) => {
     : "";
 
   const ovChain = `[1:v]${scalePart}format=rgba,colorchannelmixer=aa=${b.opacity}[ov];[0:v][ov]overlay=${b.x}:${b.y}[v]`;
-  
+
   const ffmpegPath = ffmpegStatic as string;
   await new Promise<void>((resolve, reject) => {
     const args = [
@@ -923,14 +1008,14 @@ app.post("/api/videos/edit/overlay", async (req, reply) => {
     p.on("close", code => code === 0 ? resolve() : reject(new Error(`ffmpeg exited ${code}`)));
   });
 
-  const item: VideoItem = { 
-    kind: "video", id, filename: out, url: `/static/videos/${out}`, 
-    prompt: `${src.prompt} (overlay ${img.filename})`, 
-    width: src.width, height: src.height, duration: src.duration, 
-    createdAt: new Date().toISOString() 
+  const item: VideoItem = {
+    kind: "video", id, filename: out, url: `/static/videos/${out}`,
+    prompt: `${src.prompt} (overlay ${img.filename})`,
+    width: src.width, height: src.height, duration: src.duration,
+    createdAt: new Date().toISOString()
   };
-  const all = await readManifest(); 
-  all.unshift(item); 
+  const all = await readManifest();
+  all.unshift(item);
   await writeManifest(all);
   return reply.send({ library_item: item });
 });
@@ -946,7 +1031,7 @@ app.post("/api/videos/edit/concat", async (req, reply) => {
   const lib = await readManifest();
   const vids = b.video_ids.map(id => lib.find(i => i.kind === "video" && i.id === id) as VideoItem | undefined);
   if (vids.some(v => !v)) return reply.status(404).send({ error: "One or more videos not found" });
-  
+
   const inputs: string[] = [];
   vids.forEach(v => inputs.push(path.join(VID_DIR, v!.filename)));
   const id = crypto.randomUUID();
@@ -982,7 +1067,7 @@ app.post("/api/videos/edit/concat", async (req, reply) => {
   const fc = includeAudio
     ? `${pre.join("")}${maps.join("")}concat=n=${n}:v=1:a=1[v][a]`
     : `${pre.join("")}${maps.join("")}concat=n=${n}:v=1:a=0[v]`;
-  
+
   const ffmpegPath = ffmpegStatic as string;
   await new Promise<void>((resolve, reject) => {
     const baseArgs = inputs.flatMap(f => ["-i", f]).concat(["-filter_complex", fc, "-map", "[v]"]);
@@ -1002,8 +1087,8 @@ app.post("/api/videos/edit/concat", async (req, reply) => {
     duration: vids.reduce((s, v) => s + v!.duration, 0),
     createdAt: new Date().toISOString()
   };
-  const all = await readManifest(); 
-  all.unshift(item); 
+  const all = await readManifest();
+  all.unshift(item);
   await writeManifest(all);
   return reply.send({ library_item: item });
 });

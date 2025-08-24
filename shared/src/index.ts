@@ -5,7 +5,7 @@ export type ImageItem = {
   url: string;
   filename: string;
   prompt: string;
-  size: "auto" | "1024x1024" | "1536x1024" | "1024x1536";
+  size: "auto" | "1024x1024" | "1536x1024" | "1024x1536" | "1792x1024" | "1024x1792";
   format: "png" | "jpeg" | "webp";
   createdAt: string;
 };

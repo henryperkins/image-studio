@@ -101,6 +101,7 @@ import type {
   AccessibilityAnalysisResult,
   VisionHealthStatus
 } from "@image-studio/shared";
+import { hashText, safeRandomUUID } from './hash';
 
 // Re-export types that are used in other files
 export type {
@@ -140,21 +141,14 @@ export async function savePromptSuggestion(suggestion: Omit<PromptSuggestion, 'i
   console.log("Saving suggestion to server (mocked)", suggestion);
   const newSuggestion: PromptSuggestion = {
     ...suggestion,
-    id: crypto.randomUUID(),
+    id: safeRandomUUID(),
     createdAt: new Date().toISOString(),
     dedupeKey: await hashText(suggestion.text.trim().toLowerCase()),
   };
   return Promise.resolve(newSuggestion);
 }
 
-// Helper for client-side dedupe key generation
-async function hashText(text: string) {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(text);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-}
+// hashText moved to web/src/lib/hash.ts with secure-context fallback
 
 
 export async function listLibrary(): Promise<LibraryItem[]> {

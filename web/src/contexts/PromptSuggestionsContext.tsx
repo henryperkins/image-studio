@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { type PromptSuggestion } from '../lib/api';
+import { hashText, safeRandomUUID } from '../lib/hash';
 import { recordEvent } from '../lib/analytics';
 
 // Constants
@@ -42,14 +43,7 @@ function isValidSuggestion(item: any): item is PromptSuggestion {
 
 const PromptSuggestionsContext = createContext<PromptSuggestionsContextType | undefined>(undefined);
 
-// Helper for client-side dedupe key generation (normalized lowercase)
-async function hashText(text: string) {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(text);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-}
+// Hash helper imported from ../lib/hash (includes secure-context fallback)
 
 export const PromptSuggestionsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [suggestions, setSuggestions] = useState<PromptSuggestion[]>([]);
@@ -175,7 +169,7 @@ export const PromptSuggestionsProvider: React.FC<{ children: React.ReactNode }> 
     
     const suggestion: PromptSuggestion = {
       ...data,
-      id: crypto.randomUUID(),
+      id: safeRandomUUID(),
       createdAt: new Date().toISOString(),
       dedupeKey,
       text: sanitized
@@ -198,7 +192,7 @@ export const PromptSuggestionsProvider: React.FC<{ children: React.ReactNode }> 
         
         return {
           ...data,
-          id: crypto.randomUUID(),
+          id: safeRandomUUID(),
           createdAt: new Date().toISOString(),
           dedupeKey,
           text: sanitized

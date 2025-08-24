@@ -1,5 +1,15 @@
 [
   {
+    "kind": "image",
+    "id": "502a5e53-b20b-4634-916e-b9d4a51e719a",
+    "filename": "502a5e53-b20b-4634-916e-b9d4a51e719a.png",
+    "url": "/static/images/502a5e53-b20b-4634-916e-b9d4a51e719a.png",
+    "prompt": "A simple red circle",
+    "size": "1024x1024",
+    "format": "png",
+    "createdAt": "2025-08-24T22:12:14.842Z"
+  },
+  {
     "kind": "video",
     "id": "503abff2-11e1-4c04-9101-73229d5df457",
     "filename": "503abff2-11e1-4c04-9101-73229d5df457.mp4",
