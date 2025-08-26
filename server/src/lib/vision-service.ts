@@ -887,7 +887,7 @@ export function createVisionService(config: {
       failOpen: process.env.MODERATION_FAIL_OPEN !== 'false'
     },
     performance: {
-      maxTokens: config.maxTokens ?? 1500,
+      maxTokens: config.maxTokens ?? 4000,
       temperature: 0.1,
       timeout: 300000 // 300 seconds (5 minutes)
     }

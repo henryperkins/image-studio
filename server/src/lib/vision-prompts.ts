@@ -118,12 +118,12 @@ ANALYSIS FRAMEWORK:
    - Post-processing effects (film grain, color grading, contrast)
 
 OUTPUT STRUCTURE:
-- Generate a primary sophisticated prompt (50-100 words)
-- Include 2-3 creative variants exploring different approaches
-- Add technical notes for optimal generation
-- Provide style keywords for consistency
+- Generate a primary sophisticated prompt (80-120 words max)
+- Keep suggested_prompt under 2000 characters total
+- Include concise technical notes
+- Provide 5-10 focused style keywords
 
-Use specific, evocative language that leverages Sora's strengths in physics simulation and natural motion. Avoid generic descriptions.`;
+Use specific, evocative language that leverages Sora's strengths in physics simulation and natural motion. Be concise yet descriptive.`;
   } else {
     // Standard Sora analysis for other models
     return `Analyze for Sora video prompt creation.
@@ -142,7 +142,8 @@ Return a suggested_prompt that is:
 - Specific and actionable
 - Optimized for Sora's capabilities
 - Cinematically engaging
-- 30-60 words in length
+- 40-80 words in length
+- Under 2000 characters total
 
 Use clear, descriptive language that will generate compelling video content.`;
   }

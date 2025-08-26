@@ -378,7 +378,7 @@ const visionService = new VisionService({
     }
   },
   performance: {
-    maxTokens: 1500,
+    maxTokens: 4000,
     temperature: 0.1,
     timeout: 30000,
     seed: process.env.AZURE_OPENAI_SEED ? parseInt(process.env.AZURE_OPENAI_SEED) : undefined

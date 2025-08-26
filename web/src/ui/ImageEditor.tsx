@@ -1,9 +1,18 @@
 import { useEffect, useRef, useState } from "react";
 import { editImage, type LibraryItem } from "../lib/api";
 import { useToast } from "../contexts/ToastContext";
-import Modal from "../components/Modal";
-import { LoadingButton } from "../components/LoadingButton";
-import { PromptTextarea } from "../components/PromptTextarea";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Slider } from "@/components/ui/slider";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 type Props = {
   item: LibraryItem & { kind: "image" };
@@ -139,11 +148,12 @@ export default function ImageEditor({ item, onClose, onEdited, baseUrl }: Props)
   }
 
   return (
-    <Modal onClose={onClose} ariaLabel="Image editor">
+    <Dialog open onOpenChange={(open)=>{ if(!open) onClose(); }}>
+      <DialogContent className="bg-neutral-900 border border-neutral-800 rounded-2xl w-full max-w-4xl p-0">
       <div>
         <div className="flex items-center justify-between p-3 border-b border-neutral-800">
           <div className="font-medium">Edit Image</div>
-          <button className="btn" onClick={onClose}>Close</button>
+          <Button variant="outline" size="sm" onClick={onClose}>Close</Button>
         </div>
 
         <div className="grid md:grid-cols-2 gap-4 p-4">
@@ -166,85 +176,136 @@ export default function ImageEditor({ item, onClose, onEdited, baseUrl }: Props)
           </div>
 
           <div className="space-y-3">
-            <PromptTextarea
-              id="image-edit-prompt"
-              ariaLabel="Describe the edit you want"
-              className="h-40"
-              placeholder="Describe the edit you want…"
-              value={prompt}
-              onChange={setPrompt}
-              onSubmit={runEdit}
-              maxLength={32000}
-              minLength={0}
-              busy={busy}
-            />
-            <div className="grid grid-cols-2 gap-2">
-              <label className="text-sm">Brush size
-                <input className="w-full" type="range" min={5} max={200} value={brush} onChange={e=>setBrush(+e.target.value)} />
-              </label>
-              <label className="text-sm">Format
-                <select className="input mt-1" value={format} onChange={e=>setFormat(e.target.value as any)}>
-                  <option>png</option><option>jpeg</option><option>webp</option>
-                </select>
-              </label>
-              <label className="text-sm">Size
-                <select className="input mt-1" value={size} onChange={e=>setSize(e.target.value as any)}>
-                  <option>auto</option>
-                  <option>1024x1024</option>
-                  <option>1536x1024</option>
-                  <option>1024x1536</option>
-                </select>
-              </label>
-              <label className="text-sm">Quality
-                <select className="input mt-1" value={quality} onChange={e=>setQuality(e.target.value as any)}>
-                  <option value="auto">auto</option>
-                  <option value="low">low</option>
-                  <option value="medium">medium</option>
-                  <option value="high">high</option>
-                </select>
-              </label>
+            <div className="space-y-2">
+              <Label htmlFor="image-edit-prompt">Describe the edit</Label>
+              <Textarea
+                id="image-edit-prompt"
+                className="min-h-[160px] resize-y"
+                placeholder="Describe the edit you want…"
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                    e.preventDefault();
+                    runEdit();
+                  }
+                }}
+                maxLength={32000}
+                disabled={busy}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label htmlFor="brush-size">Brush size ({brush}px)</Label>
+                <Slider
+                  id="brush-size"
+                  min={5}
+                  max={200}
+                  step={1}
+                  value={[brush]}
+                  onValueChange={(v) => setBrush(v[0])}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="format-select">Format</Label>
+                <Select value={format} onValueChange={(v) => setFormat(v as any)}>
+                  <SelectTrigger id="format-select">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="png">png</SelectItem>
+                    <SelectItem value="jpeg">jpeg</SelectItem>
+                    <SelectItem value="webp">webp</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="size-select">Size</Label>
+                <Select value={size} onValueChange={(v) => setSize(v as any)}>
+                  <SelectTrigger id="size-select">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="auto">auto</SelectItem>
+                    <SelectItem value="1024x1024">1024x1024</SelectItem>
+                    <SelectItem value="1536x1024">1536x1024</SelectItem>
+                    <SelectItem value="1024x1536">1024x1536</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="quality-select">Quality</Label>
+                <Select value={quality} onValueChange={(v) => setQuality(v as any)}>
+                  <SelectTrigger id="quality-select">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="auto">auto</SelectItem>
+                    <SelectItem value="low">low</SelectItem>
+                    <SelectItem value="medium">medium</SelectItem>
+                    <SelectItem value="high">high</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               {(format === "png" || format === "webp") && (
-                <label className="text-sm col-span-2">Background (PNG/WEBP)
-                  <select className="input mt-1" value={background} onChange={e=>setBackground(e.target.value as any)}>
-                    <option value="opaque">opaque</option>
-                    <option value="transparent">transparent</option>
-                    <option value="auto">auto</option>
-                  </select>
-                </label>
+                <div className="space-y-2 col-span-2">
+                  <Label htmlFor="background-select">Background (PNG/WEBP)</Label>
+                  <Select value={background} onValueChange={(v) => setBackground(v as any)}>
+                    <SelectTrigger id="background-select">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="opaque">opaque</SelectItem>
+                      <SelectItem value="transparent">transparent</SelectItem>
+                      <SelectItem value="auto">auto</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               )}
               {(format === "jpeg" || format === "webp") && (
-                <label className="text-sm col-span-2">Compression ({outputCompression}%)
-                  <input
-                    className="mt-2 w-full"
-                    type="range"
+                <div className="space-y-2 col-span-2">
+                  <Label htmlFor="compression-slider">Compression ({outputCompression}%)</Label>
+                  <Slider
+                    id="compression-slider"
                     min={0}
                     max={100}
                     step={1}
-                    value={outputCompression}
-                    onChange={e=>setOutputCompression(Math.min(100, Math.max(0, +e.target.value || 0)))} />
-                </label>
+                    value={[outputCompression]}
+                    onValueChange={(v) => setOutputCompression(v[0])}
+                  />
+                </div>
               )}
             </div>
             <div className="flex gap-2">
-              <LoadingButton loading={busy} loadingText="Editing…" onClick={runEdit}>
-                Apply Edit & Save
-              </LoadingButton>
-              <button className="btn" onClick={()=>{
-                const c = canvasRef.current!; const ctx = c.getContext("2d")!;
-                ctx.globalCompositeOperation = "source-over";
-                ctx.clearRect(0,0,c.width,c.height);
-                ctx.fillStyle = "#ffffff";
-                ctx.fillRect(0,0,c.width,c.height);
-                const p = previewRef.current!; const pctx = p.getContext("2d")!;
-                pctx.clearRect(0,0,p.width,p.height);
-                setHasMask(false);
-                lastPt.current = null;
-              }}>Clear Mask</button>
+              <Button
+                variant="default"
+                disabled={busy}
+                onClick={runEdit}
+              >
+                {busy ? "Editing…" : "Apply Edit & Save"}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={()=>{
+                  const c = canvasRef.current!; const ctx = c.getContext("2d")!;
+                  ctx.globalCompositeOperation = "source-over";
+                  ctx.clearRect(0,0,c.width,c.height);
+                  ctx.fillStyle = "#ffffff";
+                  ctx.fillRect(0,0,c.width,c.height);
+                  const p = previewRef.current!; const pctx = p.getContext("2d")!;
+                  pctx.clearRect(0,0,p.width,p.height);
+                  setHasMask(false);
+                  lastPt.current = null;
+                }}
+              >
+                Clear Mask
+              </Button>
             </div>
             <p className="text-xs text-neutral-500">Paint areas to change; red tint shows your mask. Leave prompt empty for a global transform.</p>
           </div>
         </div>
       </div>
-    </Modal>
+      </DialogContent>
+    </Dialog>
   );
 }

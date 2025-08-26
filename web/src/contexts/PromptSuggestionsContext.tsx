@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { Button } from '@/components/ui/button';
 import { type PromptSuggestion } from '../lib/api';
 import { hashText, safeRandomUUID } from '../lib/hash';
 import { recordEvent } from '../lib/analytics';
@@ -310,8 +311,10 @@ export const PromptSuggestionsProvider: React.FC<{ children: React.ReactNode }> 
     return (
       <div className="p-4 bg-red-900/20 border border-red-800 rounded-lg">
         <p className="text-red-400">Error loading suggestions: {error.message}</p>
-        <button 
-          className="mt-2 btn btn-sm"
+        <Button 
+          className="mt-2"
+          size="sm"
+          variant="outline"
           onClick={() => {
             setError(null);
             setSuggestions([]);
@@ -320,7 +323,7 @@ export const PromptSuggestionsProvider: React.FC<{ children: React.ReactNode }> 
           }}
         >
           Reset
-        </button>
+        </Button>
       </div>
     );
   }

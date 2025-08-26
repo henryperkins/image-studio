@@ -2,7 +2,21 @@ import type React from 'react';
 import { useState, useRef, memo } from 'react';
 import { LibraryItem, isVideoItem, API_BASE_URL } from '../lib/api';
 import { ImageFallback, ResilientImage } from './ImageFallback';
-import MediaContextMenu from './MediaContextMenu';
+import {
+  ContextMenu,
+  ContextMenuTrigger,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+} from '@/components/ui/context-menu';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from '@/components/ui/dropdown-menu';
+import { Button } from '@/components/ui/button';
 import type { MediaAction } from '../hooks/useMediaActions';
 
 interface LibraryItemCardProps {
@@ -24,8 +38,7 @@ const LibraryItemCard = memo(({
   onView,
   baseUrl = API_BASE_URL
 }: LibraryItemCardProps) => {
-  const [showContextMenu, setShowContextMenu] = useState(false);
-  const [contextMenuPos, setContextMenuPos] = useState({ x: 0, y: 0 });
+  const [showContextMenu, setShowContextMenu] = useState(false); // kept for hover/tooltip gating
   const [isHovered, setIsHovered] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
@@ -37,8 +50,7 @@ const LibraryItemCard = memo(({
 
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
-    setIsHovered(false); // Hide tooltip when context menu opens
-    setContextMenuPos({ x: e.clientX, y: e.clientY });
+    setIsHovered(false);
     setShowContextMenu(true);
   };
 
@@ -96,6 +108,8 @@ const LibraryItemCard = memo(({
 
   return (
     <>
+      <ContextMenu onOpenChange={(open)=>setShowContextMenu(open)}>
+      <ContextMenuTrigger asChild>
       <div
         ref={cardRef}
         className="relative cursor-pointer group"
@@ -140,36 +154,47 @@ const LibraryItemCard = memo(({
 
         {/* Quick actions (visible on hover or touch devices) */}
         <div className={`absolute top-1 right-1 md:top-2 md:right-2 z-30 flex gap-1 transition-opacity duration-200 ${(isHovered || isTouchDevice) && !showContextMenu ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
-          <button
-            className="bg-black/80 hover:bg-black text-white text-xs rounded-md min-w-[32px] min-h-[32px] md:min-w-[28px] md:min-h-[28px] px-1.5 py-1 flex items-center justify-center transition-colors duration-200 shadow-md"
-            onClick={(e) => {
-              e.stopPropagation();
-              onAction('edit', item);
-            }}
+          <Button
+            size="sm"
+            variant="ghost"
+            className="bg-black/80 hover:bg-black text-white text-xs min-w-[32px] min-h-[32px] md:min-w-[28px] md:min-h-[28px] px-1.5 py-1"
+            onClick={(e) => { e.stopPropagation(); onAction('edit', item); }}
             title="Edit"
             aria-label="Edit"
           >
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-            </svg>
-          </button>
-          <button
-            className="bg-black/80 hover:bg-black text-white text-xs rounded-md min-w-[32px] min-h-[32px] md:min-w-[28px] md:min-h-[28px] px-1.5 py-1 flex items-center justify-center transition-colors duration-200 shadow-md"
-            onClick={(e) => {
-              e.stopPropagation();
-              setIsHovered(false);
-              setContextMenuPos({ x: e.clientX, y: e.clientY });
-              setShowContextMenu(true);
-            }}
-            title="More actions"
-            aria-label="More actions"
-          >
-            <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
-              <circle cx="12" cy="12" r="2" />
-              <circle cx="12" cy="6" r="2" />
-              <circle cx="12" cy="18" r="2" />
-            </svg>
-          </button>
+            ✎
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="bg-black/80 hover:bg-black text-white text-xs min-w-[32px] min-h-[32px] md:min-w-[28px] md:min-h-[28px] px-1.5 py-1"
+                onClick={(e) => { e.stopPropagation(); setIsHovered(false); }}
+                aria-label="More actions"
+                title="More actions"
+              >
+                ⋮
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {!isVideoItem(item) && (
+                <DropdownMenuItem onClick={(e)=>{e.stopPropagation(); onAction('view', item)}}>👁 View</DropdownMenuItem>
+              )}
+              <DropdownMenuItem onClick={(e)=>{e.stopPropagation(); onAction('edit', item)}}>✏️ Edit</DropdownMenuItem>
+              {!isVideoItem(item) && (
+                <DropdownMenuItem onClick={(e)=>{e.stopPropagation(); onAction('analyze', item)}}>🔍 Analyze</DropdownMenuItem>
+              )}
+              {!isVideoItem(item) && (
+                <DropdownMenuItem onClick={(e)=>{e.stopPropagation(); onAction('use-in-sora', item)}}>🎬 Use in Sora</DropdownMenuItem>
+              )}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={(e)=>{e.stopPropagation(); onAction('download', item)}}>⬇️ Download</DropdownMenuItem>
+              <DropdownMenuItem onClick={(e)=>{e.stopPropagation(); onAction('copy-prompt', item)}}>📝 Copy Prompt</DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem className="text-destructive data-[highlighted]:bg-destructive/10" onClick={(e)=>{e.stopPropagation(); onAction('delete', item)}}>🗑️ Delete</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
 
@@ -261,26 +286,21 @@ const LibraryItemCard = memo(({
           </div>
         )}
       </div>
+      </ContextMenuTrigger>
 
-      {/* Context menu */}
-      {showContextMenu && (
-        <MediaContextMenu
-          item={item}
-          position={contextMenuPos}
-          onClose={() => setShowContextMenu(false)}
-          onAction={(action, item) => {
-            onAction(action, item);
-            if (action === 'delete') {
-              // Trigger refresh is handled by parent
-            }
-          }}
-          availableActions={
-            isVideo
-              ? ['edit', 'delete', 'download', 'copy-prompt']
-              : ['view', 'edit', 'delete', 'analyze', 'use-in-sora', 'download', 'copy-prompt']
-          }
-        />
-      )}
+      {/* Context menu content (right-click) */}
+      <ContextMenuContent>
+        {!isVideo && (<ContextMenuItem onClick={()=>onAction('view', item)}>👁 View</ContextMenuItem>)}
+        <ContextMenuItem onClick={()=>onAction('edit', item)}>✏️ Edit</ContextMenuItem>
+        {!isVideo && (<ContextMenuItem onClick={()=>onAction('analyze', item)}>🔍 Analyze</ContextMenuItem>)}
+        {!isVideo && (<ContextMenuItem onClick={()=>onAction('use-in-sora', item)}>🎬 Use in Sora</ContextMenuItem>)}
+        <ContextMenuSeparator />
+        <ContextMenuItem onClick={()=>onAction('download', item)}>⬇️ Download</ContextMenuItem>
+        <ContextMenuItem onClick={()=>onAction('copy-prompt', item)}>📝 Copy Prompt</ContextMenuItem>
+        <ContextMenuSeparator />
+        <ContextMenuItem className="text-destructive data-[highlighted]:bg-destructive/10" onClick={()=>onAction('delete', item)}>🗑️ Delete</ContextMenuItem>
+      </ContextMenuContent>
+      </ContextMenu>
     </>
   );
 });

@@ -10,7 +10,9 @@ import {
 } from "../lib/api";
 import { useToast } from "../contexts/ToastContext";
 import { usePromptSuggestions } from "../contexts/PromptSuggestionsContext";
-import { LoadingButton } from "../components/LoadingButton";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { PromptTextarea } from "../components/PromptTextarea";
 
 interface EnhancedVisionAnalysisProps {
@@ -233,15 +235,15 @@ export default function EnhancedVisionAnalysis({
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-medium">Enhanced Vision Analysis</h3>
         <div className="flex gap-2">
-          <button className="btn btn-sm text-xs" onClick={quickSoraAnalysis} disabled={analyzing}>
+          <Button size="sm" variant="outline" onClick={quickSoraAnalysis} disabled={analyzing}>
             Quick Sora Prompt
-          </button>
-          <button className="btn btn-sm text-xs" onClick={quickAccessibilityCheck} disabled={analyzing}>
+          </Button>
+          <Button size="sm" variant="outline" onClick={quickAccessibilityCheck} disabled={analyzing}>
             Accessibility Check
-          </button>
-          <button className="btn btn-sm text-xs" onClick={quickSafetyCheck} disabled={analyzing}>
+          </Button>
+          <Button size="sm" variant="outline" onClick={quickSafetyCheck} disabled={analyzing}>
             Safety Check
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -269,77 +271,70 @@ export default function EnhancedVisionAnalysis({
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm font-medium mb-2">Purpose</label>
-                <select
-                  className="input"
-                  value={params.purpose}
-                  onChange={(e) => setParams((prev) => ({ ...prev, purpose: e.target.value }))}
-                >
-                  <option value="Sora video prompt creation">Sora Video Prompts</option>
-                  <option value="general description">General Description</option>
-                  <option value="accessibility compliance">Accessibility</option>
-                  <option value="content safety analysis">Safety Analysis</option>
-                  <option value="e-commerce product description">Product Description</option>
-                  <option value="social media content">Social Media</option>
-                </select>
+                <Select value={params.purpose} onValueChange={(v)=>setParams(prev=>({...prev, purpose: v}))}>
+                  <SelectTrigger id="purpose-select"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Sora video prompt creation">Sora Video Prompts</SelectItem>
+                    <SelectItem value="general description">General Description</SelectItem>
+                    <SelectItem value="accessibility compliance">Accessibility</SelectItem>
+                    <SelectItem value="content safety analysis">Safety Analysis</SelectItem>
+                    <SelectItem value="e-commerce product description">Product Description</SelectItem>
+                    <SelectItem value="social media content">Social Media</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               <div>
                 <label className="block text-sm font-medium mb-2">Audience</label>
-                <select
-                  className="input"
-                  value={params.audience}
-                  onChange={(e) => setParams((prev) => ({ ...prev, audience: e.target.value as any }))}
-                >
-                  <option value="general">General Public</option>
-                  <option value="technical">Technical Users</option>
-                  <option value="child">Children</option>
-                  <option value="academic">Academic/Research</option>
-                </select>
+                <Select value={params.audience as any} onValueChange={(v)=>setParams(prev=>({...prev, audience: v as any}))}>
+                  <SelectTrigger id="audience-select"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="general">General Public</SelectItem>
+                    <SelectItem value="technical">Technical Users</SelectItem>
+                    <SelectItem value="child">Children</SelectItem>
+                    <SelectItem value="academic">Academic/Research</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               <div>
                 <label className="block text-sm font-medium mb-2">Detail Level</label>
-                <select
-                  className="input"
-                  value={params.detail}
-                  onChange={(e) => setParams((prev) => ({ ...prev, detail: e.target.value as any }))}
-                >
-                  <option value="brief">Brief</option>
-                  <option value="standard">Standard</option>
-                  <option value="detailed">Detailed</option>
-                  <option value="comprehensive">Comprehensive</option>
-                </select>
+                <Select value={params.detail as any} onValueChange={(v)=>setParams(prev=>({...prev, detail: v as any}))}>
+                  <SelectTrigger id="detail-select"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="brief">Brief</SelectItem>
+                    <SelectItem value="standard">Standard</SelectItem>
+                    <SelectItem value="detailed">Detailed</SelectItem>
+                    <SelectItem value="comprehensive">Comprehensive</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium mb-2">Tone</label>
-                <select
-                  className="input"
-                  value={params.tone}
-                  onChange={(e) => setParams((prev) => ({ ...prev, tone: e.target.value as any }))}
-                >
-                  <option value="casual">Casual</option>
-                  <option value="formal">Formal</option>
-                  <option value="technical">Technical</option>
-                  <option value="creative">Creative</option>
-                </select>
+                <Select value={params.tone as any} onValueChange={(v)=>setParams(prev=>({...prev, tone: v as any}))}>
+                  <SelectTrigger id="tone-select"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="casual">Casual</SelectItem>
+                    <SelectItem value="formal">Formal</SelectItem>
+                    <SelectItem value="technical">Technical</SelectItem>
+                    <SelectItem value="creative">Creative</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               <div>
                 <label className="block text-sm font-medium mb-2">Language</label>
-                <select
-                  className="input"
-                  value={params.language}
-                  onChange={(e) => setParams((prev) => ({ ...prev, language: e.target.value }))}
-                >
-                  {languages.map((lang) => (
-                    <option key={lang.code} value={lang.code}>
-                      {lang.name}
-                    </option>
-                  ))}
-                </select>
+                <Select value={params.language} onValueChange={(v)=>setParams(prev=>({...prev, language: v}))}>
+                  <SelectTrigger id="language-select"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {languages.map((lang) => (
+                      <SelectItem key={lang.code} value={lang.code}>{lang.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           </div>
@@ -451,14 +446,14 @@ export default function EnhancedVisionAnalysis({
               {/* Target Age */}
               <div className="flex items-center space-x-2">
                 <label htmlFor="target-age" className="text-sm">Target age</label>
-                <input
+                <Input
                   id="target-age"
                   type="number"
                   min={5}
                   max={100}
                   value={params.target_age ?? 18}
                   onChange={(e) => setParams((prev) => ({ ...prev, target_age: Number(e.target.value) }))}
-                  className="input w-20 text-sm"
+                  className="w-20 text-sm"
                   aria-describedby="target-age-help"
                 />
               </div>
@@ -469,15 +464,24 @@ export default function EnhancedVisionAnalysis({
 
       {/* Analysis Actions */}
       <div className="flex flex-wrap gap-2">
-        <LoadingButton
+        <Button
           className="flex-1 min-w-[200px]"
           onClick={runAnalysis}
-          loading={analyzing}
-          loadingText={`Analyzing ${selectedIds.length} image${selectedIds.length > 1 ? "s" : ""}…`}
+          disabled={analyzing}
           aria-live="polite"
         >
-          {`Analyze ${selectedIds.length} image${selectedIds.length > 1 ? "s" : ""}`}
-        </LoadingButton>
+          {analyzing ? (
+            <span className="inline-flex items-center gap-2">
+              <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" aria-hidden="true">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+              </svg>
+              {`Analyzing ${selectedIds.length} image${selectedIds.length > 1 ? "s" : ""}…`}
+            </span>
+          ) : (
+            `Analyze ${selectedIds.length} image${selectedIds.length > 1 ? "s" : ""}`
+          )}
+        </Button>
       </div>
 
       {/* Analysis Results */}
@@ -702,7 +706,7 @@ function GenerationGuidanceBlock({ prompt, styleKeywords }: { prompt: string; st
     <div>
       <div className="flex items-center justify-between mb-2">
         <h4 className="font-medium">Generation Guidance</h4>
-        <button className="btn btn-sm text-xs" onClick={copy}>Copy Sora Prompt</button>
+        <Button size="sm" variant="outline" onClick={copy}>Copy Sora Prompt</Button>
       </div>
       <div className="bg-neutral-800/50 rounded-lg p-3 space-y-2 text-sm">
         <div>
@@ -738,9 +742,9 @@ function AccessibilityDisplay({ result }: { result: AccessibilityAnalysisResult 
       <div>
         <div className="flex items-center justify-between mb-2">
           <h4 className="font-medium">Alt Text</h4>
-          <button className="btn btn-sm text-xs" onClick={copyAltText}>
+          <Button size="sm" variant="outline" onClick={copyAltText}>
             Copy Alt Text
-          </button>
+          </Button>
         </div>
         <div className="bg-neutral-800/50 rounded-lg p-3">
           <p className="text-sm">{result.alt_text}</p>

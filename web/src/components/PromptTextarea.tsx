@@ -1,5 +1,5 @@
 import { forwardRef, KeyboardEvent, DragEvent, useState } from "react";
-import { Text } from "../ui/typography";
+import { Textarea as UiTextarea } from "@/components/ui/textarea";
 
 interface PromptTextareaProps {
   value: string;
@@ -81,10 +81,10 @@ export const PromptTextarea = forwardRef<HTMLTextAreaElement, PromptTextareaProp
 
     return (
       <div className="relative">
-        <textarea
+        <UiTextarea
           ref={ref}
           id={id}
-          className={`input resize-none ${className}`}
+          className={`resize-none ${className}`}
           placeholder={placeholder}
           value={value}
           onChange={(e) => {
@@ -102,16 +102,12 @@ export const PromptTextarea = forwardRef<HTMLTextAreaElement, PromptTextareaProp
           aria-describedby={helpTextId}
         />
         <div className="flex justify-between items-center mt-1">
-          <Text size="xs" tone="muted" id={helpTextId}>
+          <p className="text-muted-foreground text-xs" id={helpTextId}>
             {getHelpText()}
-          </Text>
-          <Text 
-            size="xs" 
-            tone="muted" 
-            className={value.length > maxLength * 0.8 ? "text-amber-400" : ""}
-          >
+          </p>
+          <p className={`text-muted-foreground text-xs ${value.length > maxLength * 0.8 ? "text-amber-400" : ""}`}>
             {value.length}/{maxLength}
-          </Text>
+          </p>
         </div>
       </div>
     );

@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect } from "react";
 import { type LibraryItem, API_BASE_URL, isVideoItem } from "../lib/api";
-import Modal from "../components/Modal";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { useMediaActions } from "../hooks/useMediaActions";
+import { Button } from "@/components/ui/button";
 
 type Props = {
   items: LibraryItem[];
@@ -84,37 +85,37 @@ export default function ImageViewerModal({
   if (!item) return null;
  
   return (
-    <Modal
-      onClose={onClose}
-      ariaLabel="Image viewer"
-      initialFocusRef={closeButtonRef as React.RefObject<HTMLElement>}
-      overlayClassName="fixed inset-0 bg-black/90 z-40 flex items-center justify-center p-4"
-      panelClassName="relative max-w-[90vw] max-h-[90vh] flex flex-col"
-    >
+    <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent
+        className="fixed inset-0 p-0 bg-transparent border-0 shadow-none outline-none"
+        onOpenAutoFocus={(e) => { e.preventDefault(); closeButtonRef.current?.focus(); }}
+      >
         {/* Navigation and close buttons */}
         <div className="absolute top-2 left-2 right-2 z-50 flex justify-between">
           <div className="flex gap-2">
             {currentIndex > 0 && (
-              <button
-                className="bg-black/70 hover:bg-black/90 text-white rounded-full w-10 h-10 flex items-center justify-center transition-all duration-200"
+              <Button
+                size="icon"
+                className="rounded-full w-10 h-10 bg-black/70 hover:bg-black/90 text-white border border-white/10"
                 onClick={() => onNavigate(images[currentIndex - 1].id)}
                 aria-label="Previous image"
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                 </svg>
-              </button>
+              </Button>
             )}
             {currentIndex < images.length - 1 && (
-              <button
-                className="bg-black/70 hover:bg-black/90 text-white rounded-full w-10 h-10 flex items-center justify-center transition-all duration-200"
+              <Button
+                size="icon"
+                className="rounded-full w-10 h-10 bg-black/70 hover:bg-black/90 text-white border border-white/10"
                 onClick={() => onNavigate(images[currentIndex + 1].id)}
                 aria-label="Next image"
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                 </svg>
-              </button>
+              </Button>
             )}
           </div>
           
@@ -122,16 +123,17 @@ export default function ImageViewerModal({
             <span className="bg-black/70 text-white rounded-full px-3 py-2 flex items-center text-sm">
               {currentIndex + 1} / {images.length}
             </span>
-            <button
+            <Button
               ref={closeButtonRef}
-              className="bg-black/70 hover:bg-black/90 text-white rounded-full w-10 h-10 flex items-center justify-center transition-all duration-200"
+              size="icon"
+              className="rounded-full w-10 h-10 bg-black/70 hover:bg-black/90 text-white border border-white/10"
               onClick={onClose}
               aria-label="Close viewer"
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
-            </button>
+            </Button>
           </div>
         </div>
 
@@ -161,54 +163,45 @@ export default function ImageViewerModal({
         <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-50">
           {!showControls ? (
             <div className="flex gap-2">
-              <button
-                className="bg-black/70 hover:bg-black/90 text-white px-4 py-2 rounded-lg transition-all duration-200 backdrop-blur-sm border border-white/10"
+              <Button
+                className="bg-black/70 hover:bg-black/90 text-white rounded-lg border border-white/10"
                 onClick={() => setShowControls(true)}
               >
                 ✎ Edit
-              </button>
-              <button
-                className="bg-black/70 hover:bg-black/90 text-white px-4 py-2 rounded-lg transition-all duration-200 backdrop-blur-sm border border-white/10"
+              </Button>
+              <Button
+                className="bg-black/70 hover:bg-black/90 text-white rounded-lg border border-white/10"
                 onClick={() => item && handleAnalyze(item)}
                 disabled={isAnalyzing}
               >
                 {isAnalyzing ? '🔄 Analyzing...' : '🔍 Analyze'}
-              </button>
-              <button
-                className={`${confirmDelete ? 'bg-red-600/90' : 'bg-black/70'} hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-all duration-200 backdrop-blur-sm border border-white/10`}
+              </Button>
+              <Button
+                variant="destructive"
+                className={`${confirmDelete ? '' : 'bg-black/70 hover:bg-black/90 text-white border border-white/10'}`}
                 onClick={handleDeleteWithConfirm}
                 disabled={isDeleting}
               >
                 {confirmDelete ? '⚠️ Confirm?' : '🗑️ Delete'}
-              </button>
-              <button
-                className="bg-black/70 hover:bg-black/90 text-white px-4 py-2 rounded-lg transition-all duration-200 backdrop-blur-sm border border-white/10"
+              </Button>
+              <Button
+                className="bg-black/70 hover:bg-black/90 text-white rounded-lg border border-white/10"
                 onClick={() => item && handleDownload(item)}
               >
                 ⬇️ Download
-              </button>
-              <button
-                className="bg-black/70 hover:bg-black/90 text-white px-4 py-2 rounded-lg transition-all duration-200 backdrop-blur-sm border border-white/10"
+              </Button>
+              <Button
+                className="bg-black/70 hover:bg-black/90 text-white rounded-lg border border-white/10"
                 onClick={() => item && handleCopyPrompt(item)}
               >
                 📋 Copy Prompt
-              </button>
+              </Button>
             </div>
           ) : (
             <div className="bg-black/90 backdrop-blur-md rounded-lg p-4 border border-white/10 animate-slide-up">
               <div className="flex items-center gap-3">
-                <button
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-all duration-200"
-                  onClick={() => onEdit(item.id)}
-                >
-                  Open Editor
-                </button>
-                <button
-                  className="bg-neutral-700 hover:bg-neutral-600 text-white px-4 py-2 rounded-lg transition-all duration-200"
-                  onClick={() => setShowControls(false)}
-                >
-                  Cancel
-                </button>
+                <Button onClick={() => onEdit(item.id)}>Open Editor</Button>
+                <Button variant="secondary" onClick={() => setShowControls(false)}>Cancel</Button>
               </div>
               <div className="mt-3 text-xs text-neutral-400 max-w-xs">
                 Click "Open Editor" to edit this image with mask painting and AI-powered inpainting
@@ -229,6 +222,7 @@ export default function ImageViewerModal({
             )}
           </div>
         )}
-    </Modal>
+      </DialogContent>
+    </Dialog>
   );
 }

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { API_BASE_URL } from "../lib/api";
+import { Button } from "@/components/ui/button";
 
 export default function ConnectionStatus() {
   const [status, setStatus] = useState<"checking" | "connected" | "disconnected">("checking");
@@ -44,9 +45,13 @@ export default function ConnectionStatus() {
 
   return (
     <div className="fixed bottom-4 right-4 z-50">
-      <button
+      <Button
+        variant="outline"
+        size="sm"
         onClick={() => setShowDetails(!showDetails)}
-        className={`bg-neutral-800 rounded-lg px-3 py-2 shadow-lg border border-neutral-700 flex items-center gap-2 ${statusColor}`}
+        className={`bg-neutral-800/70 border-neutral-700 text-white hover:bg-neutral-800 flex items-center gap-2 ${statusColor}`}
+        aria-expanded={showDetails}
+        aria-controls="connection-details"
       >
         <span className="text-xl">{statusIcon}</span>
         <span className="text-sm">
@@ -54,10 +59,10 @@ export default function ConnectionStatus() {
            status === "connected" ? "Connected" : 
            "Disconnected"}
         </span>
-      </button>
+      </Button>
       
       {showDetails && (
-        <div className="absolute bottom-full right-0 mb-2 bg-neutral-800 rounded-lg p-4 shadow-xl border border-neutral-700 w-80">
+        <div id="connection-details" className="absolute bottom-full right-0 mb-2 bg-neutral-800 rounded-lg p-4 shadow-xl border border-neutral-700 w-80">
           <h3 className="font-semibold mb-2">Connection Details</h3>
           <div className="space-y-1 text-sm text-neutral-400">
             <p>Status: <span className={statusColor}>{status}</span></p>

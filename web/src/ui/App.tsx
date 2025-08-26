@@ -15,7 +15,9 @@ import LibraryPromptSuggestions from "../components/LibraryPromptSuggestions";
 import { usePromptSuggestions } from "../contexts/PromptSuggestionsContext";
 import { useToast } from "../contexts/ToastContext";
 import ConnectionStatus from "./ConnectionStatus";
-import Tabs from "../components/Tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 
 type View = "images" | "sora";
 
@@ -180,30 +182,12 @@ useEffect(() => {
         <Heading level={1} serif={false} className="!text-2xl">
           AI Media Studio
         </Heading>
-        <div className="inline-flex rounded-2xl border border-neutral-800 overflow-hidden relative">
-          <div
-            className="absolute inset-y-0 bg-neutral-700 rounded-2xl transition-transform duration-200 ease-out"
-            style={{
-              width: "50%",
-              transform: `translateX(${view === "images" ? "0%" : "100%"})`,
-            }}
-            aria-hidden="true"
-          />
-          <Tabs
-            tabs={[
-              { id: "images", label: "Images", ariaControls: "panel-images" },
-              { id: "sora", label: "Sora", ariaControls: "panel-sora" },
-            ]}
-            selected={view}
-            onChange={(id) => setView(id as View)}
-            listClassName="inline-flex relative z-10"
-            getTabClassName={(_, isSelected) =>
-              `px-4 py-2 relative z-10 transition-colors duration-200 ${
-                isSelected ? "text-white" : "text-neutral-400 hover:text-white"
-              }`
-            }
-          />
-        </div>
+        <Tabs value={view} onValueChange={(v) => setView(v as View)}>
+          <TabsList className="inline-flex rounded-2xl border border-neutral-800">
+            <TabsTrigger value="images">Images</TabsTrigger>
+            <TabsTrigger value="sora">Sora</TabsTrigger>
+          </TabsList>
+        </Tabs>
       </header>
 
       {/* ARIA live region for announcing tab changes */}
@@ -214,7 +198,7 @@ useEffect(() => {
       <div className="flex flex-col md:grid md:grid-cols-3 gap-4">
         {/* Left column (main content) */}
         <div className="md:col-span-2">
-          <div className="card transition-opacity duration-200">
+          <Card className="transition-opacity duration-200 p-0">
             <div className="relative min-h-[600px]">
               <div
                 className="transition-all duration-200 ease-in-out"
@@ -261,13 +245,14 @@ useEffect(() => {
                 />
               </div>
             </div>
-          </div>
+          </Card>
         </div>
 
         {/* Right column (library + suggestions) */}
-        {/* Mobile library toggle button */}
-        <button
-          className="md:hidden btn w-full mb-2"
+        {/* Mobile library toggle button - using shadcn/ui Button */}
+        <Button
+          variant="outline"
+          className="md:hidden w-full mb-2"
           onClick={() => setMobileLibraryOpen(!mobileLibraryOpen)}
           aria-expanded={mobileLibraryOpen}
           aria-controls="library-panel"
@@ -283,10 +268,10 @@ useEffect(() => {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
             </svg>
           </span>
-        </button>
+        </Button>
 
         {/* Library panel */}
-        <div id="library-panel" className={`card transition-opacity duration-200 ${mobileLibraryOpen ? "block" : "hidden md:block"}`}>
+        <Card id="library-panel" className={`transition-opacity duration-200 ${mobileLibraryOpen ? "block" : "hidden md:block"} p-3`}>
           <Heading level={4} className="mb-2">
             Media Library
           </Heading>
@@ -316,15 +301,15 @@ useEffect(() => {
                   Generate your first image or video to get started
                 </Text>
               </div>
-              <button
-                className="btn btn-primary mx-auto"
+              <Button
+                className="mx-auto"
                 onClick={() => {
                   setView("images");
                   setTimeout(() => promptInputRef.current?.focus(), 100);
                 }}
               >
                 Create your first image
-              </button>
+              </Button>
             </div>
           ) : (
             <div className="space-y-3">
@@ -352,41 +337,43 @@ useEffect(() => {
               {/* Pagination controls */}
               {library.length > itemsPerPage && (
                 <div className="flex flex-col sm:flex-row items-center gap-2 sm:justify-between">
-                  <button
-                    className="btn btn-xs w-full sm:w-auto"
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full sm:w-auto"
                     onClick={() => setLibraryPage(Math.max(0, libraryPage - 1))}
                     disabled={libraryPage === 0}
                   >
                     ← Previous
-                  </button>
+                  </Button>
                   <span className="text-xs text-neutral-400 flex-1 text-center min-w-[100px]">
                     Page {libraryPage + 1} of {Math.ceil(library.length / itemsPerPage)}
                   </span>
-                  <button
-                    className="btn btn-xs w-full sm:w-auto"
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full sm:w-auto"
                     onClick={() => setLibraryPage(Math.min(Math.ceil(library.length / itemsPerPage) - 1, libraryPage + 1))}
                     disabled={(libraryPage + 1) * itemsPerPage >= library.length}
                   >
                     Next →
-                  </button>
+                  </Button>
                 </div>
               )}
             </div>
           )}
 
           <div className="flex gap-2 mt-3">
-            <button
-              className="btn group relative overflow-hidden min-w-[48px] min-h-[48px] md:min-h-0"
+            <Button
+              variant="outline"
               onClick={() => setSelected([])}
               disabled={selected.length === 0}
               aria-disabled={selected.length === 0}
               title={selected.length === 0 ? "Select at least one image" : "Clear selection"}
             >
-              <span className="relative z-10">Clear</span>
-              {selected.length > 0 && <span className="absolute inset-0 bg-neutral-600 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-200 origin-left pointer-events-none" />}
-            </button>
-            <button
-              className="btn group relative overflow-hidden min-w-[48px] min-h-[48px] md:min-h-0"
+              Clear
+            </Button>
+            <Button
               onClick={() => {
                 setView("sora");
                 setMobileLibraryOpen(false);
@@ -395,9 +382,8 @@ useEffect(() => {
               aria-disabled={selected.length === 0}
               title={selected.length === 0 ? "Select at least one image" : "Use selected images in Sora"}
             >
-              <span className="relative z-10">Use in Sora</span>
-              {selected.length > 0 && <span className="absolute inset-0 bg-blue-600 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-200 origin-left pointer-events-none" />}
-            </button>
+              Use in Sora
+            </Button>
           </div>
 
           {/* Prompt Suggestions panel under the Library panel */}
@@ -414,7 +400,7 @@ useEffect(() => {
               }
             }}
           />
-        </div>
+        </Card>
       </div>
 
       <footer className="text-caption text-muted">

@@ -3,9 +3,18 @@ import { analyzeImages, generateVideoWithProgress, generateSoraPrompt, getSoraVi
 import { processApiError } from "../lib/errorUtils";
 import { useToast } from "../contexts/ToastContext";
 import EnhancedVisionAnalysis from "./EnhancedVisionAnalysis";
-import { PromptTextarea } from "../components/PromptTextarea";
-import { LoadingButton } from "../components/LoadingButton";
 import { SkeletonLoader, MediaSkeleton } from "../components/SkeletonLoader";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export default function SoraCreator({
   selectedIds = [] as string[],
@@ -190,12 +199,13 @@ export default function SoraCreator({
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-medium">Create Video (Sora on Azure)</h2>
-        <button
-          className="btn btn-sm text-xs"
+        <Button
+          size="sm"
+          variant="outline"
           onClick={() => setShowEnhancedAnalysis(!showEnhancedAnalysis)}
         >
           {showEnhancedAnalysis ? 'Simple Analysis' : 'Enhanced Analysis'}
-        </button>
+        </Button>
       </div>
 
       {/* Enhanced Vision Analysis */}
@@ -212,28 +222,24 @@ export default function SoraCreator({
       {/* Simplified Analysis Controls */}
       {!showEnhancedAnalysis && selectedIds.length > 0 && (
         <div className="flex flex-col sm:flex-row gap-2">
-          <LoadingButton
-            variant="secondary"
-            loading={analyzingImages}
-            loadingText="Generating advanced prompt…"
-            disabled={!selectedIds.length || busy}
+          <Button
+            variant="outline"
+            disabled={!selectedIds.length || busy || analyzingImages}
             onClick={generateEnhancedPrompt}
             className="flex-1"
           >
-            Generate Sora Prompt (GPT-5) for {selectedIds.length} image{selectedIds.length > 1 ? "s" : ""}
-          </LoadingButton>
-          <LoadingButton
-            variant="secondary"
-            loading={analyzingImages}
-            loadingText="Analyzing…"
-            disabled={!selectedIds.length || busy}
+            {analyzingImages ? "Generating advanced prompt…" : `Generate Sora Prompt (GPT-5) for ${selectedIds.length} image${selectedIds.length > 1 ? "s" : ""}`}
+          </Button>
+          <Button
+            variant="outline"
+            disabled={!selectedIds.length || busy || analyzingImages}
             onClick={analyze}
           >
-            Basic Analysis
-          </LoadingButton>
+            {analyzingImages ? "Analyzing…" : "Basic Analysis"}
+          </Button>
           {analysis && (
-            <button
-              className="btn min-h-[48px] sm:min-h-0"
+            <Button
+              variant="outline"
               onClick={() => {
                 const promptToInsert = analysis.replace(/^Suggested.*?prompt:\s*/im, "");
                 setPrompt(p => p + (p ? "\n\n" : "") + promptToInsert);
@@ -242,7 +248,7 @@ export default function SoraCreator({
               disabled={analyzingImages}
             >
               Insert Analysis
-            </button>
+            </Button>
           )}
         </div>
       )}
@@ -259,20 +265,27 @@ export default function SoraCreator({
         </pre>
       )}
 
-      <PromptTextarea
-        ref={promptInputRef}
-        id="video-prompt"
-        value={prompt}
-        onChange={setPrompt}
-        onSubmit={generate}
-        placeholder="Describe your video…"
-        maxLength={2000}
-        disabled={busy}
-        busy={busy}
-        error={error}
-        ariaLabel="Video description prompt"
-        className="h-28"
-      />
+      <div className="space-y-2">
+        <Label htmlFor="video-prompt">Video Description</Label>
+        <Textarea
+          ref={promptInputRef}
+          id="video-prompt"
+          value={prompt}
+          onChange={(e) => setPrompt(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+              e.preventDefault();
+              generate();
+            }
+          }}
+          placeholder="Describe your video…"
+          maxLength={2000}
+          disabled={busy}
+          className="min-h-[112px] resize-y"
+          aria-label="Video description prompt"
+        />
+        <p className="text-xs text-muted-foreground">{prompt.length} / 2000</p>
+      </div>
 
       {selectedUrls.length > 0 && (
         <div className="space-y-2">
@@ -287,8 +300,10 @@ export default function SoraCreator({
                   alt={`Reference ${index + 1}`}
                   className="w-12 h-12 rounded border border-neutral-700 object-cover"
                 />
-                <button
-                  className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full text-white text-xs opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center hover:bg-red-600"
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  className="absolute -top-1 -right-1 w-5 h-5 p-0 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-200"
                   onClick={() => {
                     const idToRemove = selectedIds[index];
                     if (idToRemove && onRemoveImage) {
@@ -298,7 +313,7 @@ export default function SoraCreator({
                   aria-label={`Remove reference image ${index + 1}`}
                 >
                   ✕
-                </button>
+                </Button>
               </div>
             ))}
           </div>
@@ -307,72 +322,86 @@ export default function SoraCreator({
 
       <div className="space-y-2">
         <div className="flex flex-col sm:flex-row gap-2">
-          <button
-            type="button"
-            className="btn text-xs min-h-[48px] sm:min-h-0"
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => { setWidth(1080); setHeight(1080); setAspectRatio(1); }}
-          >Square 1080×1080</button>
-          <button
-            type="button"
-            className="btn text-xs min-h-[48px] sm:min-h-0"
+          >Square 1080×1080</Button>
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => { setWidth(1920); setHeight(1080); setAspectRatio(16/9); }}
-          >Landscape 1920×1080</button>
-          <button
-            type="button"
-            className="btn text-xs min-h-[48px] sm:min-h-0"
+          >Landscape 1920×1080</Button>
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => { setWidth(1280); setHeight(720); setAspectRatio(16/9); }}
-          >HD 1280×720</button>
+          >HD 1280×720</Button>
         </div>
         
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <label className="text-sm min-w-0">
-            Resolution
-            <select 
-              className="input mt-1 w-full" 
+          <div className="space-y-2">
+            <Label htmlFor="resolution-select">Resolution</Label>
+            <Select 
               value={`${width}x${height}`}
-              onChange={e => {
-                const [w, h] = e.target.value.split('x').map(Number);
+              onValueChange={v => {
+                const [w, h] = v.split('x').map(Number);
                 setWidth(w);
                 setHeight(h);
                 setAspectRatio(w / h);
               }} 
             >
-              <option value="480x480">480×480 (Square)</option>
-              <option value="854x480">854×480 (Wide)</option>
-              <option value="720x720">720×720 (Square)</option>
-              <option value="1280x720">1280×720 (HD)</option>
-              <option value="1080x1080">1080×1080 (Square HD)</option>
-              <option value="1920x1080">1920×1080 (Full HD)</option>
-            </select>
-          </label>
-          <label className="text-sm min-w-0 sm:col-span-2 lg:col-span-1">Duration (s)
-            <input className="input mt-1 w-full" type="number" min={1} max={20} value={seconds} onChange={e=>setSeconds(+e.target.value||10)} />
-            <span className="text-xs text-neutral-500 block mt-1">Max 20s, up to 1920×1920</span>
-          </label>
-          <label className="text-sm min-w-0">
-            Quality
-            <select
-              className="input mt-1 w-full"
+              <SelectTrigger id="resolution-select">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="480x480">480×480 (Square)</SelectItem>
+                <SelectItem value="854x480">854×480 (Wide)</SelectItem>
+                <SelectItem value="720x720">720×720 (Square)</SelectItem>
+                <SelectItem value="1280x720">1280×720 (HD)</SelectItem>
+                <SelectItem value="1080x1080">1080×1080 (Square HD)</SelectItem>
+                <SelectItem value="1920x1080">1920×1080 (Full HD)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2 sm:col-span-2 lg:col-span-1">
+            <Label htmlFor="duration-input">Duration (s)</Label>
+            <Input 
+              id="duration-input"
+              type="number" 
+              min={1} 
+              max={20} 
+              value={seconds} 
+              onChange={e=>setSeconds(+e.target.value||10)} 
+            />
+            <p className="text-xs text-muted-foreground">Max 20s, up to 1920×1920</p>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="quality-select">Quality</Label>
+            <Select
               value={quality}
-              onChange={e => setQuality(e.target.value as 'high' | 'low')}
+              onValueChange={v => setQuality(v as 'high' | 'low')}
             >
-              <option value="high">High</option>
-              <option value="low">Low</option>
-            </select>
-          </label>
+              <SelectTrigger id="quality-select">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="high">High</SelectItem>
+                <SelectItem value="low">Low</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </div>
 
-      <LoadingButton
-        variant="primary"
-        loading={busy}
-        loadingText="Generating…"
-        disabled={!prompt.trim()}
+      <Button
+        variant="default"
+        disabled={!prompt.trim() || busy}
         onClick={() => generate()}
         aria-describedby={!prompt.trim() ? "video-prompt-required" : undefined}
       >
-        Generate
-      </LoadingButton>
+        {busy ? "Generating…" : "Generate"}
+      </Button>
       {!prompt.trim() && (
         <span id="video-prompt-required" className="sr-only">Enter a prompt to generate a video</span>
       )}
@@ -407,13 +436,14 @@ export default function SoraCreator({
         <div className="text-red-400 text-sm fade-in space-y-2">
           <div>{error}</div>
           {retryCount < 3 && (
-            <button
-              className="btn btn-sm text-xs"
+            <Button
+              size="sm"
+              variant="outline"
               onClick={retry}
               disabled={busy}
             >
               Retry {retryCount > 0 && `(${retryCount}/3)`}
-            </button>
+            </Button>
           )}
         </div>
       )}
@@ -427,9 +457,11 @@ export default function SoraCreator({
           {generationId && (
             <div className="flex items-center gap-2 text-xs">
               <span className="text-neutral-400">View quality:</span>
-              <div className="inline-flex rounded-md overflow-hidden border border-neutral-700">
-                <button
-                  className={`px-2 py-1 ${currentQuality === 'high' ? 'bg-neutral-700' : 'bg-neutral-900 hover:bg-neutral-800'}`}
+              <div className="inline-flex rounded-md overflow-hidden">
+                <Button
+                  size="sm"
+                  variant={currentQuality === 'high' ? 'default' : 'outline'}
+                  className="rounded-none rounded-l-md"
                   disabled={fetchingQuality || currentQuality === 'high'}
                   onClick={async () => {
                     if (!generationId) return;
@@ -453,9 +485,11 @@ export default function SoraCreator({
                   }}
                 >
                   High
-                </button>
-                <button
-                  className={`px-2 py-1 ${currentQuality === 'low' ? 'bg-neutral-700' : 'bg-neutral-900 hover:bg-neutral-800'}`}
+                </Button>
+                <Button
+                  size="sm"
+                  variant={currentQuality === 'low' ? 'default' : 'outline'}
+                  className="rounded-none rounded-r-md"
                   disabled={fetchingQuality || currentQuality === 'low'}
                   onClick={async () => {
                     if (!generationId) return;
@@ -479,7 +513,7 @@ export default function SoraCreator({
                   }}
                 >
                   Low
-                </button>
+                </Button>
               </div>
               {fetchingQuality && <span className="text-neutral-500">Loading…</span>}
             </div>
@@ -496,14 +530,15 @@ export default function SoraCreator({
               setError("Video playback failed. The file may be corrupted.");
             }}
           />
-          <a
-            className="btn inline-block"
-            href={videoUrl}
-            download={`sora_${currentQuality}_${Date.now()}.mp4`}
-            onClick={() => showToast("Video downloaded!", "success")}
-          >
-            Download MP4
-          </a>
+          <Button asChild>
+            <a
+              href={videoUrl}
+              download={`sora_${currentQuality}_${Date.now()}.mp4`}
+              onClick={() => showToast("Video downloaded!", "success")}
+            >
+              Download MP4
+            </a>
+          </Button>
         </div>
       )}
     </div>

@@ -3,6 +3,9 @@ import { usePromptSuggestions } from '../contexts/PromptSuggestionsContext';
 import { usePreferences } from '../contexts/PreferencesContext';
 import { Heading, Text } from './typography';
 import { recordEvent } from '../lib/analytics';
+import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 
 interface PromptSuggestionsProps {
   onInsert: (text: string) => void;
@@ -110,28 +113,29 @@ export default function PromptSuggestions({ onInsert, onReplace }: PromptSuggest
         <div className="flex items-center gap-2">
           {selectedIds.size > 0 && (
             <>
-              <button
-                className="btn btn-xs"
+              <Button
+                size="sm"
+                variant="outline"
                 onClick={insertSelected}
                 aria-label={`Insert ${selectedIds.size} selected suggestions`}
               >
                 Insert Selected ({selectedIds.size})
-              </button>
-              <button className="btn btn-xs" onClick={clearSelection} aria-label="Clear selection">Clear</button>
+              </Button>
+              <Button size="sm" variant="outline" onClick={clearSelection} aria-label="Clear selection">Clear</Button>
             </>
           )}
-          <button className="btn btn-xs" onClick={() => setShowPrefs(v => !v)} aria-expanded={showPrefs} aria-controls="suggestions-settings">
+          <Button size="sm" variant="ghost" onClick={() => setShowPrefs(v => !v)} aria-expanded={showPrefs} aria-controls="suggestions-settings" aria-label="Settings">
             ⚙
-          </button>
+          </Button>
         </div>
       </div>
 
       {showPrefs && (
-        <div id="suggestions-settings" className="card mb-2 space-y-2">
+        <Card id="suggestions-settings" className="mb-2 p-3 space-y-2">
           <label className="block text-sm">
             Insert separator
-            <input
-              className="input mt-1"
+            <Input
+              className="mt-1"
               value={prefs.insertSeparator}
               onChange={(e) => setInsertSeparator(e.target.value)}
               aria-label="Insert separator"
@@ -147,7 +151,7 @@ export default function PromptSuggestions({ onInsert, onReplace }: PromptSuggest
             />
             Auto-pin last used suggestions
           </label>
-        </div>
+        </Card>
       )}
 
       {suggestions.length === 0 ? (
@@ -195,15 +199,27 @@ export default function PromptSuggestions({ onInsert, onReplace }: PromptSuggest
                   </div>
                 </button>
                 <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-                  <button className="btn btn-xs" onClick={() => { onInsert(s.text); recordEvent('suggestion_insert', { id: s.id }); }} title="Insert">Ins</button>
-                  <button className="btn btn-xs" onClick={() => { onReplace(s.text); recordEvent('suggestion_replace', { id: s.id }); }} title="Replace">Rep</button>
-                  <button className="btn btn-xs" onClick={() => onCopy(s.text)} title="Copy">📋</button>
+                  <Button size="sm" variant="ghost" onClick={() => { onInsert(s.text); recordEvent('suggestion_insert', { id: s.id }); }} title="Insert">
+                    Ins
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => { onReplace(s.text); recordEvent('suggestion_replace', { id: s.id }); }} title="Replace">
+                    Rep
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => onCopy(s.text)} title="Copy" aria-label="Copy">
+                    📋
+                  </Button>
                   {isPinned(s.id) ? (
-                    <button className="btn btn-xs" onClick={() => unpin(s.id)} title="Unpin">📌</button>
+                    <Button size="sm" variant="ghost" onClick={() => unpin(s.id)} title="Unpin" aria-label="Unpin">
+                      📌
+                    </Button>
                   ) : (
-                    <button className="btn btn-xs" onClick={() => pin(s.id)} title="Pin">📍</button>
+                    <Button size="sm" variant="ghost" onClick={() => pin(s.id)} title="Pin" aria-label="Pin">
+                      📍
+                    </Button>
                   )}
-                  <button className="btn btn-xs" onClick={() => deleteSuggestion(s.id)} title="Delete" aria-label="Delete suggestion">🗑</button>
+                  <Button size="sm" variant="ghost" onClick={() => deleteSuggestion(s.id)} title="Delete" aria-label="Delete suggestion">
+                    🗑
+                  </Button>
                 </div>
               </div>
             </li>

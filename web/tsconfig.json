@@ -9,6 +9,7 @@
     "types": ["react", "react-dom"],
     "baseUrl": ".",
     "paths": {
+      "@/*": ["./src/*"],
       "@image-studio/shared": ["../shared/src"]
     }
   },

@@ -95,11 +95,13 @@ export const IMAGE_ANALYSIS_SCHEMA = {
       properties: {
         suggested_prompt: {
           type: "string",
-          description: "Suggested prompt for image/video generation"
+          maxLength: 2000,
+          description: "Suggested prompt for image/video generation (max 2000 chars)"
         },
         style_keywords: {
           type: "array",
-          items: { type: "string" }
+          items: { type: "string", maxLength: 50 },
+          maxItems: 20
         },
         technical_parameters: {
           type: "object",

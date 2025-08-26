@@ -1,6 +1,8 @@
-import { createContext, useContext, useState, useCallback, ReactNode } from 'react';
-import { createPortal } from 'react-dom';
-import Toast, { ToastType } from '../ui/Toast';
+import { createContext, useContext, useCallback, ReactNode } from 'react';
+import { Toaster, ToastAction } from '@/components/ui/use-toast';
+import { toast as shadcnToast } from '@/components/ui/use-toast';
+
+export type ToastType = 'success' | 'error' | 'warning';
 
 type ToastOptions = {
   duration?: number;
@@ -38,12 +40,8 @@ interface ToastProviderProps {
   maxToasts?: number;
 }
 
-export function ToastProvider({ children, maxToasts = 3 }: ToastProviderProps) {
-  const [toasts, setToasts] = useState<ToastItem[]>([]);
-
-  const showToast = useCallback((message: string, type: ToastType = "success", durationOrOptions?: number | ToastOptions) => {
-    const id = crypto.randomUUID?.() || Date.now().toString();
-
+export function ToastProvider({ children }: ToastProviderProps) {
+  const showToast = useCallback((message: string, type: ToastType = 'success', durationOrOptions?: number | ToastOptions) => {
     let duration: number | undefined;
     let actionLabel: string | undefined;
     let onAction: (() => void) | undefined;
@@ -56,36 +54,20 @@ export function ToastProvider({ children, maxToasts = 3 }: ToastProviderProps) {
       onAction = durationOrOptions.onAction;
     }
 
-    setToasts(prev => {
-      const newToasts = [...prev, { id, message, type, duration, actionLabel, onAction }];
-      // Keep only the most recent toasts
-      return newToasts.slice(-maxToasts);
+    shadcnToast({
+      description: message,
+      variant: type === 'error' ? 'destructive' : 'default',
+      duration,
+      action: actionLabel ? (
+        <ToastAction altText={actionLabel} onClick={onAction}>{actionLabel}</ToastAction>
+      ) : undefined,
     });
-  }, [maxToasts]);
-
-  const removeToast = useCallback((id: string) => {
-    setToasts(prev => prev.filter(toast => toast.id !== id));
   }, []);
 
   return (
     <ToastContext.Provider value={{ showToast }}>
       {children}
-      {toasts.length > 0 && createPortal(
-        <div className="fixed bottom-4 right-4 space-y-2 z-50" role="region" aria-label="Notifications">
-          {toasts.map(toast => (
-            <Toast
-              key={toast.id}
-              message={toast.message}
-              type={toast.type}
-              duration={toast.duration}
-              actionLabel={toast.actionLabel}
-              onAction={toast.onAction}
-              onClose={() => removeToast(toast.id)}
-            />
-          ))}
-        </div>,
-        document.body
-      )}
+      <Toaster />
     </ToastContext.Provider>
   );
 }

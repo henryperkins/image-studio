@@ -1,5 +1,26 @@
 [
   {
+    "kind": "video",
+    "id": "a3c68ace-cde6-4951-bc2a-5847ac24ed9b",
+    "filename": "a3c68ace-cde6-4951-bc2a-5847ac24ed9b.mp4",
+    "url": "/static/videos/a3c68ace-cde6-4951-bc2a-5847ac24ed9b.mp4",
+    "prompt": "Primary prompt (≈100 words): A colossal wooden ark-like vessel battles towering teal-green waves in a heavy rainstorm at dusk. Camera begins low and close to a cresting wave, then dolly-right and crane-up to reveal the ship sliding through swells. Rain streaks diagonally; wind rips spray from whitecaps. Warm window lights glow against charcoal clouds as golden backlight breaks the horizon, rim-lighting the hull and mist. Use 35mm lens, shallow-to-medium depth of field, water dynamics with foam sheeting, droplets, and splashes. Subtle handheld sway synchronized to wave motion, ending on a push-in toward the glowing windows as thunder rolls.\nTechnical notes: 6–8s, 24 fps, global shutter, motion blur moderate, film grain light, high wind and spray simulation, volumetric clouds and god rays.\n\nStyle elements: cinematic realism, naturalistic, high-contrast, volumetric lighting, epic seascape, moody, textured wood, storm ambiance, film grain, gold-teal palette\n\n[Reference images]\nhttp://20.57.32.81:8787/static/images/7d20db9e-1b35-4d59-bf7c-7a1c0dfb7ecf.png",
+    "width": 1920,
+    "height": 1080,
+    "duration": 10,
+    "createdAt": "2025-08-25T03:32:05.579Z"
+  },
+  {
+    "kind": "image",
+    "id": "7d20db9e-1b35-4d59-bf7c-7a1c0dfb7ecf",
+    "filename": "7d20db9e-1b35-4d59-bf7c-7a1c0dfb7ecf.png",
+    "url": "/static/images/7d20db9e-1b35-4d59-bf7c-7a1c0dfb7ecf.png",
+    "prompt": "A modern day ark with biblical flood",
+    "size": "auto",
+    "format": "png",
+    "createdAt": "2025-08-25T02:23:53.352Z"
+  },
+  {
     "kind": "image",
     "id": "502a5e53-b20b-4634-916e-b9d4a51e719a",
     "filename": "502a5e53-b20b-4634-916e-b9d4a51e719a.png",

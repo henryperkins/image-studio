@@ -3,6 +3,7 @@ import { LibraryItem, isVideoItem, analyzeImages, API_BASE_URL } from '../lib/ap
 import { usePromptSuggestions } from '../contexts/PromptSuggestionsContext';
 import { useToast } from '../contexts/ToastContext';
 import { Heading, Text } from '../ui/typography';
+import { Button } from '@/components/ui/button';
 
 interface LibraryPromptSuggestionsProps {
   library: LibraryItem[];
@@ -132,20 +133,23 @@ export default function LibraryPromptSuggestions({
 
       {/* Quick actions */}
       <div className="flex gap-2 mb-3">
-        <button
-          className="btn btn-sm flex-1"
+        <Button
+          size="sm"
+          className="flex-1"
           onClick={handleAnalyzeSelected}
           disabled={analyzing || selectedForAnalysis.size === 0}
         >
           {analyzing ? '🔄 Analyzing...' : '🔍 Analyze Selected'}
-        </button>
-        <button
-          className="btn btn-sm flex-1"
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          className="flex-1"
           onClick={handleRemixPrompts}
           disabled={selectedForAnalysis.size < 2}
         >
           🎨 Remix Prompts
-        </button>
+        </Button>
       </div>
 
       {/* Image selector grid - show first 8 images without scroll */}
@@ -211,14 +215,16 @@ export default function LibraryPromptSuggestions({
                 )}
                 <div className="space-y-1">
                   {items.slice(0, 3).map(s => (
-                    <button
+                    <Button
                       key={s.id}
-                      className="w-full text-left text-xs p-2 bg-neutral-800/50 rounded hover:bg-neutral-700/50 transition-colors truncate"
+                      variant="ghost"
+                      size="sm"
+                      className="w-full justify-start text-left text-xs truncate"
                       onClick={() => onInsert(s.text)}
                       title={s.text}
                     >
                       {s.text}
-                    </button>
+                    </Button>
                   ))}
                 </div>
               </div>

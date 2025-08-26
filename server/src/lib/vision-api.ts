@@ -65,7 +65,7 @@ Ensure all required fields are present and data types match exactly. Do not incl
   const response = await createResponse({
     model: config.deployment,
     input: input,
-    max_output_tokens: config.maxTokens || 1500,
+    max_output_tokens: config.maxTokens || 4000,
     text: { verbosity: 'medium' }, // Use medium verbosity for detailed analysis
     reasoning: { effort: 'low' }, // Use low effort for faster responses
     instructions: schemaInstructions,
@@ -151,7 +151,7 @@ export async function callVisionAPI(
 
   const requestBody = {
     messages,
-    max_tokens: config.maxTokens || 1500,
+    max_tokens: config.maxTokens || 4000,
     temperature: config.temperature ?? 0.1,
     top_p: 1.0,
     // Strict JSON schema enforcement

@@ -2,10 +2,18 @@ import { useState } from "react";
 import { useToast } from "../contexts/ToastContext";
 import { generateImage } from "../lib/api";
 import { processApiError } from "../lib/errorUtils";
-import { Heading, Text, Label, Mono } from "./typography";
-import { PromptTextarea } from "../components/PromptTextarea";
-import { LoadingButton } from "../components/LoadingButton";
 import { MediaSkeleton } from "../components/SkeletonLoader";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Slider } from "@/components/ui/slider";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 type Resp = {
   image_base64: string;
@@ -121,79 +129,114 @@ export default function ImageCreator({ onSaved, promptInputRef, prompt, setPromp
 
   return (
     <div className="space-y-3">
-      <Heading level={4}>Create Image (gpt-image-1)</Heading>
-      <PromptTextarea
-        ref={promptInputRef}
-        id="image-prompt"
-        value={prompt}
-        onChange={setPrompt}
-        onSubmit={generate}
-        placeholder="Describe the image…"
-        maxLength={32000}
-        disabled={busy}
-        busy={busy}
-        error={error}
-        ariaLabel="Image description prompt"
-      />
-      <Text size="xs" tone="muted">{prompt.length} / 32000</Text>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-        <Label size="sm">Size
-          <select className="input mt-1" value={size} onChange={e=>setSize(e.target.value)}>
-            <option>auto</option>
-            <option>1024x1024</option>
-            <option>1536x1024</option>
-            <option>1024x1536</option>
-          </select>
-        </Label>
-        <Label size="sm">Quality
-          <select className="input mt-1" value={quality} onChange={e=>setQuality(e.target.value)}>
-            <option>low</option><option>medium</option><option>high</option>
-          </select>
-        </Label>
-        <Label size="sm">Format
-          <select className="input mt-1" value={format} onChange={e=>onFormatChange(e.target.value as any)}>
-            <option>png</option><option>jpeg</option><option>webp</option>
-          </select>
-        </Label>
+      <h3 className="text-lg font-semibold">Create Image (gpt-image-1)</h3>
+      <div className="space-y-2">
+        <Label htmlFor="image-prompt">Image Description</Label>
+        <Textarea
+          ref={promptInputRef}
+          id="image-prompt"
+          value={prompt}
+          onChange={(e) => setPrompt(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+              e.preventDefault();
+              generate();
+            }
+          }}
+          placeholder="Describe the image…"
+          maxLength={32000}
+          disabled={busy}
+          className="min-h-[100px] resize-y"
+          aria-label="Image description prompt"
+        />
+        <p className="text-xs text-muted-foreground">{prompt.length} / 32000</p>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="size-select">Size</Label>
+          <Select value={size} onValueChange={setSize}>
+            <SelectTrigger id="size-select">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="auto">auto</SelectItem>
+              <SelectItem value="1024x1024">1024x1024</SelectItem>
+              <SelectItem value="1536x1024">1536x1024</SelectItem>
+              <SelectItem value="1024x1536">1024x1536</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="quality-select">Quality</Label>
+          <Select value={quality} onValueChange={setQuality}>
+            <SelectTrigger id="quality-select">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="low">low</SelectItem>
+              <SelectItem value="medium">medium</SelectItem>
+              <SelectItem value="high">high</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="format-select">Format</Label>
+          <Select value={format} onValueChange={(v) => onFormatChange(v as any)}>
+            <SelectTrigger id="format-select">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="png">png</SelectItem>
+              <SelectItem value="jpeg">jpeg</SelectItem>
+              <SelectItem value="webp">webp</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
         {(format === "png" || format === "webp") && (
-          <Label size="sm">Background
-            <select className="input mt-1" value={background} onChange={e=>onBackgroundChange(e.target.value as any)}>
-              <option value="auto">auto</option>
-              <option value="opaque">opaque</option>
-              <option value="transparent">transparent</option>
-            </select>
-          </Label>
+          <div className="space-y-2">
+            <Label htmlFor="background-select">Background</Label>
+            <Select value={background} onValueChange={(v) => onBackgroundChange(v as any)}>
+              <SelectTrigger id="background-select">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="auto">auto</SelectItem>
+                <SelectItem value="opaque">opaque</SelectItem>
+                <SelectItem value="transparent">transparent</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         )}
         {(format === "jpeg" || format === "webp") && (
-          <Label size="sm">Compression ({outputCompression}%)
-            <input
-              className="mt-2 w-full"
-              type="range"
+          <div className="space-y-2">
+            <Label htmlFor="compression-slider">Compression ({outputCompression}%)</Label>
+            <Slider
+              id="compression-slider"
               min={0}
               max={100}
               step={1}
-              value={outputCompression}
-              onChange={e => setOutputCompression(Math.min(100, Math.max(0, +e.target.value || 0)))} />
-          </Label>
+              value={[outputCompression]}
+              onValueChange={(v) => setOutputCompression(v[0])}
+              className="mt-2"
+            />
+          </div>
         )}
       </div>
       <div className="flex gap-2">
-        <LoadingButton
-          variant="primary"
-          loading={busy}
-          loadingText="Generating…"
-          disabled={!prompt.trim()}
+        <Button
+          variant="default"
+          disabled={!prompt.trim() || busy}
           onClick={() => generate()}
           aria-describedby={!prompt.trim() ? "prompt-required" : undefined}
         >
-          Generate & Save
-        </LoadingButton>
+          {busy ? "Generating…" : "Generate & Save"}
+        </Button>
         {!prompt.trim() && (
           <span id="prompt-required" className="sr-only">Enter a prompt to generate an image</span>
         )}
-        <LoadingButton variant="secondary" disabled={!result} onClick={download}>
+        <Button variant="outline" disabled={!result} onClick={download}>
           Download
-        </LoadingButton>
+        </Button>
       </div>
 
       {busy && !result && (
@@ -208,15 +251,16 @@ export default function ImageCreator({ onSaved, promptInputRef, prompt, setPromp
       )}
       {error && (
         <div className="fade-in space-y-2">
-          <Text size="sm" tone="danger">{error}</Text>
+          <p className="text-sm text-destructive">{error}</p>
           {retryCount < 3 && (
-            <button
-              className="btn btn-sm btn-secondary text-xs"
+            <Button
+              size="sm"
+              variant="outline"
               onClick={retry}
               disabled={busy}
             >
               Retry {retryCount > 0 && `(${retryCount}/3)`}
-            </button>
+            </Button>
           )}
         </div>
       )}
@@ -232,17 +276,18 @@ export default function ImageCreator({ onSaved, promptInputRef, prompt, setPromp
             onLoad={() => setIsImageLoading(false)}
           />
           <div className="flex items-center justify-between mt-2">
-            <Text size="xs" tone="muted">
-              Saved to library: <Mono tone="default">{result.library_item.filename}</Mono>
-            </Text>
-            <button
-              className="btn btn-primary text-xs px-4 py-2 ml-2"
+            <p className="text-xs text-muted-foreground">
+              Saved to library: <code className="font-mono">{result.library_item.filename}</code>
+            </p>
+            <Button
+              size="sm"
+              variant="default"
               autoFocus
               onClick={() => onSaved && result && onSaved(result.library_item.id)}
               aria-label="Switch to Sora and use this image"
             >
               Use in Sora →
-            </button>
+            </Button>
           </div>
         </div>
       )}
