@@ -1,8 +1,9 @@
-import { useState, useRef, useEffect } from "react";
-import { type LibraryItem, API_BASE_URL, isVideoItem } from "../lib/api";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { useMediaActions } from "../hooks/useMediaActions";
-import { Button } from "@/components/ui/button";
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { type LibraryItem, API_BASE_URL, isVideoItem } from '../lib/api';
+import { useMediaActions } from '../hooks/useMediaActions';
+import { Button } from '@/components/ui/button';
+import { createPortal } from 'react-dom';
+import { cn } from '@/lib/utils';
 
 type Props = {
   items: LibraryItem[];
@@ -44,10 +45,12 @@ export default function ImageViewerModal({
   const isDeleting = item ? deletingIds.has(item.id) : false;
   const isAnalyzing = item ? analyzingIds.has(item.id) : false;
   
-  // Keyboard navigation
+  // Keyboard navigation and focus management
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowLeft' && currentIndex > 0) {
+      if (e.key === 'Escape') {
+        onClose();
+      } else if (e.key === 'ArrowLeft' && currentIndex > 0) {
         onNavigate(images[currentIndex - 1].id);
       } else if (e.key === 'ArrowRight' && currentIndex < images.length - 1) {
         onNavigate(images[currentIndex + 1].id);
@@ -57,10 +60,20 @@ export default function ImageViewerModal({
     };
     
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [currentIndex, images]);
+    
+    // Focus management and body scroll lock
+    const previousActiveElement = document.activeElement as HTMLElement;
+    document.body.style.overflow = 'hidden';
+    closeButtonRef.current?.focus();
+    
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = '';
+      previousActiveElement?.focus();
+    };
+  }, [currentIndex, images, onClose, onNavigate, item, handleDeleteWithConfirm]);
   
-  const handleDeleteWithConfirm = async () => {
+  const handleDeleteWithConfirm = useCallback(async () => {
     if (!item) return;
     if (!confirmDelete) {
       setConfirmDelete(true);
@@ -80,18 +93,30 @@ export default function ImageViewerModal({
         onClose();
       }
     }
-  };
+  }, [confirmDelete, item, handleDelete, images, currentIndex, onNavigate, onClose]);
   
   if (!item) return null;
  
-  return (
-    <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
-      <DialogContent
-        className="fixed inset-0 p-0 bg-transparent border-0 shadow-none outline-none"
-        onOpenAutoFocus={(e) => { e.preventDefault(); closeButtonRef.current?.focus(); }}
+  // Use portal to render outside of any parent constraints
+  return createPortal(
+    <>
+      {/* Backdrop */}
+      <div 
+        className="fixed inset-0 bg-black/95 backdrop-blur-sm z-50"
+        onClick={onClose}
+        aria-hidden="true"
+      />
+      
+      {/* Modal Content */}
+      <div 
+        className="fixed inset-0 z-50 overflow-hidden"
+        onClick={(e) => {
+          // Only close if clicking the background, not content
+          if (e.target === e.currentTarget) onClose();
+        }}
       >
         {/* Navigation and close buttons */}
-        <div className="absolute top-2 left-2 right-2 z-50 flex justify-between">
+        <div className="absolute top-4 left-4 right-4 z-50 flex justify-between">
           <div className="flex gap-2">
             {currentIndex > 0 && (
               <Button
@@ -138,7 +163,7 @@ export default function ImageViewerModal({
         </div>
 
         {/* Main image */}
-        <div className="relative flex-1 flex items-center justify-center">
+        <div className="absolute inset-0 flex items-center justify-center p-4" onClick={(e) => e.stopPropagation()}>
           {imageError ? (
             <div className="text-center text-neutral-400">
               <svg className="w-16 h-16 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -149,9 +174,8 @@ export default function ImageViewerModal({
           ) : (
             <img
               src={`${baseUrl}${item.url}`}
-              alt={item.prompt || "Generated image"}
+              alt={item.prompt || 'Generated image'}
               className="max-w-full max-h-full object-contain rounded-lg"
-              style={{ maxHeight: "calc(90vh - 100px)" }}
               loading="lazy"
               decoding="async"
               onError={() => setImageError(true)}
@@ -178,7 +202,7 @@ export default function ImageViewerModal({
               </Button>
               <Button
                 variant="destructive"
-                className={`${confirmDelete ? '' : 'bg-black/70 hover:bg-black/90 text-white border border-white/10'}`}
+                className={cn(!confirmDelete && 'bg-black/70 hover:bg-black/90 text-white border border-white/10')}
                 onClick={handleDeleteWithConfirm}
                 disabled={isDeleting}
               >
@@ -204,7 +228,7 @@ export default function ImageViewerModal({
                 <Button variant="secondary" onClick={() => setShowControls(false)}>Cancel</Button>
               </div>
               <div className="mt-3 text-xs text-neutral-400 max-w-xs">
-                Click "Open Editor" to edit this image with mask painting and AI-powered inpainting
+                Click &quot;Open Editor&quot; to edit this image with mask painting and AI-powered inpainting
               </div>
             </div>
           )}
@@ -212,7 +236,7 @@ export default function ImageViewerModal({
 
         {/* Image metadata */}
         {item.prompt && (
-          <div className="absolute top-4 left-4 max-w-md bg-black/70 backdrop-blur-sm rounded-lg p-3 text-white text-sm">
+          <div className="absolute top-20 left-4 max-w-md bg-black/70 backdrop-blur-sm rounded-lg p-3 text-white text-sm">
             <div className="font-medium mb-1">Prompt:</div>
             <div className="text-neutral-300">{item.prompt}</div>
             {item.size && (
@@ -222,7 +246,8 @@ export default function ImageViewerModal({
             )}
           </div>
         )}
-      </DialogContent>
-    </Dialog>
+      </div>
+    </>,
+    document.body
   );
 }

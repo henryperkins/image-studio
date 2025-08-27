@@ -2,9 +2,9 @@
 // This allows mobile devices to connect to the dev server
 function getApiBaseUrl() {
   // 1) Build-time override via env
-  const envUrl = (import.meta as any).env?.VITE_API_BASE_URL as string | undefined;
+  const envUrl = (import.meta as unknown as { env?: { VITE_API_BASE_URL?: string } }).env?.VITE_API_BASE_URL;
   if (envUrl) {
-    console.log(`📍 Using env-configured API URL: ${envUrl}`);
+    console.warn(`📍 Using env-configured API URL: ${envUrl}`);
     return envUrl;
   }
 
@@ -15,7 +15,7 @@ function getApiBaseUrl() {
     if (paramUrl) {
       // Persist for subsequent loads
       localStorage.setItem('API_BASE_URL', paramUrl);
-      console.log(`🧭 API override from URL param: ${paramUrl}`);
+      console.warn(`🧭 API override from URL param: ${paramUrl}`);
       return paramUrl;
     }
   } catch {}
@@ -23,7 +23,7 @@ function getApiBaseUrl() {
   try {
     const stored = localStorage.getItem('API_BASE_URL');
     if (stored) {
-      console.log(`💾 API override from localStorage: ${stored}`);
+      console.warn(`💾 API override from localStorage: ${stored}`);
       return stored;
     }
   } catch {}
@@ -32,28 +32,29 @@ function getApiBaseUrl() {
   const host = window.location.hostname;
 
   // In production builds, prefer same-origin API to work on public URLs
-  if ((import.meta as any).env && (import.meta as any).env.DEV === false) {
+  const meta = import.meta as unknown as { env?: { DEV?: boolean } };
+  if (meta.env && meta.env.DEV === false) {
     const sameOrigin = window.location.origin;
-    console.log(`🌐 Using same-origin API (prod): ${sameOrigin}`);
+    console.warn(`🌐 Using same-origin API (prod): ${sameOrigin}`);
     return sameOrigin;
   }
 
   // In dev, default to localhost or LAN host:8787
   if (host === 'localhost' || host === '127.0.0.1') {
-    console.log(`🏠 Using localhost API URL`);
+    console.warn('🏠 Using localhost API URL');
     return 'http://localhost:8787';
   }
   const apiUrl = `http://${host}:8787`;
-  console.log(`📱 Using network API URL for mobile/remote access: ${apiUrl}`);
+  console.warn(`📱 Using network API URL for mobile/remote access: ${apiUrl}`);
   return apiUrl;
 }
 
 export const API_BASE_URL = getApiBaseUrl();
 
 // Enhanced debugging info for mobile connections
-console.log(`🔗 API Base URL: ${API_BASE_URL}`);
-console.log(`📱 User Agent: ${navigator.userAgent}`);
-console.log(`🌐 Current host: ${window.location.hostname}:${window.location.port || '(default)'}`);
+console.warn(`🔗 API Base URL: ${API_BASE_URL}`);
+console.warn(`📱 User Agent: ${navigator.userAgent}`);
+console.warn(`🌐 Current host: ${window.location.hostname}:${window.location.port || '(default)'}`);
 
 function withTimeout(ms: number) {
   const controller = new AbortController();
@@ -67,7 +68,7 @@ async function fetchJson(input: RequestInfo, init: RequestInit & { timeoutMs?: n
 
   // Log API calls for debugging (especially mobile)
   if (typeof input === 'string') {
-    console.log(`🔄 API Request: ${input}`);
+    console.warn(`🔄 API Request: ${input}`);
   }
 
   try {
@@ -79,14 +80,15 @@ async function fetchJson(input: RequestInfo, init: RequestInit & { timeoutMs?: n
     }
     const ct = r.headers.get('content-type') || '';
     const result = ct.includes('application/json') ? await r.json() : await r.text();
-    console.log(`✅ API Response received`);
+    console.warn('✅ API Response received');
     return result;
-  } catch (error: any) {
-    if (error.name === 'AbortError') {
+  } catch (error: unknown) {
+    const err = error as Error;
+    if (err.name === 'AbortError') {
       console.error(`⏱️ Request timeout after ${timeoutMs}ms`);
       throw new Error(`Request timeout after ${timeoutMs/1000}s. The server may be unreachable.`);
     }
-    console.error(`🔌 Network error:`, error);
+    console.error('🔌 Network error:', err);
     throw error;
   } finally {
     cancel();
@@ -100,7 +102,7 @@ import type {
   StructuredVisionResult,
   AccessibilityAnalysisResult,
   VisionHealthStatus
-} from "@image-studio/shared";
+} from '@image-studio/shared';
 import { hashText, safeRandomUUID } from './hash';
 
 // Re-export types that are used in other files
@@ -113,7 +115,7 @@ export type {
   VisionHealthStatus
 };
 
-export const isVideoItem = (i: LibraryItem): i is VideoItem => i.kind === "video";
+export const isVideoItem = (i: LibraryItem): i is VideoItem => i.kind === 'video';
 
 // Prompt Suggestions
 export type PromptSuggestion = {
@@ -131,19 +133,19 @@ export type PromptSuggestion = {
 export async function getPromptSuggestions(): Promise<PromptSuggestion[]> {
   // In a real implementation, this would fetch from a server endpoint
   // For now, we'll rely on local storage persistence.
-  console.log("Fetching suggestions from server (mocked)");
+  console.warn('Fetching suggestions from server (mocked)');
   return Promise.resolve([]);
 }
 
 export async function savePromptSuggestion(suggestion: Omit<PromptSuggestion, 'id' | 'createdAt' | 'dedupeKey'>): Promise<PromptSuggestion> {
   // In a real implementation, this would POST to a server endpoint
   // The server would handle ID generation, timestamping, and dedupe key creation.
-  console.log("Saving suggestion to server (mocked)", suggestion);
+  console.warn('Saving suggestion to server (mocked)', suggestion);
   const newSuggestion: PromptSuggestion = {
     ...suggestion,
     id: safeRandomUUID(),
     createdAt: new Date().toISOString(),
-    dedupeKey: await hashText(suggestion.text.trim().toLowerCase()),
+    dedupeKey: await hashText(suggestion.text.trim().toLowerCase())
   };
   return Promise.resolve(newSuggestion);
 }
@@ -158,7 +160,7 @@ export async function listLibrary(): Promise<LibraryItem[]> {
 }
 
 export async function deleteLibraryItem(id: string) {
-  const r = await fetch(`${API_BASE_URL}/api/library/media/${id}`, { method: "DELETE" });
+  const r = await fetch(`${API_BASE_URL}/api/library/media/${id}`, { method: 'DELETE' });
   if (!r.ok) throw new Error(await r.text());
   return true;
 }
@@ -167,16 +169,16 @@ export async function generateImage(
   prompt: string,
   size: string,
   quality: string,
-  format: "png"|"jpeg"|"webp",
-  options: { output_compression?: number; background?: "transparent" | "opaque" | "auto" } = {}
+  format: 'png'|'jpeg'|'webp',
+  options: { output_compression?: number; background?: 'transparent' | 'opaque' | 'auto' } = {}
 ) {
   const url = `${API_BASE_URL}/api/images/generate`;
-  console.log(`🎨 Generating image at: ${url}`);
+  console.warn(`🎨 Generating image at: ${url}`);
 
   try {
     const r = await fetch(url, {
-      method: "POST",
-      headers: {"Content-Type":"application/json"},
+      method: 'POST',
+      headers: { 'Content-Type':'application/json' },
       body: JSON.stringify({ prompt, size, quality, output_format: format, n: 1, ...options })
     });
 
@@ -187,20 +189,21 @@ export async function generateImage(
     }
 
     const result = await r.json();
-    console.log(`✅ Image generated successfully`);
+    console.warn('✅ Image generated successfully');
     return result;
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const err = error as Error;
     // Enhanced error for mobile debugging
-    if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+    if (err.message.includes('Failed to fetch') || err.message.includes('NetworkError')) {
       const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
       if (isMobile) {
-        console.error(`📱 Mobile network error detected`);
-        console.error(`💡 Tip: Ensure you're on the same WiFi as the server`);
+        console.error('📱 Mobile network error detected');
+        console.error('💡 Tip: Ensure you\'re on the same WiFi as the server');
         console.error(`💡 Server should be accessible at: ${API_BASE_URL}`);
         throw new Error(`Network error: Cannot reach server at ${API_BASE_URL}. Make sure you're on the same WiFi network as the server.`);
       }
     }
-    throw error;
+    throw err;
   }
 }
 
@@ -208,17 +211,17 @@ export async function editImage(
   image_id: string,
   prompt: string,
   mask_data_url?: string,
-  size: string = "1024x1024",
-  output_format: "png" | "jpeg" | "webp" = "png",
+  size: string = '1024x1024',
+  output_format: 'png' | 'jpeg' | 'webp' = 'png',
   options: {
-    quality?: "auto" | "low" | "medium" | "high" | "standard";
-    background?: "transparent" | "opaque" | "auto";
+    quality?: 'auto' | 'low' | 'medium' | 'high' | 'standard';
+    background?: 'transparent' | 'opaque' | 'auto';
     output_compression?: number;
   } = {}
 ) {
   const r = await fetch(`${API_BASE_URL}/api/images/edit`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       image_id,
       prompt,
@@ -249,9 +252,9 @@ export interface VisionAnalysisParams {
 
 
 // Legacy function for backward compatibility
-export async function describeImagesByIds(ids: string[], detail: "auto"|"low"|"high" = "high", mode: "describe"|"video_ideas" = "describe", style: "concise"|"detailed" = "concise") {
+export async function describeImagesByIds(ids: string[], detail: 'auto'|'low'|'high' = 'high', _mode: 'describe'|'video_ideas' = 'describe', style: 'concise'|'detailed' = 'concise') {
   const r = await fetch(`${API_BASE_URL}/api/vision/describe`, {
-    method: "POST", headers: {"Content-Type":"application/json"},
+    method: 'POST', headers: { 'Content-Type':'application/json' },
     body: JSON.stringify({ library_ids: ids, detail, style })
   });
   if (!r.ok) throw new Error(await r.text());
@@ -261,8 +264,8 @@ export async function describeImagesByIds(ids: string[], detail: "auto"|"low"|"h
 // Enhanced vision analysis with structured output
 export async function analyzeImages(ids: string[], options: VisionAnalysisParams = {}): Promise<StructuredVisionResult> {
   const r = await fetchJson(`${API_BASE_URL}/api/vision/analyze`, {
-    method: "POST",
-    headers: {"Content-Type":"application/json"},
+    method: 'POST',
+    headers: { 'Content-Type':'application/json' },
     body: JSON.stringify({ library_ids: ids, ...options }),
     timeoutMs: 300000
   });
@@ -279,8 +282,8 @@ export async function analyzeImagesForAccessibility(
   } = {}
 ): Promise<AccessibilityAnalysisResult> {
   const r = await fetchJson(`${API_BASE_URL}/api/vision/accessibility`, {
-    method: "POST",
-    headers: {"Content-Type":"application/json"},
+    method: 'POST',
+    headers: { 'Content-Type':'application/json' },
     body: JSON.stringify({
       library_ids: ids,
       screen_reader_optimized: options.screen_reader_optimized ?? true,
@@ -392,7 +395,7 @@ export async function generateVideo(
   options: { n_variants?: number; quality?: 'high' | 'low' } = {}
 ) {
   const r = await fetch(`${API_BASE_URL}/api/videos/sora/generate`, {
-    method: "POST", headers: {"Content-Type":"application/json"},
+    method: 'POST', headers: { 'Content-Type':'application/json' },
     body: JSON.stringify({ prompt, width, height, n_seconds, reference_image_urls, ...options })
   });
   if (!r.ok) throw new Error(await r.text());
@@ -414,16 +417,16 @@ export async function generateVideoWithProgress(
 ): Promise<{ data: any; bytesRead: number; total?: number }> {
   const url = `${API_BASE_URL}/api/videos/sora/generate`;
   const res = await fetch(url, {
-    method: "POST",
-    headers: {"Content-Type":"application/json"},
+    method: 'POST',
+    headers: { 'Content-Type':'application/json' },
     body: JSON.stringify({ prompt, width, height, n_seconds, reference_image_urls, ...options })
   });
   if (!res.ok) throw new Error(await res.text());
 
-  const total = Number(res.headers.get("Content-Length") || 0);
+  const total = Number(res.headers.get('Content-Length') || 0);
 
   // If streaming is not available, fall back to standard json() (no progress)
-  if (!res.body || typeof (res.body as any).getReader !== "function") {
+  if (!res.body || typeof (res.body as any).getReader !== 'function') {
     const data = await res.json();
     return { data, bytesRead: 0, total };
   }
@@ -443,7 +446,7 @@ export async function generateVideoWithProgress(
   }
 
   const decoder = new TextDecoder();
-  const text = chunks.map(c => decoder.decode(c, { stream: true })).join("") + decoder.decode();
+  const text = chunks.map(c => decoder.decode(c, { stream: true })).join('') + decoder.decode();
   const data = JSON.parse(text);
   return { data, bytesRead: received, total };
 }
@@ -452,8 +455,8 @@ export async function generateVideoWithProgress(
  */
 export async function getSoraVideoContent(generation_id: string, quality: 'high' | 'low' = 'high') {
   const r = await fetchJson(`${API_BASE_URL}/api/videos/sora/content/${encodeURIComponent(generation_id)}?quality=${quality}`, {
-    method: "GET",
-    headers: { "Accept": "application/json" },
+    method: 'GET',
+    headers: { 'Accept': 'application/json' },
     timeoutMs: 300000
   });
   return r as { generation_id: string; quality?: 'high' | 'low'; content_type: string; video_base64: string };
@@ -461,7 +464,7 @@ export async function getSoraVideoContent(generation_id: string, quality: 'high'
 
 export async function trimVideo(video_id: string, start: number, duration: number) {
   const r = await fetch(`${API_BASE_URL}/api/videos/edit/trim`, {
-    method: "POST", headers: {"Content-Type":"application/json"},
+    method: 'POST', headers: { 'Content-Type':'application/json' },
     body: JSON.stringify({ video_id, start, duration })
   });
   if (!r.ok) throw new Error(await r.text());
@@ -470,16 +473,16 @@ export async function trimVideo(video_id: string, start: number, duration: numbe
 
 export async function cropVideo(video_id: string, x: number, y: number, width: number, height: number) {
   const r = await fetch(`${API_BASE_URL}/api/videos/edit/crop`, {
-    method: "POST", headers: {"Content-Type":"application/json"},
+    method: 'POST', headers: { 'Content-Type':'application/json' },
     body: JSON.stringify({ video_id, x, y, width, height })
   });
   if (!r.ok) throw new Error(await r.text());
   return await r.json();
 }
 
-export async function resizeVideo(video_id: string, width: number, height: number, fit: "contain"|"cover"|"stretch" = "contain", bg = "black") {
+export async function resizeVideo(video_id: string, width: number, height: number, fit: 'contain'|'cover'|'stretch' = 'contain', bg = 'black') {
   const r = await fetch(`${API_BASE_URL}/api/videos/edit/resize`, {
-    method: "POST", headers: {"Content-Type":"application/json"},
+    method: 'POST', headers: { 'Content-Type':'application/json' },
     body: JSON.stringify({ video_id, width, height, fit, bg })
   });
   if (!r.ok) throw new Error(await r.text());
@@ -488,7 +491,7 @@ export async function resizeVideo(video_id: string, width: number, height: numbe
 
 export async function speedVideo(video_id: string, speed: number) {
   const r = await fetch(`${API_BASE_URL}/api/videos/edit/speed`, {
-    method: "POST", headers: {"Content-Type":"application/json"},
+    method: 'POST', headers: { 'Content-Type':'application/json' },
     body: JSON.stringify({ video_id, speed })
   });
   if (!r.ok) throw new Error(await r.text());
@@ -497,7 +500,7 @@ export async function speedVideo(video_id: string, speed: number) {
 
 export async function muteVideo(video_id: string) {
   const r = await fetch(`${API_BASE_URL}/api/videos/edit/mute`, {
-    method: "POST", headers: {"Content-Type":"application/json"},
+    method: 'POST', headers: { 'Content-Type':'application/json' },
     body: JSON.stringify({ video_id })
   });
   if (!r.ok) throw new Error(await r.text());
@@ -506,7 +509,7 @@ export async function muteVideo(video_id: string) {
 
 export async function volumeVideo(video_id: string, gain_db: number) {
   const r = await fetch(`${API_BASE_URL}/api/videos/edit/volume`, {
-    method: "POST", headers: {"Content-Type":"application/json"},
+    method: 'POST', headers: { 'Content-Type':'application/json' },
     body: JSON.stringify({ video_id, gain_db })
   });
   if (!r.ok) throw new Error(await r.text());
@@ -515,7 +518,7 @@ export async function volumeVideo(video_id: string, gain_db: number) {
 
 export async function overlayImageOnVideo(video_id: string, image_id: string, opts: { x?: string; y?: string; overlay_width?: number; overlay_height?: number; opacity?: number } = {}) {
   const r = await fetch(`${API_BASE_URL}/api/videos/edit/overlay`, {
-    method: "POST", headers: {"Content-Type":"application/json"},
+    method: 'POST', headers: { 'Content-Type':'application/json' },
     body: JSON.stringify({ video_id, image_id, ...opts })
   });
   if (!r.ok) throw new Error(await r.text());
@@ -524,7 +527,7 @@ export async function overlayImageOnVideo(video_id: string, image_id: string, op
 
 export async function concatVideos(video_ids: string[], target_width?: number, target_height?: number) {
   const r = await fetch(`${API_BASE_URL}/api/videos/edit/concat`, {
-    method: "POST", headers: {"Content-Type":"application/json"},
+    method: 'POST', headers: { 'Content-Type':'application/json' },
     body: JSON.stringify({ video_ids, target_width, target_height })
   });
   if (!r.ok) throw new Error(await r.text());

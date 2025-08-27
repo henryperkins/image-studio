@@ -109,11 +109,11 @@ export async function createResponse(
 
   const response = await withTimeout(
     fetch(url, {
-      method: "POST",
+      method: 'POST',
       headers: {
         ...config.authHeaders,
-        "Content-Type": "application/json",
-        "Accept": "application/json"
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
       },
       body: JSON.stringify(requestBody)
     }),

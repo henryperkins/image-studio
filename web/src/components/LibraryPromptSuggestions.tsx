@@ -2,8 +2,10 @@ import { useState, useCallback } from 'react';
 import { LibraryItem, isVideoItem, analyzeImages, API_BASE_URL } from '../lib/api';
 import { usePromptSuggestions } from '../contexts/PromptSuggestionsContext';
 import { useToast } from '../contexts/ToastContext';
-import { Heading, Text } from '../ui/typography';
 import { Button } from '@/components/ui/button';
+import { Separator } from '@/components/ui/separator';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Badge } from '@/components/ui/badge';
 
 interface LibraryPromptSuggestionsProps {
   library: LibraryItem[];
@@ -83,7 +85,7 @@ export default function LibraryPromptSuggestions({
         showToast(`Generated ${count} suggestions`, 'success');
       }
       setSelectedForAnalysis(new Set());
-    } catch (error) {
+    } catch {
       showToast('Analysis failed', 'error');
     } finally {
       setAnalyzing(false);
@@ -121,13 +123,12 @@ export default function LibraryPromptSuggestions({
   const images = library.filter(i => !isVideoItem(i));
 
   return (
-    <div className="mt-4 pt-4 border-t border-neutral-800">
+    <div className="mt-4">
+      <Separator className="mb-3" />
       <div className="flex items-center justify-between mb-3">
-        <Heading level={4}>Generate from Library</Heading>
+        <h4 className="text-lg font-semibold">Generate from Library</h4>
         {selectedForAnalysis.size > 0 && (
-          <span className="text-xs text-neutral-400">
-            {selectedForAnalysis.size} selected
-          </span>
+          <Badge variant="secondary">{selectedForAnalysis.size} selected</Badge>
         )}
       </div>
 
@@ -194,43 +195,45 @@ export default function LibraryPromptSuggestions({
 
       {/* Suggestions grouped by source */}
       {Object.entries(suggestionsByImage).length > 0 && (
-        <div className="space-y-2">
-          <Text size="xs" tone="muted">Suggestions by source:</Text>
-          {Object.entries(suggestionsByImage).map(([sourceId, items]) => {
-            const sourceItem = library.find(i => i.id === sourceId);
-            return (
-              <div key={sourceId} className="bg-neutral-800/30 rounded-lg p-2">
-                {sourceItem && (
-                  <div className="flex items-center gap-2 mb-2">
-                    <img
-                      src={`${API_BASE_URL}${sourceItem.url}`}
-                      alt=""
-                      className="w-8 h-8 rounded object-cover cursor-pointer hover:scale-110 transition-transform"
-                      onClick={() => onSelectItem(sourceItem.id)}
-                    />
-                    <Text size="xs" tone="muted" className="truncate flex-1">
-                      From: {sourceItem.prompt?.slice(0, 50)}...
-                    </Text>
+        <ScrollArea className="max-h-56 pr-2">
+          <div className="space-y-2">
+            <p className="text-xs text-neutral-500">Suggestions by source:</p>
+            {Object.entries(suggestionsByImage).map(([sourceId, items]) => {
+              const sourceItem = library.find(i => i.id === sourceId);
+              return (
+                <div key={sourceId} className="bg-neutral-800/30 rounded-lg p-2">
+                  {sourceItem && (
+                    <div className="flex items-center gap-2 mb-2">
+                      <img
+                        src={`${API_BASE_URL}${sourceItem.url}`}
+                        alt=""
+                        className="w-8 h-8 rounded object-cover cursor-pointer hover:scale-110 transition-transform"
+                        onClick={() => onSelectItem(sourceItem.id)}
+                      />
+                      <span className="text-xs text-neutral-500 truncate flex-1">
+                        From: {sourceItem.prompt?.slice(0, 50)}...
+                      </span>
+                    </div>
+                  )}
+                  <div className="space-y-1">
+                    {items.slice(0, 3).map(s => (
+                      <Button
+                        key={s.id}
+                        variant="ghost"
+                        size="sm"
+                        className="w-full justify-start text-left text-xs truncate"
+                        onClick={() => onInsert(s.text)}
+                        title={s.text}
+                      >
+                        {s.text}
+                      </Button>
+                    ))}
                   </div>
-                )}
-                <div className="space-y-1">
-                  {items.slice(0, 3).map(s => (
-                    <Button
-                      key={s.id}
-                      variant="ghost"
-                      size="sm"
-                      className="w-full justify-start text-left text-xs truncate"
-                      onClick={() => onInsert(s.text)}
-                      title={s.text}
-                    >
-                      {s.text}
-                    </Button>
-                  ))}
                 </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        </ScrollArea>
       )}
     </div>
   );

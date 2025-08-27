@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback } from 'react';
 import {
   analyzeImages,
   generateSoraPrompt,
@@ -7,25 +7,25 @@ import {
   type VisionAnalysisParams,
   type StructuredVisionResult,
   type AccessibilityAnalysisResult
-} from "../lib/api";
-import { useToast } from "../contexts/ToastContext";
-import { usePromptSuggestions } from "../contexts/PromptSuggestionsContext";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
-import { PromptTextarea } from "../components/PromptTextarea";
+} from '../lib/api';
+import { useToast } from '../contexts/ToastContext';
+import { usePromptSuggestions } from '../contexts/PromptSuggestionsContext';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
+import { PromptTextarea } from '../components/PromptTextarea';
+import { cn } from '@/lib/utils';
 
 interface EnhancedVisionAnalysisProps {
   selectedIds: string[];
-  // onPromptGenerated is intentionally unused now; suggestions are routed to the sidebar store
   onPromptGenerated?: (prompt: string) => void;
-  mode?: "sora" | "accessibility" | "general" | "safety";
+  mode?: 'sora' | 'accessibility' | 'general' | 'safety';
 }
 
 export default function EnhancedVisionAnalysis({
   selectedIds,
-  onPromptGenerated, // eslint-disable-line @typescript-eslint/no-unused-vars
-  mode = "sora",
+  onPromptGenerated,
+  mode = 'sora'
 }: EnhancedVisionAnalysisProps) {
   // Analysis state
   const [analyzing, setAnalyzing] = useState(false);
@@ -36,15 +36,15 @@ export default function EnhancedVisionAnalysis({
 
   // Analysis parameters
   const [params, setParams] = useState<VisionAnalysisParams>({
-    purpose: mode === "sora" ? "Sora video prompt creation" : "general description",
-    audience: "general",
-    language: "en",
-    detail: "standard",
-    tone: mode === "sora" ? "creative" : "casual",
-    focus: mode === "sora" ? ["motion_potential", "cinematic_elements", "scene_continuity"] : undefined,
+    purpose: mode === 'sora' ? 'Sora video prompt creation' : 'general description',
+    audience: 'general',
+    language: 'en',
+    detail: 'standard',
+    tone: mode === 'sora' ? 'creative' : 'casual',
+    focus: mode === 'sora' ? ['motion_potential', 'cinematic_elements', 'scene_continuity'] : undefined,
     enable_moderation: true,
     target_age: 18,
-    force_refresh: false,
+    force_refresh: false
   });
 
   // UI state
@@ -52,46 +52,46 @@ export default function EnhancedVisionAnalysis({
     basic: true,
     advanced: false,
     accessibility: false,
-    safety: false,
+    safety: false
   });
 
   // Only structured/accessibility displays remain (prompt UI moved to sidebar)
-  const [displayMode, setDisplayMode] = useState<"structured" | "accessibility">("structured");
+  const [displayMode, setDisplayMode] = useState<'structured' | 'accessibility'>('structured');
 
   const { showToast } = useToast();
   const { addSuggestion } = usePromptSuggestions();
 
   // Supported languages for analysis
   const languages = [
-    { code: "en", name: "English" },
-    { code: "es", name: "Spanish" },
-    { code: "fr", name: "French" },
-    { code: "de", name: "German" },
-    { code: "it", name: "Italian" },
-    { code: "pt", name: "Portuguese" },
-    { code: "ja", name: "Japanese" },
-    { code: "ko", name: "Korean" },
-    { code: "zh", name: "Chinese" },
+    { code: 'en', name: 'English' },
+    { code: 'es', name: 'Spanish' },
+    { code: 'fr', name: 'French' },
+    { code: 'de', name: 'German' },
+    { code: 'it', name: 'Italian' },
+    { code: 'pt', name: 'Portuguese' },
+    { code: 'ja', name: 'Japanese' },
+    { code: 'ko', name: 'Korean' },
+    { code: 'zh', name: 'Chinese' }
   ];
 
   // Focus areas based on mode
   const focusAreas = {
-    sora: ["motion_potential", "cinematic_elements", "scene_continuity", "lighting_transitions", "subject_movements"],
-    accessibility: ["spatial_relationships", "text_content", "color_information", "essential_details"],
-    general: ["composition", "subjects", "colors", "lighting", "mood", "style"],
-    safety: ["content_safety", "age_appropriateness", "sensitive_content"],
+    sora: ['motion_potential', 'cinematic_elements', 'scene_continuity', 'lighting_transitions', 'subject_movements'],
+    accessibility: ['spatial_relationships', 'text_content', 'color_information', 'essential_details'],
+    general: ['composition', 'subjects', 'colors', 'lighting', 'mood', 'style'],
+    safety: ['content_safety', 'age_appropriateness', 'sensitive_content']
   };
 
   const toggleSection = (section: string) => {
     setExpandedSections((prev) => ({
       ...prev,
-      [section]: !prev[section],
+      [section]: !prev[section]
     }));
   };
 
   const runAnalysis = useCallback(async () => {
     if (!selectedIds.length) {
-      setError("No images selected for analysis");
+      setError('No images selected for analysis');
       return;
     }
 
@@ -102,15 +102,15 @@ export default function EnhancedVisionAnalysis({
     try {
       let analysisResult: StructuredVisionResult;
 
-      if (mode === "accessibility") {
+      if (mode === 'accessibility') {
         // Run both structured and accessibility analysis
         const [structuredResult, accessibilityData] = await Promise.all([
           analyzeImages(selectedIds, params),
           analyzeImagesForAccessibility(selectedIds, {
             screen_reader_optimized: true,
             include_color_info: true,
-            reading_level: 8,
-          }),
+            reading_level: 8
+          })
         ]);
 
         analysisResult = structuredResult;
@@ -123,12 +123,12 @@ export default function EnhancedVisionAnalysis({
 
       // Content warnings
       if (analysisResult.metadata.sensitive_content) {
-        setWarnings(["Content may contain sensitive material"]);
+        setWarnings(['Content may contain sensitive material']);
       }
 
       // Extract processing notes as warnings
       const processingWarnings = analysisResult.metadata.processing_notes.filter(
-        (note) => note.includes("warning") || note.includes("advisory") || note.includes("redacted")
+        (note) => note.includes('warning') || note.includes('advisory') || note.includes('redacted')
       );
       if (processingWarnings.length > 0) {
         setWarnings((prev) => [...prev, ...processingWarnings]);
@@ -139,18 +139,18 @@ export default function EnhancedVisionAnalysis({
       if (suggested) {
         await addSuggestion({
           text: suggested,
-          sourceModel: "gpt-4.1",
-          origin: "vision-analysis",
-          sessionId: selectedIds.join(","),
-          tags: analysisResult.generation_guidance?.style_keywords || [],
+          sourceModel: 'gpt-4.1',
+          origin: 'vision-analysis',
+          sessionId: selectedIds.join(','),
+          tags: analysisResult.generation_guidance?.style_keywords || []
         });
       }
 
-      showToast(`Analysis completed with ${analysisResult.metadata.confidence} confidence`, "success");
+      showToast(`Analysis completed with ${analysisResult.metadata.confidence} confidence`, 'success');
     } catch (err: any) {
-      const errorMessage = err.message || "Analysis failed";
+      const errorMessage = err.message || 'Analysis failed';
       setError(errorMessage);
-      showToast(errorMessage, "error");
+      showToast(errorMessage, 'error');
     } finally {
       setAnalyzing(false);
     }
@@ -160,20 +160,23 @@ export default function EnhancedVisionAnalysis({
   const quickSoraAnalysis = async () => {
     try {
       const soraPrompt = await generateSoraPrompt(selectedIds, {
-        detail: "detailed",
-        tone: "creative",
+        detail: 'detailed',
+        tone: 'creative'
       });
+      if (onPromptGenerated) {
+        onPromptGenerated(soraPrompt);
+      }
       await addSuggestion({
         text: soraPrompt,
-        sourceModel: "gpt-4.1",
-        origin: "vision-analysis",
-        sessionId: selectedIds.join(","),
-        tags: [],
+        sourceModel: 'gpt-4.1',
+        origin: 'vision-analysis',
+        sessionId: selectedIds.join(','),
+        tags: []
       });
-      showToast("Sora prompt suggestion added to sidebar", "success");
+      showToast(onPromptGenerated ? 'Sora prompt inserted' : 'Sora prompt added to sidebar', 'success');
     } catch (err: any) {
-      setError(err.message || "Failed to generate Sora prompt");
-      showToast(err.message || "Failed to generate Sora prompt", "error");
+      setError(err.message || 'Failed to generate Sora prompt');
+      showToast(err.message || 'Failed to generate Sora prompt', 'error');
     }
   };
 
@@ -181,11 +184,11 @@ export default function EnhancedVisionAnalysis({
     try {
       const accessibilityData = await analyzeImagesForAccessibility(selectedIds);
       setAccessibilityResult(accessibilityData);
-      setDisplayMode("accessibility");
-      showToast("Accessibility analysis completed", "success");
+      setDisplayMode('accessibility');
+      showToast('Accessibility analysis completed', 'success');
     } catch (err: any) {
       setError(err.message);
-      showToast(err.message, "error");
+      showToast(err.message, 'error');
     }
   };
 
@@ -195,14 +198,14 @@ export default function EnhancedVisionAnalysis({
       setWarnings(safetyData.warnings);
 
       if (!safetyData.safe) {
-        setError("Content safety concerns detected");
-        showToast("Content flagged by safety filters", "warning");
+        setError('Content safety concerns detected');
+        showToast('Content flagged by safety filters', 'warning');
       } else {
-        showToast("Content passed safety checks", "success");
+        showToast('Content passed safety checks', 'success');
       }
     } catch (err: any) {
       setError(err.message);
-      showToast(err.message, "error");
+      showToast(err.message, 'error');
     }
   };
 
@@ -233,11 +236,13 @@ export default function EnhancedVisionAnalysis({
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-medium">Enhanced Vision Analysis</h3>
+        <h3 className="text-lg font-medium">{mode === 'sora' ? 'Enhanced Sora Prompt' : 'Enhanced Analysis'}</h3>
         <div className="flex gap-2">
-          <Button size="sm" variant="outline" onClick={quickSoraAnalysis} disabled={analyzing}>
-            Quick Sora Prompt
-          </Button>
+          {mode === 'sora' && (
+            <Button size="sm" onClick={quickSoraAnalysis} disabled={analyzing}>
+              Generate Sora Prompt
+            </Button>
+          )}
           <Button size="sm" variant="outline" onClick={quickAccessibilityCheck} disabled={analyzing}>
             Accessibility Check
           </Button>
@@ -246,18 +251,21 @@ export default function EnhancedVisionAnalysis({
           </Button>
         </div>
       </div>
+      {mode === 'sora' && (
+        <p className="text-xs text-neutral-400 -mt-2">Creates a concise, Sora-ready prompt from the selected images.</p>
+      )}
 
       {/* Basic Controls */}
       <div className="border border-neutral-700 rounded-lg">
         <button
           className="w-full flex items-center justify-between p-3 hover:bg-neutral-800/50 rounded-t-lg"
-          onClick={() => toggleSection("basic")}
+          onClick={() => toggleSection('basic')}
           aria-expanded={expandedSections.basic}
           aria-controls="basic-settings-panel"
         >
-          <span className="font-medium">Basic Settings</span>
+          <span className="font-medium">{mode === 'sora' ? 'Prompt Settings' : 'Basic Settings'}</span>
           <svg
-            className={`w-4 h-4 transform transition-transform ${expandedSections.basic ? "rotate-180" : ""}`}
+            className={cn('w-4 h-4 transform transition-transform', expandedSections.basic && 'rotate-180')}
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -269,37 +277,41 @@ export default function EnhancedVisionAnalysis({
         {expandedSections.basic && (
           <div id="basic-settings-panel" className="p-3 border-t border-neutral-700 space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-sm font-medium mb-2">Purpose</label>
-                <Select value={params.purpose} onValueChange={(v)=>setParams(prev=>({...prev, purpose: v}))}>
-                  <SelectTrigger id="purpose-select"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Sora video prompt creation">Sora Video Prompts</SelectItem>
-                    <SelectItem value="general description">General Description</SelectItem>
-                    <SelectItem value="accessibility compliance">Accessibility</SelectItem>
-                    <SelectItem value="content safety analysis">Safety Analysis</SelectItem>
-                    <SelectItem value="e-commerce product description">Product Description</SelectItem>
-                    <SelectItem value="social media content">Social Media</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+              {mode !== 'sora' && (
+                <div>
+                  <label className="block text-sm font-medium mb-2">Purpose</label>
+                  <Select value={params.purpose} onValueChange={(v)=>setParams(prev=>({ ...prev, purpose: v }))}>
+                    <SelectTrigger id="purpose-select"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Sora video prompt creation">Sora Video Prompts</SelectItem>
+                      <SelectItem value="general description">General Description</SelectItem>
+                      <SelectItem value="accessibility compliance">Accessibility</SelectItem>
+                      <SelectItem value="content safety analysis">Safety Analysis</SelectItem>
+                      <SelectItem value="e-commerce product description">Product Description</SelectItem>
+                      <SelectItem value="social media content">Social Media</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {mode !== 'sora' && (
+                <div>
+                  <label className="block text-sm font-medium mb-2">Audience</label>
+                  <Select value={params.audience as any} onValueChange={(v)=>setParams(prev=>({ ...prev, audience: v as any }))}>
+                    <SelectTrigger id="audience-select"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="general">General Public</SelectItem>
+                      <SelectItem value="technical">Technical Users</SelectItem>
+                      <SelectItem value="child">Children</SelectItem>
+                      <SelectItem value="academic">Academic/Research</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
 
               <div>
-                <label className="block text-sm font-medium mb-2">Audience</label>
-                <Select value={params.audience as any} onValueChange={(v)=>setParams(prev=>({...prev, audience: v as any}))}>
-                  <SelectTrigger id="audience-select"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="general">General Public</SelectItem>
-                    <SelectItem value="technical">Technical Users</SelectItem>
-                    <SelectItem value="child">Children</SelectItem>
-                    <SelectItem value="academic">Academic/Research</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-2">Detail Level</label>
-                <Select value={params.detail as any} onValueChange={(v)=>setParams(prev=>({...prev, detail: v as any}))}>
+                <label className="block text-sm font-medium mb-2">Detail</label>
+                <Select value={params.detail as any} onValueChange={(v)=>setParams(prev=>({ ...prev, detail: v as any }))}>
                   <SelectTrigger id="detail-select"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="brief">Brief</SelectItem>
@@ -311,32 +323,33 @@ export default function EnhancedVisionAnalysis({
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium mb-2">Tone</label>
-                <Select value={params.tone as any} onValueChange={(v)=>setParams(prev=>({...prev, tone: v as any}))}>
-                  <SelectTrigger id="tone-select"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="casual">Casual</SelectItem>
-                    <SelectItem value="formal">Formal</SelectItem>
-                    <SelectItem value="technical">Technical</SelectItem>
-                    <SelectItem value="creative">Creative</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-2">Language</label>
-                <Select value={params.language} onValueChange={(v)=>setParams(prev=>({...prev, language: v}))}>
-                  <SelectTrigger id="language-select"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {languages.map((lang) => (
-                      <SelectItem key={lang.code} value={lang.code}>{lang.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium mb-2">Tone</label>
+          <Select value={params.tone as any} onValueChange={(v)=>setParams(prev=>({ ...prev, tone: v as any }))}>
+            <SelectTrigger id="tone-select"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="casual">Casual</SelectItem>
+              <SelectItem value="formal">Formal</SelectItem>
+              <SelectItem value="technical">Technical</SelectItem>
+              <SelectItem value="creative">Creative</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        {mode !== 'sora' && (
+          <div>
+            <label className="block text-sm font-medium mb-2">Language</label>
+            <Select value={params.language} onValueChange={(v)=>setParams(prev=>({ ...prev, language: v }))}>
+              <SelectTrigger id="language-select"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {languages.map((lang) => (
+                  <SelectItem key={lang.code} value={lang.code}>{lang.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+      </div>
           </div>
         )}
       </div>
@@ -345,13 +358,13 @@ export default function EnhancedVisionAnalysis({
       <div className="border border-neutral-700 rounded-lg">
         <button
           className="w-full flex items-center justify-between p-3 hover:bg-neutral-800/50 rounded-t-lg"
-          onClick={() => toggleSection("advanced")}
+          onClick={() => toggleSection('advanced')}
           aria-expanded={expandedSections.advanced}
           aria-controls="advanced-settings-panel"
         >
           <span className="font-medium">Advanced Options</span>
           <svg
-            className={`w-4 h-4 transform transition-transform ${expandedSections.advanced ? "rotate-180" : ""}`}
+            className={cn('w-4 h-4 transform transition-transform', expandedSections.advanced && 'rotate-180')}
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -374,18 +387,18 @@ export default function EnhancedVisionAnalysis({
                         if (e.target.checked) {
                           setParams((prev) => ({
                             ...prev,
-                            focus: [...(prev.focus || []), area],
+                            focus: [...(prev.focus || []), area]
                           }));
                         } else {
                           setParams((prev) => ({
                             ...prev,
-                            focus: prev.focus?.filter((f) => f !== area),
+                            focus: prev.focus?.filter((f) => f !== area)
                           }));
                         }
                       }}
                       className="rounded border-neutral-600 text-blue-500 focus:ring-blue-500"
                     />
-                    <span className="capitalize">{area.replace(/_/g, " ")}</span>
+                    <span className="capitalize">{area.replace(/_/g, ' ')}</span>
                   </label>
                 ))}
               </div>
@@ -398,11 +411,11 @@ export default function EnhancedVisionAnalysis({
                 ariaLabel="Specific questions about the images"
                 className="h-24"
                 placeholder="Ask specific questions about the images..."
-                value={params.specific_questions || ""}
+                value={params.specific_questions || ''}
                 onChange={(val) =>
                   setParams((prev) => ({
                     ...prev,
-                    specific_questions: val || undefined,
+                    specific_questions: val || undefined
                   }))
                 }
                 maxLength={1000}
@@ -420,7 +433,7 @@ export default function EnhancedVisionAnalysis({
                     onChange={(e) =>
                       setParams((prev) => ({
                         ...prev,
-                        enable_moderation: e.target.checked,
+                        enable_moderation: e.target.checked
                       }))
                     }
                     className="rounded border-neutral-600 text-blue-500 focus:ring-blue-500"
@@ -435,7 +448,7 @@ export default function EnhancedVisionAnalysis({
                     onChange={(e) =>
                       setParams((prev) => ({
                         ...prev,
-                        force_refresh: e.target.checked,
+                        force_refresh: e.target.checked
                       }))
                     }
                     className="rounded border-neutral-600 text-blue-500 focus:ring-blue-500"
@@ -476,10 +489,10 @@ export default function EnhancedVisionAnalysis({
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
               </svg>
-              {`Analyzing ${selectedIds.length} image${selectedIds.length > 1 ? "s" : ""}…`}
+              {`Analyze ${selectedIds.length} image${selectedIds.length > 1 ? 's' : ''}`}
             </span>
           ) : (
-            `Analyze ${selectedIds.length} image${selectedIds.length > 1 ? "s" : ""}`
+            `Run Full Analysis`
           )}
         </Button>
       </div>
@@ -513,14 +526,14 @@ export default function EnhancedVisionAnalysis({
 
           {/* Errors */}
           {error && (
-            <div className="bg-red-900/20 border border-red-600/50 rounded-lg p-4">
+            <div className="bg-destructive/20 border border-destructive/50 rounded-lg p-4">
               <div className="flex items-center gap-2 mb-2">
-                <svg className="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5 text-destructive" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-                <span className="font-medium text-red-300">Analysis Error</span>
+                <span className="font-medium text-destructive-foreground">Analysis Error</span>
               </div>
-              <p className="text-sm text-red-200">{error}</p>
+              <p className="text-sm text-destructive-foreground/90">{error}</p>
             </div>
           )}
 
@@ -531,20 +544,20 @@ export default function EnhancedVisionAnalysis({
               <div className="flex border-b border-neutral-700">
                 {result && (
                   <button
-                    className={`px-4 py-2 text-sm font-medium transition-colors ${
-                      displayMode === "structured" ? "bg-blue-600 text-white" : "text-neutral-400 hover:text-white hover:bg-neutral-800"
-                    }`}
-                    onClick={() => setDisplayMode("structured")}
+                    className={cn('px-4 py-2 text-sm font-medium transition-colors',
+                      displayMode === 'structured' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                    )}
+                    onClick={() => setDisplayMode('structured')}
                   >
                     Structured Data
                   </button>
                 )}
                 {accessibilityResult && (
                   <button
-                    className={`px-4 py-2 text-sm font-medium transition-colors ${
-                      displayMode === "accessibility" ? "bg-blue-600 text-white" : "text-neutral-400 hover:text-white hover:bg-neutral-800"
-                    }`}
-                    onClick={() => setDisplayMode("accessibility")}
+                    className={cn('px-4 py-2 text-sm font-medium transition-colors',
+                      displayMode === 'accessibility' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                    )}
+                    onClick={() => setDisplayMode('accessibility')}
                   >
                     Accessibility
                   </button>
@@ -552,8 +565,10 @@ export default function EnhancedVisionAnalysis({
               </div>
 
               <div className="p-4">
-                {displayMode === "structured" && result && <StructuredResultDisplay result={result} />}
-                {displayMode === "accessibility" && accessibilityResult && (
+                {displayMode === 'structured' && result && (
+                  <StructuredResultDisplay result={result} onInsert={onPromptGenerated} />
+                )}
+                {displayMode === 'accessibility' && accessibilityResult && (
                   <AccessibilityDisplay result={accessibilityResult} />
                 )}
               </div>
@@ -566,7 +581,7 @@ export default function EnhancedVisionAnalysis({
 }
 
 // Sub-components for displaying different result types
-function StructuredResultDisplay({ result }: { result: StructuredVisionResult }) {
+function StructuredResultDisplay({ result, onInsert }: { result: StructuredVisionResult, onInsert?: (p: string)=>void }) {
   return (
     <div className="space-y-4">
       {/* Quality Panel */}
@@ -578,13 +593,13 @@ function StructuredResultDisplay({ result }: { result: StructuredVisionResult })
           <div className="flex justify-between">
             <span>Confidence:</span>
             <span
-              className={`font-medium ${
-                result.metadata.confidence === "high"
-                  ? "text-green-400"
-                  : result.metadata.confidence === "medium"
-                  ? "text-yellow-400"
-                  : "text-red-400"
-              }`}
+              className={cn('font-medium',
+                result.metadata.confidence === 'high'
+                  ? 'text-success'
+                  : result.metadata.confidence === 'medium'
+                  ? 'text-warning'
+                  : 'text-destructive'
+              )}
             >
               {result.metadata.confidence}
             </span>
@@ -655,7 +670,11 @@ function StructuredResultDisplay({ result }: { result: StructuredVisionResult })
 
       {/* Generation Guidance */}
       {result.generation_guidance?.suggested_prompt && (
-        <GenerationGuidanceBlock prompt={result.generation_guidance.suggested_prompt} styleKeywords={result.generation_guidance.style_keywords || []} />
+        <GenerationGuidanceBlock
+          prompt={result.generation_guidance.suggested_prompt}
+          styleKeywords={result.generation_guidance.style_keywords || []}
+          onInsert={onInsert}
+        />
       )}
     </div>
   );
@@ -670,10 +689,10 @@ function QualityPanel({ result }: { result: StructuredVisionResult }) {
         <div className="flex justify-between">
           <span>Confidence:</span>
           <span
-            className={`font-medium ${
-              result.metadata.confidence === 'high' ? 'text-green-400' :
-              result.metadata.confidence === 'medium' ? 'text-yellow-400' : 'text-red-400'
-            }`}
+            className={cn('font-medium',
+              result.metadata.confidence === 'high' ? 'text-success' :
+              result.metadata.confidence === 'medium' ? 'text-warning' : 'text-destructive'
+            )}
           >
             {result.metadata.confidence}
           </span>
@@ -684,7 +703,7 @@ function QualityPanel({ result }: { result: StructuredVisionResult }) {
         </div>
         <div className="flex justify-between">
           <span>Salvaged:</span>
-          <span className={`font-medium ${salvage ? 'text-yellow-400' : 'text-green-400'}`}>{salvage ? 'Yes' : 'No'}</span>
+          <span className={cn('font-medium', salvage ? 'text-warning' : 'text-success')}>{salvage ? 'Yes' : 'No'}</span>
         </div>
       </div>
     </div>
@@ -696,7 +715,7 @@ function isSalvaged(result: StructuredVisionResult): boolean {
   return notes.includes('partially recovered') || notes.includes('partially invalid') || notes.includes('fallback response');
 }
 
-function GenerationGuidanceBlock({ prompt, styleKeywords }: { prompt: string; styleKeywords: string[] }) {
+function GenerationGuidanceBlock({ prompt, styleKeywords, onInsert }: { prompt: string; styleKeywords: string[]; onInsert?: (p: string)=>void }) {
   const { showToast } = useToast();
   const copy = async () => {
     await navigator.clipboard.writeText(prompt);
@@ -706,7 +725,12 @@ function GenerationGuidanceBlock({ prompt, styleKeywords }: { prompt: string; st
     <div>
       <div className="flex items-center justify-between mb-2">
         <h4 className="font-medium">Generation Guidance</h4>
-        <Button size="sm" variant="outline" onClick={copy}>Copy Sora Prompt</Button>
+        <div className="flex gap-2">
+          {onInsert && (
+            <Button size="sm" onClick={() => onInsert(prompt)}>Insert into Video Prompt</Button>
+          )}
+          <Button size="sm" variant="outline" onClick={copy}>Copy Sora Prompt</Button>
+        </div>
       </div>
       <div className="bg-neutral-800/50 rounded-lg p-3 space-y-2 text-sm">
         <div>
@@ -733,7 +757,7 @@ function AccessibilityDisplay({ result }: { result: AccessibilityAnalysisResult 
 
   const copyAltText = () => {
     navigator.clipboard.writeText(result.alt_text);
-    showToast("Alt text copied to clipboard", "success");
+    showToast('Alt text copied to clipboard', 'success');
   };
 
   return (
@@ -771,21 +795,21 @@ function AccessibilityDisplay({ result }: { result: AccessibilityAnalysisResult 
           <div className="flex justify-between">
             <span>Relies on Color:</span>
             <span
-              className={`font-medium ${
-                result.color_accessibility.relies_on_color ? "text-yellow-400" : "text-green-400"
-              }`}
+              className={cn('font-medium',
+                result.color_accessibility.relies_on_color ? 'text-warning' : 'text-success'
+              )}
             >
-              {result.color_accessibility.relies_on_color ? "Yes" : "No"}
+              {result.color_accessibility.relies_on_color ? 'Yes' : 'No'}
             </span>
           </div>
           <div className="flex justify-between">
             <span>Color Blind Safe:</span>
             <span
-              className={`font-medium ${
-                result.color_accessibility.color_blind_safe ? "text-green-400" : "text-red-400"
-              }`}
+              className={cn('font-medium',
+                result.color_accessibility.color_blind_safe ? 'text-success' : 'text-destructive'
+              )}
             >
-              {result.color_accessibility.color_blind_safe ? "Yes" : "No"}
+              {result.color_accessibility.color_blind_safe ? 'Yes' : 'No'}
             </span>
           </div>
         </div>

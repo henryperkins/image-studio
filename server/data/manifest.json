@@ -1,6 +1,38 @@
 [
   {
     "kind": "video",
+    "id": "7fc497d4-4d89-477c-afd1-322c507148bb",
+    "filename": "7fc497d4-4d89-477c-afd1-322c507148bb.mp4",
+    "url": "/static/videos/7fc497d4-4d89-477c-afd1-322c507148bb.mp4",
+    "prompt": "Primary prompt (≈100 words): A golden-hour aerial-dolly over a calm urban river. Start high and slowly descend toward a steel truss bridge as warm sunlight rakes glass towers. Ripples and wake patterns on the water catch shifting gold reflections; light traffic glides across the bridge. Soft clouds drift, volumetric haze deepens depth between buildings. Lens flares bloom as the sun nears frame; end on a gentle tilt up to the tallest tower as birds arc through the sky. Natural wind ripples treetops; micro-shimmer on the water emphasizes physics-based motion.\nTechnical notes: 35mm lens, T4, gentle ND, polarizer, filmic grain, smooth 3-axis stabilization.\n\n[Reference images]\nhttp://localhost:8787/static/images/e35a71f3-30ef-4972-83ff-39256757aa91.png",
+    "width": 1080,
+    "height": 1080,
+    "duration": 10,
+    "createdAt": "2025-08-26T22:21:38.417Z"
+  },
+  {
+    "kind": "video",
+    "id": "9996811e-2aac-4ac5-83c0-bfaf4d1afbf7",
+    "filename": "9996811e-2aac-4ac5-83c0-bfaf4d1afbf7.mp4",
+    "url": "/static/videos/9996811e-2aac-4ac5-83c0-bfaf4d1afbf7.mp4",
+    "prompt": "Primary cinematic prompt (≈100 words): Aerial golden-hour journey over a calm river toward a modern skyline. Start with a slow drone dolly-forward 24mm anamorphic; the steel truss bridge glides beneath frame, parallaxing against glass towers. Ripples shear across water, reflecting drifting cumulus and sun flares. Subtle wind ruffles trees along the embankment; soft haze deepens atmospheric perspective. Transition to a gentle crane drop to skim the water, then arc up, revealing the tallest spire catching last light. Cars streak as faint bokeh on the bridge; gulls cross frame. End on a symmetrical lock-off as the sun kisses the horizon. Technical notes: golden-hour warm grade, slight film grain, smooth motion blur, physically accurate water reflections and metal micro-highlights.\n\nStyle elements: naturalistic, golden-hour, anamorphic, aerial-cinema, parallax, atmospheric-haze, film-grain, soft-bokeh, reflective-water, urban-landscape\n\n[Reference images]\nhttp://localhost:8787/static/images/e35a71f3-30ef-4972-83ff-39256757aa91.png",
+    "width": 1080,
+    "height": 1080,
+    "duration": 10,
+    "createdAt": "2025-08-26T22:17:51.188Z"
+  },
+  {
+    "kind": "image",
+    "id": "1d6290cf-16b6-47a8-8f4f-7e391cf951d4",
+    "filename": "1d6290cf-16b6-47a8-8f4f-7e391cf951d4.png",
+    "url": "/static/images/1d6290cf-16b6-47a8-8f4f-7e391cf951d4.png",
+    "prompt": "Gospel Artist Logo",
+    "size": "1536x1024",
+    "format": "png",
+    "createdAt": "2025-08-26T07:25:35.388Z"
+  },
+  {
+    "kind": "video",
     "id": "a3c68ace-cde6-4951-bc2a-5847ac24ed9b",
     "filename": "a3c68ace-cde6-4951-bc2a-5847ac24ed9b.mp4",
     "url": "/static/videos/a3c68ace-cde6-4951-bc2a-5847ac24ed9b.mp4",

@@ -6,12 +6,27 @@
     "moduleResolution": "Bundler",
     "strict": true,
     "skipLibCheck": true,
-    "types": ["react", "react-dom"],
+    "types": [
+      "react",
+      "react-dom"
+    ],
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"],
-      "@image-studio/shared": ["../shared/src"]
+      "@/*": [
+        "./src/*"
+      ],
+      "@image-studio/shared": [
+        "../shared/src"
+      ]
     }
   },
-  "exclude": ["src/__tests__/**/*"]
+  "include": [
+    "src/**/*",
+    "vite.config.ts",
+    "tailwind.config.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"
+  ]
 }

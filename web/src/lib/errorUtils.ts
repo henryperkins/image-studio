@@ -1,4 +1,4 @@
-import { API_BASE_URL } from "./api";
+import { API_BASE_URL } from './api';
 
 export interface ProcessedError {
   message: string;
@@ -8,7 +8,7 @@ export interface ProcessedError {
 }
 
 export function processApiError(error: any): ProcessedError {
-  const errorMsg = error.message || "Operation failed";
+  const errorMsg = error.message || 'Operation failed';
   
   const isRateLimit = errorMsg.toLowerCase().includes('rate') || 
                       errorMsg.toLowerCase().includes('limit');

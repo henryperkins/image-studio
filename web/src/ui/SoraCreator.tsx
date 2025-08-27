@@ -1,20 +1,25 @@
-import { useMemo, useState, useRef, useEffect } from "react";
-import { analyzeImages, generateVideoWithProgress, generateSoraPrompt, getSoraVideoContent } from "../lib/api";
-import { processApiError } from "../lib/errorUtils";
-import { useToast } from "../contexts/ToastContext";
-import EnhancedVisionAnalysis from "./EnhancedVisionAnalysis";
-import { SkeletonLoader, MediaSkeleton } from "../components/SkeletonLoader";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
+import { useMemo, useState, useRef, useEffect } from 'react';
+import { analyzeImages, generateVideoWithProgress, generateSoraPrompt, getSoraVideoContent } from '../lib/api';
+import { processApiError } from '../lib/errorUtils';
+import { useToast } from '../contexts/ToastContext';
+import EnhancedVisionAnalysis from './EnhancedVisionAnalysis';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Progress } from '@/components/ui/progress';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent } from '@/components/ui/card';
+import { Switch } from '@/components/ui/switch';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  SelectValue
+} from '@/components/ui/select';
 
 export default function SoraCreator({
   selectedIds = [] as string[],
@@ -36,7 +41,7 @@ export default function SoraCreator({
   const [seconds, setSeconds] = useState(10);
   const [quality, setQuality] = useState<'high' | 'low'>('high');
   const [aspectLocked, setAspectLocked] = useState(true);
-  const [aspectRatio, setAspectRatio] = useState(1);
+  const [_aspectRatio, setAspectRatio] = useState(1);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string|null>(null);
   const [retryCount, setRetryCount] = useState(0);
@@ -44,9 +49,9 @@ export default function SoraCreator({
   const [generationId, setGenerationId] = useState<string|null>(null);
   const [currentQuality, setCurrentQuality] = useState<'high' | 'low'>('high');
   const [fetchingQuality, setFetchingQuality] = useState(false);
-  const [analysis, setAnalysis] = useState<string>("");
+  const [analysis, setAnalysis] = useState<string>('');
   const [progress, setProgress] = useState(0);
-  const [stage, setStage] = useState<"idle"|"submitting"|"generating"|"downloading"|"finalizing">("idle");
+  const [stage, setStage] = useState<'idle'|'submitting'|'generating'|'downloading'|'finalizing'>('idle');
   const [analyzingImages, setAnalyzingImages] = useState(false);
   const [showEnhancedAnalysis, setShowEnhancedAnalysis] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -55,7 +60,7 @@ export default function SoraCreator({
 
   const finalPrompt = useMemo(() => {
     const base = prompt;
-    const refs = selectedUrls.length ? `\n\n[Reference images]\n${selectedUrls.join("\n")}` : "";
+    const refs = selectedUrls.length ? `\n\n[Reference images]\n${selectedUrls.join('\n')}` : '';
     return `${base}${refs}`;
   }, [prompt, selectedUrls]);
 
@@ -82,11 +87,11 @@ export default function SoraCreator({
       
       const description = `${result.content.scene_description}\n\nSuggested prompt: ${result.generation_guidance.suggested_prompt}`;
       setAnalysis(description);
-      showToast("Images analyzed successfully!", "success");
+      showToast('Images analyzed successfully!', 'success');
     } catch (e:any) {
-      const errorMsg = e.message || "Analyze failed";
+      const errorMsg = e.message || 'Analyze failed';
       setError(errorMsg);
-      showToast(errorMsg, "error");
+      showToast(errorMsg, 'error');
     } finally {
       setAnalyzingImages(false);
     }
@@ -103,11 +108,11 @@ export default function SoraCreator({
         audience: 'technical'
       });
       setPrompt(prev => prev + (prev ? '\n\n' : '') + soraPrompt);
-      showToast("Advanced Sora prompt generated with GPT-5!", "success");
+      showToast('Advanced Sora prompt generated with GPT-5!', 'success');
     } catch (e: any) {
-      const errorMsg = e.message || "Enhanced analysis failed";
+      const errorMsg = e.message || 'Enhanced analysis failed';
       setError(errorMsg);
-      showToast(errorMsg, "error");
+      showToast(errorMsg, 'error');
     } finally {
       setAnalyzingImages(false);
     }
@@ -115,13 +120,13 @@ export default function SoraCreator({
 
   const handleEnhancedPromptGenerated = (generatedPrompt: string) => {
     setPrompt(prev => prev + (prev ? '\n\n' : '') + generatedPrompt);
-    showToast("Prompt added from enhanced analysis!", "success");
+    showToast('Prompt added from enhanced analysis!', 'success');
   };
 
   async function generate(isRetry = false) {
     setBusy(true); setError(null);
     setProgress(1);
-    setStage("submitting");
+    setStage('submitting');
     
     // Clean up previous video URL to prevent memory leaks
     if (videoDataRef.current) {
@@ -132,7 +137,7 @@ export default function SoraCreator({
 
     // Smooth simulated progress up to ~85% while Azure job runs
     // Eases as it approaches the cap so it feels natural.
-    setTimeout(() => setStage("generating"), 250);
+    setTimeout(() => setStage('generating'), 250);
     const simInterval = setInterval(() => {
       setProgress(prev => {
         if (prev >= 85) return prev;
@@ -145,7 +150,7 @@ export default function SoraCreator({
 
     try {
       const { data } = await generateVideoWithProgress(finalPrompt, width, height, seconds, selectedUrls, { quality }, (loaded, total) => {
-        setStage("downloading");
+        setStage('downloading');
         if (total > 0) {
           const pct = 85 + Math.min(14, Math.floor((loaded / total) * 14));
           setProgress(Math.min(99, pct));
@@ -165,24 +170,24 @@ export default function SoraCreator({
       const blob = new Blob([byteArray], { type: 'video/mp4' });
       const blobUrl = URL.createObjectURL(blob);
       
-      setStage("finalizing");
+      setStage('finalizing');
       setGenerationId(data.generation_id || null);
       setCurrentQuality((quality));
       videoDataRef.current = blobUrl;
       setVideoUrl(blobUrl);
       setProgress(100);
       setRetryCount(0);
-      showToast("Video generated successfully!", "success");
+      showToast('Video generated successfully!', 'success');
     } catch (e:any) {
       const { detailedMessage } = processApiError(e);
       setError(detailedMessage);
       if (isRetry) {
         setRetryCount(prev => prev + 1);
       }
-      showToast(detailedMessage, "error");
+      showToast(detailedMessage, 'error');
     } finally {
       clearInterval(simInterval);
-      setStage("idle");
+      setStage('idle');
       setBusy(false);
       setTimeout(() => setProgress(0), 800);
     }
@@ -199,24 +204,27 @@ export default function SoraCreator({
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-medium">Create Video (Sora on Azure)</h2>
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => setShowEnhancedAnalysis(!showEnhancedAnalysis)}
-        >
-          {showEnhancedAnalysis ? 'Simple Analysis' : 'Enhanced Analysis'}
-        </Button>
+        <div className="flex items-center gap-2 text-xs">
+          <span className="text-neutral-400">Enhanced Analysis</span>
+          <Switch
+            checked={showEnhancedAnalysis}
+            onCheckedChange={setShowEnhancedAnalysis}
+            aria-label="Toggle enhanced analysis"
+          />
+        </div>
       </div>
 
       {/* Enhanced Vision Analysis */}
       {showEnhancedAnalysis && selectedIds.length > 0 && (
-        <div className="border border-neutral-700 rounded-lg p-4">
-          <EnhancedVisionAnalysis
-            selectedIds={selectedIds}
-            onPromptGenerated={handleEnhancedPromptGenerated}
-            mode="sora"
-          />
-        </div>
+        <Card>
+          <CardContent className="p-4">
+            <EnhancedVisionAnalysis
+              selectedIds={selectedIds}
+              onPromptGenerated={handleEnhancedPromptGenerated}
+              mode="sora"
+            />
+          </CardContent>
+        </Card>
       )}
 
       {/* Simplified Analysis Controls */}
@@ -228,22 +236,22 @@ export default function SoraCreator({
             onClick={generateEnhancedPrompt}
             className="flex-1"
           >
-            {analyzingImages ? "Generating advanced prompt…" : `Generate Sora Prompt (GPT-5) for ${selectedIds.length} image${selectedIds.length > 1 ? "s" : ""}`}
+            {analyzingImages ? 'Generating advanced prompt…' : `Generate Sora Prompt (GPT-5) for ${selectedIds.length} image${selectedIds.length > 1 ? 's' : ''}`}
           </Button>
           <Button
             variant="outline"
             disabled={!selectedIds.length || busy || analyzingImages}
             onClick={analyze}
           >
-            {analyzingImages ? "Analyzing…" : "Basic Analysis"}
+            {analyzingImages ? 'Analyzing…' : 'Basic Analysis'}
           </Button>
           {analysis && (
             <Button
               variant="outline"
               onClick={() => {
-                const promptToInsert = analysis.replace(/^Suggested.*?prompt:\s*/im, "");
-                setPrompt(p => p + (p ? "\n\n" : "") + promptToInsert);
-                showToast("Analysis inserted into prompt", "success");
+                const promptToInsert = analysis.replace(/^Suggested.*?prompt:\s*/im, '');
+                setPrompt(p => p + (p ? '\n\n' : '') + promptToInsert);
+                showToast('Analysis inserted into prompt', 'success');
               }}
               disabled={analyzingImages}
             >
@@ -254,9 +262,14 @@ export default function SoraCreator({
       )}
 
       {analyzingImages && !analysis && (
-        <div className="rounded-xl bg-neutral-950 border border-neutral-800 p-3">
-          <SkeletonLoader type="text" lines={4} />
-        </div>
+        <Card className="bg-neutral-950">
+          <CardContent className="p-3 space-y-2">
+            <Skeleton className="h-3 w-3/4" />
+            <Skeleton className="h-3 w-5/6" />
+            <Skeleton className="h-3 w-2/3" />
+            <Skeleton className="h-3 w-1/2" />
+          </CardContent>
+        </Card>
       )}
 
       {!!analysis && !analyzingImages && (
@@ -290,33 +303,63 @@ export default function SoraCreator({
       {selectedUrls.length > 0 && (
         <div className="space-y-2">
           <div className="text-xs text-neutral-300">
-            Using {selectedUrls.length} reference image{selectedUrls.length>1?"s":""}.
+            Using {selectedUrls.length} reference image{selectedUrls.length>1?'s':''}.
           </div>
-          <div className="flex gap-2 flex-wrap">
-            {selectedUrls.map((url, index) => (
-              <div key={index} className="relative group">
-                <img
-                  src={url}
-                  alt={`Reference ${index + 1}`}
-                  className="w-12 h-12 rounded border border-neutral-700 object-cover"
-                />
-                <Button
-                  size="sm"
-                  variant="destructive"
-                  className="absolute -top-1 -right-1 w-5 h-5 p-0 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-                  onClick={() => {
-                    const idToRemove = selectedIds[index];
-                    if (idToRemove && onRemoveImage) {
-                      onRemoveImage(idToRemove);
-                    }
-                  }}
-                  aria-label={`Remove reference image ${index + 1}`}
-                >
-                  ✕
-                </Button>
+          {selectedUrls.length >= 8 ? (
+            <ScrollArea className="max-h-28 pr-2">
+              <div className="flex gap-2 flex-wrap">
+                {selectedUrls.map((url, index) => (
+                  <div key={index} className="relative group">
+                    <img
+                      src={url}
+                      alt={`Reference ${index + 1}`}
+                      className="w-12 h-12 rounded border border-neutral-700 object-cover"
+                    />
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      className="absolute -top-1 -right-1 w-5 h-5 p-0 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                      onClick={() => {
+                        const idToRemove = selectedIds[index];
+                        if (idToRemove && onRemoveImage) {
+                          onRemoveImage(idToRemove);
+                        }
+                      }}
+                      aria-label={`Remove reference image ${index + 1}`}
+                    >
+                      ✕
+                    </Button>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            </ScrollArea>
+          ) : (
+            <div className="flex gap-2 flex-wrap">
+              {selectedUrls.map((url, index) => (
+                <div key={index} className="relative group">
+                  <img
+                    src={url}
+                    alt={`Reference ${index + 1}`}
+                    className="w-12 h-12 rounded border border-neutral-700 object-cover"
+                  />
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    className="absolute -top-1 -right-1 w-5 h-5 p-0 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                    onClick={() => {
+                      const idToRemove = selectedIds[index];
+                      if (idToRemove && onRemoveImage) {
+                        onRemoveImage(idToRemove);
+                      }
+                    }}
+                    aria-label={`Remove reference image ${index + 1}`}
+                  >
+                    ✕
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -364,6 +407,10 @@ export default function SoraCreator({
               </SelectContent>
             </Select>
           </div>
+          <div className="flex items-center gap-2 sm:col-span-2 lg:col-span-1">
+            <Checkbox id="aspect-lock" checked={aspectLocked} onCheckedChange={(v)=>setAspectLocked(!!v)} />
+            <Label htmlFor="aspect-lock" className="text-xs text-muted-foreground">Lock aspect ratio</Label>
+          </div>
           <div className="space-y-2 sm:col-span-2 lg:col-span-1">
             <Label htmlFor="duration-input">Duration (s)</Label>
             <Input 
@@ -398,9 +445,9 @@ export default function SoraCreator({
         variant="default"
         disabled={!prompt.trim() || busy}
         onClick={() => generate()}
-        aria-describedby={!prompt.trim() ? "video-prompt-required" : undefined}
+        aria-describedby={!prompt.trim() ? 'video-prompt-required' : undefined}
       >
-        {busy ? "Generating…" : "Generate"}
+        {busy ? 'Generating…' : 'Generate'}
       </Button>
       {!prompt.trim() && (
         <span id="video-prompt-required" className="sr-only">Enter a prompt to generate a video</span>
@@ -410,30 +457,23 @@ export default function SoraCreator({
         <div className="space-y-1">
           <div className="flex justify-between text-xs text-neutral-400">
             <span>
-              {stage === "submitting" && "Submitting job…"}
-              {stage === "generating" && "Generating on Azure…"}
-              {stage === "downloading" && "Downloading result…"}
-              {stage === "finalizing" && "Finalizing…"}
-              {stage === "idle" && "Working…"}
+              {stage === 'submitting' && 'Submitting job…'}
+              {stage === 'generating' && 'Generating on Azure…'}
+              {stage === 'downloading' && 'Downloading result…'}
+              {stage === 'finalizing' && 'Finalizing…'}
+              {stage === 'idle' && 'Working…'}
             </span>
             {progress > 0 ? <span>{Math.round(progress)}%</span> : null}
           </div>
           {progress > 0 ? (
-            <div className="w-full bg-neutral-800 rounded-full h-1 overflow-hidden">
-              <div
-                className="progress-bar h-full"
-                style={{ width: `${progress}%` }}
-              />
-            </div>
+            <Progress value={progress} />
           ) : (
-            <div className="w-full bg-neutral-800 rounded-full h-1 overflow-hidden relative">
-              <div className="progress-bar progress-bar-indeterminate h-full" />
-            </div>
+            <Progress />
           )}
         </div>
       )}
       {error && (
-        <div className="text-red-400 text-sm fade-in space-y-2">
+        <div className="text-destructive-foreground text-sm fade-in space-y-2">
           <div>{error}</div>
           {retryCount < 3 && (
             <Button
@@ -448,7 +488,7 @@ export default function SoraCreator({
         </div>
       )}
       {busy && !videoUrl && (
-        <MediaSkeleton mediaType="video" size="1080x1080" />
+        <Skeleton className="w-full h-[360px] rounded-xl border border-neutral-800" />
       )}
 
       {videoUrl && (
@@ -526,15 +566,15 @@ export default function SoraCreator({
             controls
             preload="metadata"
             onError={(e) => {
-              console.error("Video playback error:", e);
-              setError("Video playback failed. The file may be corrupted.");
+              console.error('Video playback error:', e);
+              setError('Video playback failed. The file may be corrupted.');
             }}
           />
           <Button asChild>
             <a
               href={videoUrl}
               download={`sora_${currentQuality}_${Date.now()}.mp4`}
-              onClick={() => showToast("Video downloaded!", "success")}
+              onClick={() => showToast('Video downloaded!', 'success')}
             >
               Download MP4
             </a>

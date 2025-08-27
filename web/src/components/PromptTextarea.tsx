@@ -1,5 +1,6 @@
-import { forwardRef, KeyboardEvent, DragEvent, useState } from "react";
-import { Textarea as UiTextarea } from "@/components/ui/textarea";
+import { forwardRef, KeyboardEvent, DragEvent, useState } from 'react';
+import { Textarea as UiTextarea } from '@/components/ui/textarea';
+import { cn } from '@/lib/utils';
 
 interface PromptTextareaProps {
   value: string;
@@ -22,35 +23,35 @@ export const PromptTextarea = forwardRef<HTMLTextAreaElement, PromptTextareaProp
       value,
       onChange,
       onSubmit,
-      placeholder = "Describe what you want to create...",
+      placeholder = 'Describe what you want to create...',
       maxLength = 2000,
       minLength = 10,
       disabled = false,
       busy = false,
-      className = "h-32",
+      className = 'h-32',
       id,
       ariaLabel,
-      error,
+      error
     },
     ref
   ) => {
     const [hasInteracted, setHasInteracted] = useState(false);
     const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === "Enter" && !busy && !disabled && value.trim() && onSubmit) {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && !busy && !disabled && value.trim() && onSubmit) {
         e.preventDefault();
         onSubmit();
       }
     };
 
     const handleDragOver = (e: DragEvent<HTMLTextAreaElement>) => {
-      if (e.dataTransfer?.types.includes("text/plain")) {
+      if (e.dataTransfer?.types.includes('text/plain')) {
         e.preventDefault();
-        e.dataTransfer.dropEffect = "copy";
+        e.dataTransfer.dropEffect = 'copy';
       }
     };
 
     const handleDrop = (e: DragEvent<HTMLTextAreaElement>) => {
-      const data = e.dataTransfer?.getData("text/plain");
+      const data = e.dataTransfer?.getData('text/plain');
       if (!data) return;
       e.preventDefault();
       
@@ -71,10 +72,10 @@ export const PromptTextarea = forwardRef<HTMLTextAreaElement, PromptTextareaProp
     };
 
     const getHelpText = () => {
-      if (value.length === 0 && hasInteracted) return "Prompt is required";
-      if (value.length > 0 && value.length < minLength) return "Consider adding more detail for better results";
-      if (onSubmit && value.length >= minLength) return "Press Ctrl+Enter to generate";
-      return "";
+      if (value.length === 0 && hasInteracted) return 'Prompt is required';
+      if (value.length > 0 && value.length < minLength) return 'Consider adding more detail for better results';
+      if (onSubmit && value.length >= minLength) return 'Press Ctrl+Enter to generate';
+      return '';
     };
 
     const helpTextId = id ? `${id}-help` : undefined;
@@ -84,7 +85,7 @@ export const PromptTextarea = forwardRef<HTMLTextAreaElement, PromptTextareaProp
         <UiTextarea
           ref={ref}
           id={id}
-          className={`resize-none ${className}`}
+          className={cn('resize-none', className)}
           placeholder={placeholder}
           value={value}
           onChange={(e) => {
@@ -98,14 +99,14 @@ export const PromptTextarea = forwardRef<HTMLTextAreaElement, PromptTextareaProp
           disabled={disabled || busy}
           aria-label={ariaLabel}
           aria-required="true"
-          aria-invalid={error ? "true" : undefined}
+          aria-invalid={error ? 'true' : undefined}
           aria-describedby={helpTextId}
         />
         <div className="flex justify-between items-center mt-1">
           <p className="text-muted-foreground text-xs" id={helpTextId}>
             {getHelpText()}
           </p>
-          <p className={`text-muted-foreground text-xs ${value.length > maxLength * 0.8 ? "text-amber-400" : ""}`}>
+          <p className={cn('text-muted-foreground text-xs', value.length > maxLength * 0.8 && 'text-warning')}>
             {value.length}/{maxLength}
           </p>
         </div>
@@ -114,4 +115,4 @@ export const PromptTextarea = forwardRef<HTMLTextAreaElement, PromptTextareaProp
   }
 );
 
-PromptTextarea.displayName = "PromptTextarea";
+PromptTextarea.displayName = 'PromptTextarea';

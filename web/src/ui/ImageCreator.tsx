@@ -1,32 +1,33 @@
-import { useState } from "react";
-import { useToast } from "../contexts/ToastContext";
-import { generateImage } from "../lib/api";
-import { processApiError } from "../lib/errorUtils";
-import { MediaSkeleton } from "../components/SkeletonLoader";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-import { Slider } from "@/components/ui/slider";
+import { useState } from 'react';
+import { useToast } from '../contexts/ToastContext';
+import { generateImage } from '../lib/api';
+import { processApiError } from '../lib/errorUtils';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Progress } from '@/components/ui/progress';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { Slider } from '@/components/ui/slider';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  SelectValue
+} from '@/components/ui/select';
 
 type Resp = {
   image_base64: string;
   model: string;
   size: string;
-  format: "png" | "jpeg" | "webp";
+  format: 'png' | 'jpeg' | 'webp';
   library_item: {
     id: string;
     url: string;
     filename: string;
     prompt: string;
-    size: "auto" | "1024x1024" | "1536x1024" | "1024x1536";
-    format: "png" | "jpeg" | "webp";
+    size: 'auto' | '1024x1024' | '1536x1024' | '1024x1536';
+    format: 'png' | 'jpeg' | 'webp';
     createdAt: string;
   };
 };
@@ -39,28 +40,28 @@ type ImageCreatorProps = {
 };
 
 export default function ImageCreator({ onSaved, promptInputRef, prompt, setPrompt }: ImageCreatorProps) {
-  const [size, setSize] = useState("auto");
-  const [quality, setQuality] = useState("high");
-  const [format, setFormat] = useState<"png" | "jpeg" | "webp">("png");
+  const [size, setSize] = useState('auto');
+  const [quality, setQuality] = useState('high');
+  const [format, setFormat] = useState<'png' | 'jpeg' | 'webp'>('png');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
   const [result, setResult] = useState<Resp | null>(null);
-  const [isImageLoading, setIsImageLoading] = useState(false);
+  const [_isImageLoading, setIsImageLoading] = useState(false);
   const [outputCompression, setOutputCompression] = useState(100);
-  const [background, setBackground] = useState<"transparent" | "opaque" | "auto">("auto");
+  const [background, setBackground] = useState<'transparent' | 'opaque' | 'auto'>('auto');
   const { showToast } = useToast();
   // Persist user preferences for seamless UX
   // Load saved settings on mount
   useState(() => {
     try {
-      const saved = localStorage.getItem("IMG_CREATOR_SETTINGS");
+      const saved = localStorage.getItem('IMG_CREATOR_SETTINGS');
       if (saved) {
         const s = JSON.parse(saved);
         if (s.size) setSize(s.size);
         if (s.quality) setQuality(s.quality);
         if (s.format) setFormat(s.format);
-        if (typeof s.outputCompression === "number") setOutputCompression(s.outputCompression);
+        if (typeof s.outputCompression === 'number') setOutputCompression(s.outputCompression);
         if (s.background) setBackground(s.background);
       }
     } catch {}
@@ -68,21 +69,21 @@ export default function ImageCreator({ onSaved, promptInputRef, prompt, setPromp
   // Save on change
   useState(() => {
     const settings = { size, quality, format, outputCompression, background };
-    try { localStorage.setItem("IMG_CREATOR_SETTINGS", JSON.stringify(settings)); } catch {}
+    try { localStorage.setItem('IMG_CREATOR_SETTINGS', JSON.stringify(settings)); } catch {}
     return settings;
   });
   // Keep background/format coherent for transparent output
-  function onBackgroundChange(next: "transparent" | "opaque" | "auto") {
-    if (next === "transparent" && format === "jpeg") {
-      setFormat("png");
-      showToast("Format set to PNG for transparent background", "info");
+  function onBackgroundChange(next: 'transparent' | 'opaque' | 'auto') {
+    if (next === 'transparent' && format === 'jpeg') {
+      setFormat('png');
+      showToast('Format set to PNG for transparent background', 'info');
     }
     setBackground(next);
   }
-  function onFormatChange(next: "png" | "jpeg" | "webp") {
-    if (next === "jpeg" && background === "transparent") {
-      setBackground("opaque");
-      showToast("Background set to opaque for JPEG", "info");
+  function onFormatChange(next: 'png' | 'jpeg' | 'webp') {
+    if (next === 'jpeg' && background === 'transparent') {
+      setBackground('opaque');
+      showToast('Background set to opaque for JPEG', 'info');
     }
     setFormat(next);
   }
@@ -91,20 +92,20 @@ export default function ImageCreator({ onSaved, promptInputRef, prompt, setPromp
     setBusy(true); setError(null); setResult(null); setIsImageLoading(true);
     try {
       const data = await generateImage(prompt, size, quality, format, {
-        output_compression: (format === "jpeg" || format === "webp") ? outputCompression : undefined,
-        background: (format === "png" || format === "webp") ? background : undefined
+        output_compression: (format === 'jpeg' || format === 'webp') ? outputCompression : undefined,
+        background: (format === 'png' || format === 'webp') ? background : undefined
       });
       setResult(data);
       setRetryCount(0);
-      showToast("Image generated successfully!", "success");
-      onSaved && onSaved(data.library_item.id);
+      showToast('Image generated successfully!', 'success');
+      if (onSaved) onSaved(data.library_item.id);
     } catch (e: any) {
       const { detailedMessage } = processApiError(e);
       setError(detailedMessage);
       if (isRetry) {
         setRetryCount(prev => prev + 1);
       }
-      showToast(detailedMessage, "error");
+      showToast(detailedMessage, 'error');
     } finally {
       setBusy(false);
       setIsImageLoading(false);
@@ -120,11 +121,11 @@ export default function ImageCreator({ onSaved, promptInputRef, prompt, setPromp
 
   const download = () => {
     if (!result) return;
-    const a = document.createElement("a");
+    const a = document.createElement('a');
     a.href = `data:image/${result.format};base64,${result.image_base64}`;
     a.download = `gpt-image-1_${Date.now()}.${result.format}`;
     a.click();
-    showToast("Image downloaded!", "success");
+    showToast('Image downloaded!', 'success');
   };
 
   return (
@@ -192,7 +193,7 @@ export default function ImageCreator({ onSaved, promptInputRef, prompt, setPromp
             </SelectContent>
           </Select>
         </div>
-        {(format === "png" || format === "webp") && (
+        {(format === 'png' || format === 'webp') && (
           <div className="space-y-2">
             <Label htmlFor="background-select">Background</Label>
             <Select value={background} onValueChange={(v) => onBackgroundChange(v as any)}>
@@ -207,7 +208,7 @@ export default function ImageCreator({ onSaved, promptInputRef, prompt, setPromp
             </Select>
           </div>
         )}
-        {(format === "jpeg" || format === "webp") && (
+        {(format === 'jpeg' || format === 'webp') && (
           <div className="space-y-2">
             <Label htmlFor="compression-slider">Compression ({outputCompression}%)</Label>
             <Slider
@@ -227,9 +228,9 @@ export default function ImageCreator({ onSaved, promptInputRef, prompt, setPromp
           variant="default"
           disabled={!prompt.trim() || busy}
           onClick={() => generate()}
-          aria-describedby={!prompt.trim() ? "prompt-required" : undefined}
+          aria-describedby={!prompt.trim() ? 'prompt-required' : undefined}
         >
-          {busy ? "Generating…" : "Generate & Save"}
+          {busy ? 'Generating…' : 'Generate & Save'}
         </Button>
         {!prompt.trim() && (
           <span id="prompt-required" className="sr-only">Enter a prompt to generate an image</span>
@@ -244,9 +245,7 @@ export default function ImageCreator({ onSaved, promptInputRef, prompt, setPromp
           <div className="flex justify-between text-xs text-neutral-400">
             <span>Generating image…</span>
           </div>
-          <div className="w-full bg-neutral-800 rounded-full h-1 overflow-hidden relative">
-            <div className="progress-bar progress-bar-indeterminate h-full" />
-          </div>
+          <Progress />
         </div>
       )}
       {error && (
@@ -265,7 +264,7 @@ export default function ImageCreator({ onSaved, promptInputRef, prompt, setPromp
         </div>
       )}
       {(busy && !result) && (
-        <MediaSkeleton mediaType="image" size={size} />
+        <Skeleton className="w-full h-[320px] rounded-xl border border-neutral-800" />
       )}
       {result && (
         <div className="mt-2 fade-in">

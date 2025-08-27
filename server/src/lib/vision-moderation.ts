@@ -108,29 +108,29 @@ Output JSON:
 }`;
 
   const imageParts = imageDataUrls.map(url => ({
-    type: "image_url" as const,
-    image_url: { url, detail: "low" as const }
+    type: 'image_url' as const,
+    image_url: { url, detail: 'low' as const }
   }));
 
   const url = `${azureConfig.endpoint}/openai/deployments/${encodeURIComponent(azureConfig.deployment)}/chat/completions?api-version=${azureConfig.apiVersion}`;
 
   const response = await fetch(url, {
-    method: "POST",
-    headers: { ...authHeaders, "Content-Type": "application/json" },
+    method: 'POST',
+    headers: { ...authHeaders, 'Content-Type': 'application/json' },
     body: JSON.stringify({
       messages: [
-        { role: "system", content: moderationPrompt },
+        { role: 'system', content: moderationPrompt },
         {
-          role: "user",
+          role: 'user',
           content: [
-            { type: "text", text: "Analyze these images for content safety." },
+            { type: 'text', text: 'Analyze these images for content safety.' },
             ...imageParts
           ]
         }
       ],
       max_tokens: 300,
       temperature: 0.0,
-      response_format: { type: "json_object" }
+      response_format: { type: 'json_object' }
     })
   });
 
@@ -224,7 +224,7 @@ export async function moderateContent(
 }
 
 // Field-level redaction (not text-level)
-export function redactPIIInObject<T = any>(obj: T, paths: string[] = []): T {
+export function redactPIIInObject<T = any>(obj: T, _paths: string[] = []): T {
   const result = JSON.parse(JSON.stringify(obj)); // Deep clone
 
   const piiPatterns = [

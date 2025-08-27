@@ -1,0 +1,63 @@
+/* Compatibility layer for tailwindcss-animate utilities (Tailwind v4)
+   We use Radix UI components that reference classes like
+   `data-[state=open]:animate-in`, `fade-in-0`, `zoom-in-95`, etc.
+   Instead of adding the plugin, we provide minimal equivalents here. */
+
+@layer utilities {
+  /* Base animation toggles */
+  .data-\[state\=open\]\:animate-in[data-state="open"] {
+    animation-duration: var(--default-transition-duration, 150ms);
+    animation-timing-function: var(--default-transition-timing-function, cubic-bezier(.4,0,.2,1));
+    animation-fill-mode: both;
+  }
+  .data-\[state\=closed\]\:animate-out[data-state="closed"] {
+    animation-duration: var(--default-transition-duration, 150ms);
+    animation-timing-function: var(--default-transition-timing-function, cubic-bezier(.4,0,.2,1));
+    animation-fill-mode: both;
+  }
+
+  /* Fades */
+  .data-\[state\=open\]\:fade-in-0[data-state="open"] { animation-name: fadeIn; }
+  .data-\[state\=closed\]\:fade-out-0[data-state="closed"] { animation-name: fadeOut; }
+  .data-\[state\=closed\]\:fade-out-80[data-state="closed"] { animation-name: fadeOut; }
+
+  /* Zooms */
+  .data-\[state\=open\]\:zoom-in-95[data-state="open"] { animation-name: zoomIn95; }
+  .data-\[state\=closed\]\:zoom-out-95[data-state="closed"] { animation-name: zoomOut95; }
+
+  /* Slides for menus/popovers */
+  .data-\[side\=bottom\]\:slide-in-from-top-2[data-side="bottom"] { animation-name: slideInFromTop2; }
+  .data-\[side\=top\]\:slide-in-from-bottom-2[data-side="top"] { animation-name: slideInFromBottom2; }
+  .data-\[side\=left\]\:slide-in-from-right-2[data-side="left"] { animation-name: slideInFromRight2; }
+  .data-\[side\=right\]\:slide-in-from-left-2[data-side="right"] { animation-name: slideInFromLeft2; }
+  .data-\[state\=open\]\:slide-in-from-bottom-5[data-state="open"] { animation-name: slideInFromBottom5; }
+}
+
+/* Keyframes */
+@keyframes fadeOut { from { opacity: 1 } to { opacity: 0 } }
+@keyframes zoomIn95 { from { opacity: 0; transform: scale(.95) } to { opacity: 1; transform: scale(1) } }
+@keyframes zoomOut95 { from { opacity: 1; transform: scale(1) } to { opacity: 0; transform: scale(.95) } }
+@keyframes slideInFromTop2 { from { opacity: 0; transform: translateY(-0.5rem) } to { opacity: 1; transform: translateY(0) } }
+@keyframes slideInFromBottom2 { from { opacity: 0; transform: translateY(0.5rem) } to { opacity: 1; transform: translateY(0) } }
+@keyframes slideInFromLeft2 { from { opacity: 0; transform: translateX(-0.5rem) } to { opacity: 1; transform: translateX(0) } }
+@keyframes slideInFromRight2 { from { opacity: 0; transform: translateX(0.5rem) } to { opacity: 1; transform: translateX(0) } }
+@keyframes slideInFromBottom5 { from { opacity: 0; transform: translateY(1.25rem) } to { opacity: 1; transform: translateY(0) } }
+
+/* Respect reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .data-\[state\=open\]\:animate-in[data-state="open"],
+  .data-\[state\=closed\]\:animate-out[data-state="closed"],
+  .data-\[state\=open\]\:fade-in-0[data-state="open"],
+  .data-\[state\=closed\]\:fade-out-0[data-state="closed"],
+  .data-\[state\=closed\]\:fade-out-80[data-state="closed"],
+  .data-\[state\=open\]\:zoom-in-95[data-state="open"],
+  .data-\[state\=closed\]\:zoom-out-95[data-state="closed"],
+  .data-\[side\=bottom\]\:slide-in-from-top-2[data-side="bottom"],
+  .data-\[side\=top\]\:slide-in-from-bottom-2[data-side="top"],
+  .data-\[side\=left\]\:slide-in-from-right-2[data-side="left"],
+  .data-\[side\=right\]\:slide-in-from-left-2[data-side="right"],
+  .data-\[state\=open\]\:slide-in-from-bottom-5[data-state="open"] {
+    animation: none !important;
+  }
+}
+

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 
 type Preferences = {
   insertSeparator: string;        // default: "\n\n"
@@ -12,11 +12,11 @@ type PreferencesContextType = {
 };
 
 const DEFAULTS: Preferences = {
-  insertSeparator: "\n\n",
-  autoPinLastUsed: false,
+  insertSeparator: '\n\n',
+  autoPinLastUsed: false
 };
 
-const STORAGE_KEY = "promptSuggestionPrefs:v1";
+const STORAGE_KEY = 'promptSuggestionPrefs:v1';
 
 const PreferencesContext = createContext<PreferencesContextType | undefined>(undefined);
 
@@ -49,6 +49,6 @@ export const PreferencesProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
 export function usePreferences() {
   const ctx = useContext(PreferencesContext);
-  if (!ctx) throw new Error("usePreferences must be used within PreferencesProvider");
+  if (!ctx) throw new Error('usePreferences must be used within PreferencesProvider');
   return ctx;
 }

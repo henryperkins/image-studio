@@ -1,37 +1,36 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from 'react';
 import {
-  API_BASE_URL,
   LibraryItem, VideoItem, ImageItem, isVideoItem,
   trimVideo, cropVideo, resizeVideo, speedVideo, muteVideo, volumeVideo,
   overlayImageOnVideo, concatVideos, listLibrary
-} from "../lib/api";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Slider } from "@/components/ui/slider";
-import { Checkbox } from "@/components/ui/checkbox";
+} from '../lib/api';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Slider } from '@/components/ui/slider';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  SelectValue
+} from '@/components/ui/select';
 
 type Props = {
-  item: LibraryItem & { kind: "video" };
+  item: LibraryItem & { kind: 'video' };
   onClose: () => void;
   onEdited: (newId: string) => void;
   baseUrl: string;
 };
 
 // Simplified editing UI: three sections instead of seven tabs
-type Tab = "basic" | "audio" | "advanced";
+type Tab = 'basic' | 'audio' | 'advanced';
 
 export default function VideoEditor({ item, onClose, onEdited, baseUrl }: Props) {
-  const [tab, setTab] = useState<Tab>("basic");
+  const [tab, setTab] = useState<Tab>('basic');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string|null>(null);
   const [library, setLibrary] = useState<LibraryItem[]>([]);
@@ -51,8 +50,8 @@ export default function VideoEditor({ item, onClose, onEdited, baseUrl }: Props)
   // RESIZE
   const [rw, setRw] = useState(item.width); 
   const [rh, setRh] = useState(item.height);
-  const [fit, setFit] = useState<"contain"|"cover"|"stretch">("contain");
-  const [bg, setBg] = useState("black");
+  const [fit, setFit] = useState<'contain'|'cover'|'stretch'>('contain');
+  const [bg, setBg] = useState('black');
 
   // SPEED
   const [speed, setSpeed] = useState(1);
@@ -61,9 +60,9 @@ export default function VideoEditor({ item, onClose, onEdited, baseUrl }: Props)
   const [gainDb, setGainDb] = useState(0);
 
   // OVERLAY
-  const [overlayId, setOverlayId] = useState<string>("");
-  const [ox, setOx] = useState<string>("W-w-20");
-  const [oy, setOy] = useState<string>("H-h-20");
+  const [overlayId, setOverlayId] = useState<string>('');
+  const [ox, setOx] = useState<string>('W-w-20');
+  const [oy, setOy] = useState<string>('H-h-20');
   const [ow, setOw] = useState<number>(Math.round(item.width/5));
   const [oh, setOh] = useState<number>(0);
   const [opacity, setOpacity] = useState(0.85);
@@ -82,7 +81,7 @@ export default function VideoEditor({ item, onClose, onEdited, baseUrl }: Props)
       const res:any = await fn();
       onEdited(res.library_item.id);
     } catch (e:any) {
-      setErr(e.message || "Edit failed");
+      setErr(e.message || 'Edit failed');
     } finally { 
       setBusy(false); 
     }
@@ -124,7 +123,7 @@ export default function VideoEditor({ item, onClose, onEdited, baseUrl }: Props)
             </Tabs>
 
             {/* BASIC: Trim, Resize, Crop */}
-            {tab === "basic" && (
+            {tab === 'basic' && (
               <div className="space-y-4" id="panel-basic" role="tabpanel" aria-labelledby="tab-basic">
                 <div className="space-y-2">
                   <div className="text-sm font-medium">Trim</div>
@@ -139,7 +138,7 @@ export default function VideoEditor({ item, onClose, onEdited, baseUrl }: Props)
                     </div>
                   </div>
                   <Button disabled={busy} onClick={()=>run(()=>trimVideo(item.id,start,dur))}>
-                    {busy ? "Processing…" : "Apply Trim"}
+                    {busy ? 'Processing…' : 'Apply Trim'}
                   </Button>
                 </div>
 
@@ -173,7 +172,7 @@ export default function VideoEditor({ item, onClose, onEdited, baseUrl }: Props)
                     </div>
                   </div>
                   <Button disabled={busy} onClick={()=>run(()=>resizeVideo(item.id,rw,rh,fit,bg))}>
-                    {busy ? "Processing…" : "Apply Resize"}
+                    {busy ? 'Processing…' : 'Apply Resize'}
                   </Button>
                 </div>
 
@@ -198,20 +197,20 @@ export default function VideoEditor({ item, onClose, onEdited, baseUrl }: Props)
                     </div>
                   </div>
                   <Button disabled={busy} onClick={()=>run(()=>cropVideo(item.id,cx,cy,cw,ch))}>
-                    {busy ? "Processing…" : "Apply Crop"}
+                    {busy ? 'Processing…' : 'Apply Crop'}
                   </Button>
                 </div>
               </div>
             )}
 
             {/* AUDIO: Mute, Volume, Speed */}
-            {tab === "audio" && (
+            {tab === 'audio' && (
               <div className="space-y-4" id="panel-audio" role="tabpanel" aria-labelledby="tab-audio">
                 <div className="space-y-2">
                   <div className="text-sm font-medium">Mute / Volume</div>
                   <div className="flex gap-2">
                     <Button disabled={busy} onClick={()=>run(()=>muteVideo(item.id))}>
-                      {busy ? "Processing…" : "Mute"}
+                      {busy ? 'Processing…' : 'Mute'}
                     </Button>
                   </div>
                   <div className="space-y-2">
@@ -219,7 +218,7 @@ export default function VideoEditor({ item, onClose, onEdited, baseUrl }: Props)
                     <Input id="gain-input" type="number" min={-30} max={30} step={0.5} value={gainDb} onChange={e=>setGainDb(+e.target.value||0)} />
                   </div>
                   <Button disabled={busy} onClick={()=>run(()=>volumeVideo(item.id,gainDb))}>
-                    {busy ? "Processing…" : "Set Volume"}
+                    {busy ? 'Processing…' : 'Set Volume'}
                   </Button>
                 </div>
 
@@ -230,14 +229,14 @@ export default function VideoEditor({ item, onClose, onEdited, baseUrl }: Props)
                     <Input id="speed-input" type="number" min={0.25} max={4} step={0.05} value={speed} onChange={e=>setSpeed(+e.target.value||1)} />
                   </div>
                   <Button disabled={busy} onClick={()=>run(()=>speedVideo(item.id,speed))}>
-                    {busy ? "Processing…" : "Apply Speed"}
+                    {busy ? 'Processing…' : 'Apply Speed'}
                   </Button>
                 </div>
               </div>
             )}
 
             {/* ADVANCED: Overlay, Concat */}
-            {tab === "advanced" && (
+            {tab === 'advanced' && (
               <div className="space-y-6" id="panel-advanced" role="tabpanel" aria-labelledby="tab-advanced">
                 <div className="space-y-2">
                   <div className="text-sm font-medium">Overlay Image</div>
@@ -275,8 +274,8 @@ export default function VideoEditor({ item, onClose, onEdited, baseUrl }: Props)
                       <Slider id="opacity-slider" min={0} max={1} step={0.01} value={[opacity]} onValueChange={(v) => setOpacity(v[0])} />
                     </div>
                   </div>
-                  <Button disabled={busy || !overlayId || overlayId === "_none"} onClick={()=>run(()=>overlayImageOnVideo(item.id, overlayId, { x:ox, y:oy, overlay_width: ow||undefined, overlay_height: oh||undefined, opacity }))}>
-                    {busy ? "Processing…" : "Apply Overlay"}
+                  <Button disabled={busy || !overlayId || overlayId === '_none'} onClick={()=>run(()=>overlayImageOnVideo(item.id, overlayId, { x:ox, y:oy, overlay_width: ow||undefined, overlay_height: oh||undefined, opacity }))}>
+                    {busy ? 'Processing…' : 'Apply Overlay'}
                   </Button>
                   <p className="text-xs text-neutral-500">Tips: Use W/H (video) and w/h (overlay) in expressions, e.g. W-w-20, H-h-20, (W-w)/2.</p>
                 </div>
@@ -301,21 +300,21 @@ export default function VideoEditor({ item, onClose, onEdited, baseUrl }: Props)
                   <div className="grid grid-cols-2 gap-2">
                     <div className="space-y-2">
                       <Label htmlFor="target-width">Target width (opt)</Label>
-                      <Input id="target-width" type="number" value={targetW ?? ""} onChange={e=>setTargetW(e.target.value?+e.target.value:undefined)} />
+                      <Input id="target-width" type="number" value={targetW ?? ''} onChange={e=>setTargetW(e.target.value?+e.target.value:undefined)} />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="target-height">Target height (opt)</Label>
-                      <Input id="target-height" type="number" value={targetH ?? ""} onChange={e=>setTargetH(e.target.value?+e.target.value:undefined)} />
+                      <Input id="target-height" type="number" value={targetH ?? ''} onChange={e=>setTargetH(e.target.value?+e.target.value:undefined)} />
                     </div>
                   </div>
                   <Button disabled={busy || concatIds.length<2} onClick={()=>run(()=>concatVideos(concatIds, targetW, targetH))}>
-                    {busy ? "Processing…" : "Concat & Save"}
+                    {busy ? 'Processing…' : 'Concat & Save'}
                   </Button>
                 </div>
               </div>
             )}
 
-            {err && <div className="text-red-400 text-sm">{err}</div>}
+            {err && <div className="text-destructive-foreground text-sm">{err}</div>}
           </div>
         </div>
       </div>

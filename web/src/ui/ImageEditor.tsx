@@ -1,21 +1,21 @@
-import { useEffect, useRef, useState } from "react";
-import { editImage, type LibraryItem } from "../lib/api";
-import { useToast } from "../contexts/ToastContext";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-import { Slider } from "@/components/ui/slider";
+import { useEffect, useRef, useState } from 'react';
+import { editImage, type LibraryItem } from '../lib/api';
+import { useToast } from '../contexts/ToastContext';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { Slider } from '@/components/ui/slider';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  SelectValue
+} from '@/components/ui/select';
 
 type Props = {
-  item: LibraryItem & { kind: "image" };
+  item: LibraryItem & { kind: 'image' };
   onClose: () => void;
   onEdited: (newId: string) => void;
   baseUrl: string;
@@ -27,13 +27,13 @@ export default function ImageEditor({ item, onClose, onEdited, baseUrl }: Props)
   const imgRef = useRef<HTMLImageElement>(null);
   const [brush, setBrush] = useState(30);
   const [drawing, setDrawing] = useState(false);
-  const [prompt, setPrompt] = useState(``);
+  const [prompt, setPrompt] = useState('');
   const [busy, setBusy] = useState(false);
   const [size, setSize] = useState(item.size);
-  const [format, setFormat] = useState<"png"|"jpeg"|"webp">(item.format as any);
+  const [format, setFormat] = useState<'png'|'jpeg'|'webp'>(item.format as any);
   // API enhancements
-  const [quality, setQuality] = useState<"auto"|"low"|"medium"|"high">("high");
-  const [background, setBackground] = useState<"transparent"|"opaque"|"auto">("opaque");
+  const [quality, setQuality] = useState<'auto'|'low'|'medium'|'high'>('high');
+  const [background, setBackground] = useState<'transparent'|'opaque'|'auto'>('opaque');
   const [outputCompression, setOutputCompression] = useState<number>(100);
   // Added: track whether user has drawn and last pointer position for smooth strokes
   const [hasMask, setHasMask] = useState(false);
@@ -43,13 +43,13 @@ export default function ImageEditor({ item, onClose, onEdited, baseUrl }: Props)
   // Initialize mask canvas as opaque (white). Transparent pixels will be areas to change.
   useEffect(() => {
     const c = canvasRef.current!;
-    const ctx = c.getContext("2d")!;
-    ctx.globalCompositeOperation = "source-over";
+    const ctx = c.getContext('2d')!;
+    ctx.globalCompositeOperation = 'source-over';
     ctx.clearRect(0, 0, c.width, c.height);
-    ctx.fillStyle = "#ffffff";
+    ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, c.width, c.height);
     const p = previewRef.current!;
-    const pctx = p.getContext("2d")!;
+    const pctx = p.getContext('2d')!;
     pctx.clearRect(0, 0, p.width, p.height);
     setHasMask(false);
     lastPt.current = null;
@@ -65,12 +65,12 @@ export default function ImageEditor({ item, onClose, onEdited, baseUrl }: Props)
       c.height = img.naturalHeight;
       p.width = img.naturalWidth;
       p.height = img.naturalHeight;
-      const ctx = c.getContext("2d")!;
-      ctx.globalCompositeOperation = "source-over";
+      const ctx = c.getContext('2d')!;
+      ctx.globalCompositeOperation = 'source-over';
       ctx.clearRect(0, 0, c.width, c.height);
-      ctx.fillStyle = "#ffffff";
+      ctx.fillStyle = '#ffffff';
       ctx.fillRect(0, 0, c.width, c.height);
-      const pctx = p.getContext("2d")!;
+      const pctx = p.getContext('2d')!;
       pctx.clearRect(0, 0, p.width, p.height);
       setHasMask(false);
       lastPt.current = null;
@@ -90,11 +90,11 @@ export default function ImageEditor({ item, onClose, onEdited, baseUrl }: Props)
   // Draw continuous stroke in destination-out to erase to transparent
   function drawFromEvent(e: React.PointerEvent<HTMLCanvasElement>, initial = false) {
     const c = canvasRef.current!;
-    const ctx = c.getContext("2d")!;
+    const ctx = c.getContext('2d')!;
     const { x, y } = getCanvasCoords(e);
-    ctx.globalCompositeOperation = "destination-out";
-    ctx.lineCap = "round";
-    ctx.lineJoin = "round";
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
     ctx.lineWidth = brush;
 
     if (!lastPt.current || initial) {
@@ -109,12 +109,12 @@ export default function ImageEditor({ item, onClose, onEdited, baseUrl }: Props)
     }
     // Visual preview stroke (tinted mask overlay)
     const p = previewRef.current!;
-    const pctx = p.getContext("2d")!;
-    pctx.globalCompositeOperation = "source-over";
-    pctx.strokeStyle = "rgba(255,0,0,0.35)";
-    pctx.fillStyle = "rgba(255,0,0,0.35)";
-    pctx.lineCap = "round";
-    pctx.lineJoin = "round";
+    const pctx = p.getContext('2d')!;
+    pctx.globalCompositeOperation = 'source-over';
+    pctx.strokeStyle = 'rgba(255,0,0,0.35)';
+    pctx.fillStyle = 'rgba(255,0,0,0.35)';
+    pctx.lineCap = 'round';
+    pctx.lineJoin = 'round';
     pctx.lineWidth = brush;
     if (!lastPt.current || initial) {
       pctx.beginPath();
@@ -134,16 +134,16 @@ export default function ImageEditor({ item, onClose, onEdited, baseUrl }: Props)
     setBusy(true);
     try {
       // Only send a mask if the user has painted; otherwise request a global transform by omitting mask
-      const maskPng = hasMask ? canvasRef.current!.toDataURL("image/png") : undefined;
-      const res = await editImage(item.id, prompt || "Apply the painted mask changes", maskPng, size, format, {
+      const maskPng = hasMask ? canvasRef.current!.toDataURL('image/png') : undefined;
+      const res = await editImage(item.id, prompt || 'Apply the painted mask changes', maskPng, size, format, {
         quality,
-        background: (format === "png" || format === "webp") ? background : undefined,
-        output_compression: (format === "jpeg" || format === "webp") ? outputCompression : undefined
+        background: (format === 'png' || format === 'webp') ? background : undefined,
+        output_compression: (format === 'jpeg' || format === 'webp') ? outputCompression : undefined
       });
       onEdited(res.library_item.id);
-      showToast("Image edited and saved", "success");
+      showToast('Image edited and saved', 'success');
     } catch (e) {
-      showToast((e as any).message || "Edit failed", "error");
+      showToast((e as any).message || 'Edit failed', 'error');
     } finally { setBusy(false); }
   }
 
@@ -167,7 +167,7 @@ export default function ImageEditor({ item, onClose, onEdited, baseUrl }: Props)
               ref={canvasRef}
               className="absolute inset-0 w-full h-full cursor-crosshair"
               // Prevent touch scrolling while drawing
-              style={{ touchAction: "none" }}
+              style={{ touchAction: 'none' }}
               onPointerDown={(e) => { setDrawing(true); (e.currentTarget as HTMLCanvasElement).setPointerCapture(e.pointerId); e.preventDefault(); drawFromEvent(e, true); }}
               onPointerMove={(e) => { if (drawing) { e.preventDefault(); drawFromEvent(e); } }}
               onPointerUp={(e) => { setDrawing(false); lastPt.current = null; try { (e.currentTarget as HTMLCanvasElement).releasePointerCapture(e.pointerId); } catch {} }}
@@ -247,7 +247,7 @@ export default function ImageEditor({ item, onClose, onEdited, baseUrl }: Props)
                   </SelectContent>
                 </Select>
               </div>
-              {(format === "png" || format === "webp") && (
+              {(format === 'png' || format === 'webp') && (
                 <div className="space-y-2 col-span-2">
                   <Label htmlFor="background-select">Background (PNG/WEBP)</Label>
                   <Select value={background} onValueChange={(v) => setBackground(v as any)}>
@@ -262,7 +262,7 @@ export default function ImageEditor({ item, onClose, onEdited, baseUrl }: Props)
                   </Select>
                 </div>
               )}
-              {(format === "jpeg" || format === "webp") && (
+              {(format === 'jpeg' || format === 'webp') && (
                 <div className="space-y-2 col-span-2">
                   <Label htmlFor="compression-slider">Compression ({outputCompression}%)</Label>
                   <Slider
@@ -282,17 +282,17 @@ export default function ImageEditor({ item, onClose, onEdited, baseUrl }: Props)
                 disabled={busy}
                 onClick={runEdit}
               >
-                {busy ? "Editing…" : "Apply Edit & Save"}
+                {busy ? 'Editing…' : 'Apply Edit & Save'}
               </Button>
               <Button
                 variant="outline"
                 onClick={()=>{
-                  const c = canvasRef.current!; const ctx = c.getContext("2d")!;
-                  ctx.globalCompositeOperation = "source-over";
+                  const c = canvasRef.current!; const ctx = c.getContext('2d')!;
+                  ctx.globalCompositeOperation = 'source-over';
                   ctx.clearRect(0,0,c.width,c.height);
-                  ctx.fillStyle = "#ffffff";
+                  ctx.fillStyle = '#ffffff';
                   ctx.fillRect(0,0,c.width,c.height);
-                  const p = previewRef.current!; const pctx = p.getContext("2d")!;
+                  const p = previewRef.current!; const pctx = p.getContext('2d')!;
                   pctx.clearRect(0,0,p.width,p.height);
                   setHasMask(false);
                   lastPt.current = null;

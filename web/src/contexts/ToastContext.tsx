@@ -10,15 +10,6 @@ type ToastOptions = {
   onAction?: () => void;
 };
 
-interface ToastItem {
-  id: string;
-  message: string;
-  type: ToastType;
-  duration?: number;
-  actionLabel?: string;
-  onAction?: () => void;
-}
-
 interface ToastContextType {
   // Backward compatible signature:
   // showToast(message, type?, durationOrOptions?)
@@ -60,7 +51,7 @@ export function ToastProvider({ children }: ToastProviderProps) {
       duration,
       action: actionLabel ? (
         <ToastAction altText={actionLabel} onClick={onAction}>{actionLabel}</ToastAction>
-      ) : undefined,
+      ) : undefined
     });
   }, []);
 

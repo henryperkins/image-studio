@@ -1,53 +1,115 @@
-import { useState, useEffect, useRef, useCallback } from "react";
-import ImageCreator from "./ImageCreator";
-import SoraCreator from "./SoraCreator";
-import { listLibrary, type LibraryItem, API_BASE_URL, isVideoItem } from "../lib/api";
-import ImageEditor from "./ImageEditor";
-import VideoEditor from "./VideoEditor";
-import ImageViewerModal from "./ImageViewerModal";
-import LibraryItemCard from "../components/LibraryItemCard";
-import { useMediaActions } from "../hooks/useMediaActions";
-import { Heading, Text } from "./typography";
-import { PromptSuggestionsProvider } from "../contexts/PromptSuggestionsContext";
-import { PreferencesProvider } from "../contexts/PreferencesContext";
-import PromptSuggestions from "./PromptSuggestions";
-import LibraryPromptSuggestions from "../components/LibraryPromptSuggestions";
-import { usePromptSuggestions } from "../contexts/PromptSuggestionsContext";
-import { useToast } from "../contexts/ToastContext";
-import ConnectionStatus from "./ConnectionStatus";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-
-type View = "images" | "sora";
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { BrowserRouter as Router, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
+import ImageCreator from './ImageCreator';
+import SoraCreator from './SoraCreator';
+import { listLibrary, type LibraryItem, API_BASE_URL, isVideoItem } from '../lib/api';
+import ImageEditor from './ImageEditor';
+import VideoEditor from './VideoEditor';
+import ImageViewerModal from './ImageViewerModal';
+import VideoViewerModal from './VideoViewerModal';
+import LibraryItemCard from '../components/LibraryItemCard';
+import { useMediaActions } from '../hooks/useMediaActions';
+import { PromptSuggestionsProvider } from '../contexts/PromptSuggestionsContext';
+import { PreferencesProvider } from '../contexts/PreferencesContext';
+import PromptSuggestions from './PromptSuggestions';
+import LibraryPromptSuggestions from '../components/LibraryPromptSuggestions';
+import { usePromptSuggestions } from '../contexts/PromptSuggestionsContext';
+import { useToast } from '../contexts/ToastContext';
+import ConnectionStatus from './ConnectionStatus';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { cn } from '@/lib/utils';
 
 function AppContent() {
-  // Setup for accessible tabs + deep-linking
-  function getViewFromURL(): View {
-    const q = new URLSearchParams(window.location.search);
-    const v = q.get("view");
-    if (v === "sora") return "sora";
-    return "images";
-  }
+  const location = useLocation();
+  const navigate = useNavigate();
 
-  const [view, setView] = useState<View>(() => getViewFromURL());
   const [library, setLibrary] = useState<LibraryItem[]>([]);
-  const [selected, setSelected] = useState<string[]>([]); // selected image library ids (videos not selectable for Sora)
+  const [selected, setSelected] = useState<string[]>([]);
   const [libraryLoading, setLibraryLoading] = useState(true);
   const [mobileLibraryOpen, setMobileLibraryOpen] = useState(false);
   const [editImageId, setEditImageId] = useState<string | null>(null);
   const [editVideoId, setEditVideoId] = useState<string | null>(null);
   const [viewImageId, setViewImageId] = useState<string | null>(null);
+  const [viewVideoId, setViewVideoId] = useState<string | null>(null);
   const [libraryPage, setLibraryPage] = useState(0);
   const itemsPerPage = 12;
+  // Library filters/search
+  const [libraryQuery, setLibraryQuery] = useState('');
+  const [libraryType, setLibraryType] = useState<'all' | 'images' | 'videos'>('all');
 
-  // Lifted state for the prompt (used by visible creator panel)
-  const [prompt, setPrompt] = useState("");
+  // Prompt state (shared between creators)
+  const [prompt, setPrompt] = useState('');
   const promptInputRef = useRef<HTMLTextAreaElement>(null);
+
   const { showToast } = useToast();
   const { suggestions } = usePromptSuggestions();
   const prevCountRef = useRef<number>(0);
-  
+
+  // Insert text at caret into prompt textarea
+  const handleInsertPrompt = useCallback((textToInsert: string) => {
+    const input = promptInputRef.current;
+    if (!input) {
+      setPrompt((p) => p + textToInsert);
+      return;
+    }
+    const start = input.selectionStart ?? input.value.length;
+    const end = input.selectionEnd ?? input.value.length;
+    const currentText = input.value;
+    const newText = currentText.slice(0, start) + textToInsert + currentText.slice(end);
+    setPrompt(newText);
+    requestAnimationFrame(() => {
+      input.focus();
+      const pos = start + textToInsert.length;
+      input.setSelectionRange(pos, pos);
+    });
+  }, []);
+
+  // Replace selected text (or insert) in prompt textarea
+  const handleReplacePrompt = useCallback((newText: string) => {
+    const input = promptInputRef.current;
+    if (!input) {
+      setPrompt(newText);
+      return;
+    }
+    const start = input.selectionStart ?? 0;
+    const end = input.selectionEnd ?? input.value.length;
+    const before = input.value.slice(0, start);
+    const after = input.value.slice(end);
+    const final = before + newText + after;
+    setPrompt(final);
+    requestAnimationFrame(() => {
+      input.focus();
+      const pos = before.length + newText.length;
+      input.setSelectionRange(pos, pos);
+    });
+  }, []);
+
+  const refreshLibrary = useCallback(async () => {
+    setLibraryLoading(true);
+    try {
+      const items = await listLibrary();
+      setLibrary(items);
+      if (libraryPage * itemsPerPage >= items.length && libraryPage > 0) {
+        setLibraryPage(0);
+      }
+    } finally {
+      setLibraryLoading(false);
+    }
+  }, [libraryPage, itemsPerPage]);
+
+  useEffect(() => {
+    refreshLibrary().catch(() => {});
+  }, [refreshLibrary]);
+
+  // Navigate to Sora after image saved
+  const onImagesSaved = async (id: string) => {
+    await refreshLibrary();
+    setSelected([id]);
+    navigate('/sora');
+  };
+
   // Centralized media actions
   const { handleAction } = useMediaActions({
     onRefresh: refreshLibrary,
@@ -56,200 +118,103 @@ function AppContent() {
     onEditVideo: setEditVideoId,
     onUseInSora: (ids) => {
       setSelected(ids);
-      setView('sora');
+      navigate('/sora');
     },
     baseUrl: API_BASE_URL
   });
 
-  async function refreshLibrary() {
-    setLibraryLoading(true);
-    try {
-      const items = await listLibrary();
-      setLibrary(items);
-      // Reset to first page if current page is out of bounds
-      if (libraryPage * itemsPerPage >= items.length && libraryPage > 0) {
-        setLibraryPage(0);
-      }
-    } finally {
-      setLibraryLoading(false);
-    }
-  }
+  // Toast when new suggestions arrive while sidebar is collapsed (mobile)
   useEffect(() => {
-    refreshLibrary().catch(() => {});
-  }, []);
-
-  // Keep view <-> URL in sync + focus management
-  useEffect(() => {
-    const q = new URLSearchParams(window.location.search);
-    const currentView = q.get("view");
-    if (view !== currentView) {
-      q.set("view", view);
-      window.history.replaceState(null, "", `?${q}`);
-    }
-    // Focus management: Move focus to the active panel after view change
-    requestAnimationFrame(() => {
-      const panelId = view === "images" ? "panel-images" : "panel-sora";
-      const panel = document.getElementById(panelId);
-      if (panel) {
-        // Find first focusable element in the panel
-        const focusable = panel.querySelector<HTMLElement>(
-          "button:not([disabled]), textarea, input:not([disabled]), select"
-        );
-        if (focusable) {
-          focusable.focus();
-        } else {
-          (panel as HTMLElement).focus();
+    const prev = prevCountRef.current;
+    if (suggestions.length > prev && !mobileLibraryOpen) {
+      showToast('New prompt suggestions available', 'success', {
+        actionLabel: 'View in Library',
+        onAction: () => {
+          setMobileLibraryOpen(true);
+          setTimeout(() => {
+            document.getElementById('suggestions-panel')?.focus();
+          }, 50);
         }
-      }
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [view]);
-
-  const onImagesSaved = async (id: string) => {
-    await refreshLibrary();
-    setSelected([id]);
-    setView("sora");
-  };
-
-  // Caret-aware insert/replace into the active prompt textarea
-  const handleInsertPrompt = useCallback(
-    (textToInsert: string) => {
-      const input = promptInputRef.current;
-      if (!input) return;
-
-      const start = input.selectionStart ?? input.value.length;
-      const end = input.selectionEnd ?? input.value.length;
-      const currentText = input.value;
-      const newText = currentText.substring(0, start) + textToInsert + currentText.substring(end);
-
-      setPrompt(newText);
-
-      // Move cursor to the end of the inserted text
-      requestAnimationFrame(() => {
-        input.focus();
-        input.setSelectionRange(start + textToInsert.length, start + textToInsert.length);
       });
-    },
-    [promptInputRef]
-  );
+    }
+    prevCountRef.current = suggestions.length;
+  }, [suggestions.length, mobileLibraryOpen, showToast]);
 
-  const handleReplacePrompt = useCallback(
-    (newText: string) => {
-      const input = promptInputRef.current;
-      if (!input) {
-        setPrompt(newText);
-        return;
-      }
-      const start = input.selectionStart ?? 0;
-      const end = input.selectionEnd ?? input.value.length;
-
-      const before = input.value.slice(0, start);
-      const after = input.value.slice(end);
-      const final = before + newText + after;
-
-      setPrompt(final);
-      requestAnimationFrame(() => {
-        input.focus();
-        input.setSelectionRange(before.length + newText.length, before.length + newText.length);
-      });
-    },
-    [promptInputRef]
-  );
-
-// Toast when new suggestions arrive while sidebar is collapsed (mobile)
-useEffect(() => {
-  const prev = prevCountRef.current;
-  if (suggestions.length > prev && !mobileLibraryOpen) {
-    showToast("New prompt suggestions available", "success", {
-      actionLabel: "View in Library",
-      onAction: () => {
-        setMobileLibraryOpen(true);
-        setTimeout(() => {
-          document.getElementById("suggestions-panel")?.focus();
-        }, 50);
-      },
+  // Optional: move focus to prompt when route changes
+  useEffect(() => {
+    requestAnimationFrame(() => {
+      promptInputRef.current?.focus();
     });
-  }
-  prevCountRef.current = suggestions.length;
-}, [suggestions.length, mobileLibraryOpen, showToast]);
+  }, [location.pathname]);
 
   const imgToEdit = editImageId ? (library.find((i) => i.id === editImageId && !isVideoItem(i)) as any) : null;
   const vidToEdit = editVideoId ? (library.find((i) => i.id === editVideoId && isVideoItem(i)) as any) : null;
 
+  const tabsValue = location.pathname === '/sora' ? '/sora' : '/';
+
+  // Derived: filtered library by type + query (case-insensitive)
+  const filteredLibrary = library.filter((item) => {
+    if (libraryType === 'images' && isVideoItem(item)) return false;
+    if (libraryType === 'videos' && !isVideoItem(item)) return false;
+    const q = libraryQuery.trim().toLowerCase();
+    if (!q) return true;
+    const hay = `${item.prompt || ''} ${item.filename || ''}`.toLowerCase();
+    return hay.includes(q);
+  });
+
+  // Reset page on filter/search change
+  useEffect(() => { setLibraryPage(0); }, [libraryQuery, libraryType]);
+
   return (
     <div className="mx-auto max-w-6xl p-4 space-y-4">
       <header className="flex items-center justify-between">
-        <Heading level={1} serif={false} className="!text-2xl">
-          AI Media Studio
-        </Heading>
-        <Tabs value={view} onValueChange={(v) => setView(v as View)}>
+        <h1 className="!text-2xl font-sans font-semibold">AI Media Studio</h1>
+        <Tabs value={tabsValue} onValueChange={(v) => navigate(v)}>
           <TabsList className="inline-flex rounded-2xl border border-neutral-800">
-            <TabsTrigger value="images">Images</TabsTrigger>
-            <TabsTrigger value="sora">Sora</TabsTrigger>
+            <TabsTrigger value="/">Images</TabsTrigger>
+            <TabsTrigger value="/sora">Sora</TabsTrigger>
           </TabsList>
         </Tabs>
       </header>
 
-      {/* ARIA live region for announcing tab changes */}
-      <div className="sr-only" aria-live="polite" aria-atomic="true">
-        {view === "images" ? "Images panel selected" : view === "sora" ? "Sora panel selected" : "Typography panel selected"}
-      </div>
-
       <div className="flex flex-col md:grid md:grid-cols-3 gap-4">
         {/* Left column (main content) */}
         <div className="md:col-span-2">
-          <Card className="transition-opacity duration-200 p-0">
+          <Card className="transition-opacity duration-200 p-6 md:p-8 space-y-4">
             <div className="relative min-h-[600px]">
-              <div
-                className="transition-all duration-200 ease-in-out"
-                id="panel-images"
-                role="tabpanel"
-                aria-labelledby="tab-images"
-                style={{
-                  transform: view === "images" ? "translateX(0)" : "translateX(-100%)",
-                  opacity: view === "images" ? 1 : 0,
-                  pointerEvents: view === "images" ? "auto" : "none",
-                  position: "absolute" as const,
-                  inset: 0,
-                  visibility: view === "images" ? "visible" : "hidden",
-                }}
-                tabIndex={0}
-              >
-                <ImageCreator onSaved={onImagesSaved} promptInputRef={promptInputRef} prompt={prompt} setPrompt={setPrompt} />
-              </div>
-
-              <div
-                className="transition-all duration-200 ease-in-out"
-                id="panel-sora"
-                role="tabpanel"
-                aria-labelledby="tab-sora"
-                style={{
-                  transform: view === "sora" ? "translateX(0)" : "translateX(100%)",
-                  opacity: view === "sora" ? 1 : 0,
-                  pointerEvents: view === "sora" ? "auto" : "none",
-                  position: "absolute" as const,
-                  inset: 0,
-                  visibility: view === "sora" ? "visible" : "hidden",
-                }}
-                tabIndex={0}
-              >
-                <SoraCreator
-                  selectedIds={selected}
-                  selectedUrls={library
-                    .filter((i) => !isVideoItem(i) && selected.includes(i.id))
-                    .map((i) => `${API_BASE_URL}${i.url}`)}
-                  onRemoveImage={(id) => setSelected((prev) => prev.filter((x) => x !== id))}
-                  prompt={prompt}
-                  setPrompt={setPrompt}
-                  promptInputRef={promptInputRef}
+              <Routes>
+                <Route
+                  path="/"
+                  element={
+                    <ImageCreator
+                      onSaved={onImagesSaved}
+                      promptInputRef={promptInputRef}
+                      prompt={prompt}
+                      setPrompt={setPrompt}
+                    />
+                  }
                 />
-              </div>
+                <Route
+                  path="/sora"
+                  element={
+                    <SoraCreator
+                      selectedIds={selected}
+                      selectedUrls={library
+                        .filter((i) => !isVideoItem(i) && selected.includes(i.id))
+                        .map((i) => `${API_BASE_URL}${i.url}`)}
+                      onRemoveImage={(id) => setSelected((prev) => prev.filter((x) => x !== id))}
+                      prompt={prompt}
+                      setPrompt={setPrompt}
+                      promptInputRef={promptInputRef}
+                    />
+                  }
+                />
+              </Routes>
             </div>
           </Card>
         </div>
 
         {/* Right column (library + suggestions) */}
-        {/* Mobile library toggle button - using shadcn/ui Button */}
         <Button
           variant="outline"
           className="md:hidden w-full mb-2"
@@ -260,7 +225,7 @@ useEffect(() => {
           <span className="flex items-center justify-between w-full">
             <span>Media Library ({library.length})</span>
             <svg
-              className={`w-5 h-5 transition-transform ${mobileLibraryOpen ? "rotate-180" : ""}`}
+              className={cn('w-5 h-5 transition-transform', mobileLibraryOpen && 'rotate-180')}
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -271,13 +236,33 @@ useEffect(() => {
         </Button>
 
         {/* Library panel */}
-        <Card id="library-panel" className={`transition-opacity duration-200 ${mobileLibraryOpen ? "block" : "hidden md:block"} p-3`}>
-          <Heading level={4} className="mb-2">
-            Media Library
-          </Heading>
-          <Text size="xs" tone="muted" className="mb-2">
-            Your generated images and videos. Select images to use as references for Sora.
-          </Text>
+        <Card
+          id="library-panel"
+          className={cn('transition-opacity duration-200 p-3', mobileLibraryOpen ? 'block' : 'hidden md:block')}
+        >
+          <h4 className="mb-2 text-xl font-medium">Media Library</h4>
+          <p className="text-xs text-neutral-400 mb-2">
+            Your generated images and videos. Select images to use as references for Sora. Tip: Shift/Ctrl click to multi‑select.
+          </p>
+
+          {/* Filters + Search */}
+          <div className="flex flex-col sm:flex-row gap-2 mb-2 items-stretch sm:items-center">
+            <div className="inline-flex rounded-md overflow-hidden border border-neutral-700">
+              <Button size="sm" variant={libraryType === 'all' ? 'default' : 'outline'} onClick={() => setLibraryType('all')}>All</Button>
+              <Button size="sm" variant={libraryType === 'images' ? 'default' : 'outline'} onClick={() => setLibraryType('images')}>Images</Button>
+              <Button size="sm" variant={libraryType === 'videos' ? 'default' : 'outline'} onClick={() => setLibraryType('videos')}>Videos</Button>
+            </div>
+            <div className="flex-1">
+              <input
+                type="search"
+                value={libraryQuery}
+                onChange={(e) => setLibraryQuery(e.target.value)}
+                placeholder="Search by prompt or filename…"
+                className="w-full rounded-md border border-neutral-700 bg-neutral-950 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500/30"
+                aria-label="Search media library"
+              />
+            </div>
+          </div>
 
           {libraryLoading ? (
             <div className="grid grid-cols-3 gap-2">
@@ -296,15 +281,13 @@ useEffect(() => {
                     d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
                   />
                 </svg>
-                <Text weight="medium" size="sm">No media yet</Text>
-                <Text size="xs" tone="muted" className="mt-1">
-                  Generate your first image or video to get started
-                </Text>
+                <p className="font-medium text-sm">No media yet</p>
+                <p className="text-xs text-neutral-400 mt-1">Generate your first image or video to get started</p>
               </div>
               <Button
                 className="mx-auto"
                 onClick={() => {
-                  setView("images");
+                  navigate('/');
                   setTimeout(() => promptInputRef.current?.focus(), 100);
                 }}
               >
@@ -314,7 +297,7 @@ useEffect(() => {
           ) : (
             <div className="space-y-3">
               <div className="grid grid-cols-2 gap-2 fade-in">
-                {library
+                {filteredLibrary
                   .slice(libraryPage * itemsPerPage, (libraryPage + 1) * itemsPerPage)
                   .map((item, index) => (
                     <LibraryItemCard
@@ -324,18 +307,24 @@ useEffect(() => {
                       selected={selected.includes(item.id)}
                       onSelect={(id, isSelected) => {
                         if (!isVideoItem(item)) {
-                          setSelected(prev => isSelected ? [...prev, id] : prev.filter(x => x !== id));
+                          setSelected((prev) => (isSelected ? [...prev, id] : prev.filter((x) => x !== id)));
                         }
                       }}
                       onAction={handleAction}
-                      onView={(item) => setViewImageId(item.id)}
+                      onView={(item) => {
+                        if (isVideoItem(item)) {
+                          setViewVideoId(item.id);
+                        } else {
+                          setViewImageId(item.id);
+                        }
+                      }}
                       baseUrl={API_BASE_URL}
                     />
                   ))}
               </div>
-              
+
               {/* Pagination controls */}
-              {library.length > itemsPerPage && (
+              {filteredLibrary.length > itemsPerPage && (
                 <div className="flex flex-col sm:flex-row items-center gap-2 sm:justify-between">
                   <Button
                     variant="outline"
@@ -347,14 +336,16 @@ useEffect(() => {
                     ← Previous
                   </Button>
                   <span className="text-xs text-neutral-400 flex-1 text-center min-w-[100px]">
-                    Page {libraryPage + 1} of {Math.ceil(library.length / itemsPerPage)}
+                    Page {libraryPage + 1} of {Math.ceil(filteredLibrary.length / itemsPerPage)}
                   </span>
                   <Button
                     variant="outline"
                     size="sm"
                     className="w-full sm:w-auto"
-                    onClick={() => setLibraryPage(Math.min(Math.ceil(library.length / itemsPerPage) - 1, libraryPage + 1))}
-                    disabled={(libraryPage + 1) * itemsPerPage >= library.length}
+                    onClick={() =>
+                      setLibraryPage(Math.min(Math.ceil(filteredLibrary.length / itemsPerPage) - 1, libraryPage + 1))
+                    }
+                    disabled={(libraryPage + 1) * itemsPerPage >= filteredLibrary.length}
                   >
                     Next →
                   </Button>
@@ -369,18 +360,18 @@ useEffect(() => {
               onClick={() => setSelected([])}
               disabled={selected.length === 0}
               aria-disabled={selected.length === 0}
-              title={selected.length === 0 ? "Select at least one image" : "Clear selection"}
+              title={selected.length === 0 ? 'Select at least one image' : 'Clear selection'}
             >
               Clear
             </Button>
             <Button
               onClick={() => {
-                setView("sora");
+                navigate('/sora');
                 setMobileLibraryOpen(false);
               }}
               disabled={selected.length === 0}
               aria-disabled={selected.length === 0}
-              title={selected.length === 0 ? "Select at least one image" : "Use selected images in Sora"}
+              title={selected.length === 0 ? 'Select at least one image' : 'Use selected images in Sora'}
             >
               Use in Sora
             </Button>
@@ -388,13 +379,13 @@ useEffect(() => {
 
           {/* Prompt Suggestions panel under the Library panel */}
           <PromptSuggestions onInsert={handleInsertPrompt} onReplace={handleReplacePrompt} />
-          
+
           {/* Library-based prompt generation */}
-          <LibraryPromptSuggestions 
+          <LibraryPromptSuggestions
             library={library}
             onInsert={handleInsertPrompt}
             onSelectItem={(id) => {
-              const item = library.find(i => i.id === id);
+              const item = library.find((i) => i.id === id);
               if (item && !isVideoItem(item)) {
                 setViewImageId(id);
               }
@@ -404,7 +395,8 @@ useEffect(() => {
       </div>
 
       <footer className="text-caption text-muted">
-        Images: Azure OpenAI <code>gpt-image-1</code>. Vision: Azure OpenAI <code>gpt-4.1</code>. Videos: Azure OpenAI Sora (preview).
+        Images: Azure OpenAI <code>gpt-image-1</code>. Vision: Azure OpenAI <code>gpt-4.1</code>. Videos: Azure OpenAI
+        Sora (preview).
       </footer>
 
       {/* Modals */}
@@ -413,11 +405,25 @@ useEffect(() => {
           items={library}
           currentItemId={viewImageId}
           onClose={() => setViewImageId(null)}
-          onEdit={() => {
+          onEdit={(id: string) => {
             setViewImageId(null);
-            if (viewImageId) setEditImageId(viewImageId);
+            setEditImageId(id);
           }}
           onNavigate={(id) => setViewImageId(id)}
+          onRefresh={refreshLibrary}
+          baseUrl={API_BASE_URL}
+        />
+      )}
+      {viewVideoId && (
+        <VideoViewerModal
+          items={library}
+          currentItemId={viewVideoId}
+          onClose={() => setViewVideoId(null)}
+          onEdit={(id: string) => {
+            setViewVideoId(null);
+            setEditVideoId(id);
+          }}
+          onNavigate={(id) => setViewVideoId(id)}
           onRefresh={refreshLibrary}
           baseUrl={API_BASE_URL}
         />
@@ -430,7 +436,7 @@ useEffect(() => {
             setEditImageId(null);
             await refreshLibrary();
             setSelected([newId]);
-            setView('sora');
+            navigate('/sora');
           }}
           baseUrl={API_BASE_URL}
         />
@@ -446,7 +452,7 @@ useEffect(() => {
           baseUrl={API_BASE_URL}
         />
       )}
-      
+
       {/* Connection status indicator for debugging mobile issues */}
       <ConnectionStatus />
     </div>
@@ -455,10 +461,12 @@ useEffect(() => {
 
 export default function App() {
   return (
-    <PreferencesProvider>
-      <PromptSuggestionsProvider>
-        <AppContent />
-      </PromptSuggestionsProvider>
-    </PreferencesProvider>
+    <Router>
+      <PreferencesProvider>
+        <PromptSuggestionsProvider>
+          <AppContent />
+        </PromptSuggestionsProvider>
+      </PreferencesProvider>
+    </Router>
   );
 }

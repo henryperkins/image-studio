@@ -160,7 +160,7 @@ export async function callWithRetry<T>(
       if (attempt >= maxRetries) break;
 
       switch (errorType) {
-        case ErrorCode.RATE_LIMIT:
+        case ErrorCode.RATE_LIMIT: {
           // Extract retry-after header if available
           const retryAfter = error.headers?.['retry-after'];
           const waitTime = retryAfter 
@@ -168,6 +168,7 @@ export async function callWithRetry<T>(
             : calculateBackoff(attempt);
           await delay(waitTime);
           continue;
+        }
 
         case ErrorCode.CONTENT_FILTERED:
           throw new VisionAPIError(
@@ -185,12 +186,13 @@ export async function callWithRetry<T>(
           }
           break;
 
-        case ErrorCode.NETWORK:
+        case ErrorCode.NETWORK: {
           const networkDelay = backoff === 'exponential' 
             ? calculateBackoff(attempt)
             : (attempt + 1) * 1000;
           await delay(networkDelay);
           continue;
+        }
 
         case ErrorCode.VALIDATION:
           // Don't retry validation errors
@@ -200,12 +202,13 @@ export async function callWithRetry<T>(
             false
           );
 
-        default:
+        default: {
           const defaultDelay = backoff === 'exponential'
             ? calculateBackoff(attempt)
             : (attempt + 1) * 500;
           await delay(defaultDelay);
           continue;
+        }
       }
     }
   }
@@ -287,15 +290,15 @@ export function createFallbackResponse(
 ): any {
   const baseResponse = {
     metadata: {
-      language: "en",
-      confidence: "low" as const,
-      content_type: "other" as const,
+      language: 'en',
+      confidence: 'low' as const,
+      content_type: 'other' as const,
       sensitive_content: false,
       processing_notes: [`Fallback response due to: ${originalError.message}`]
     },
     accessibility: {
-      alt_text: "Image analysis unavailable",
-      long_description: "Unable to provide detailed description due to technical issues.",
+      alt_text: 'Image analysis unavailable',
+      long_description: 'Unable to provide detailed description due to technical issues.',
       reading_level: 8,
       color_accessibility: {
         relies_on_color: false,
@@ -303,24 +306,24 @@ export function createFallbackResponse(
       }
     },
     content: {
-      primary_subjects: ["unknown"],
-      scene_description: "Analysis unavailable",
+      primary_subjects: ['unknown'],
+      scene_description: 'Analysis unavailable',
       visual_elements: {
-        composition: "unavailable",
-        lighting: "unavailable",
+        composition: 'unavailable',
+        lighting: 'unavailable',
         colors: [],
-        style: "unavailable",
-        mood: "unavailable"
+        style: 'unavailable',
+        mood: 'unavailable'
       },
       text_content: [],
-      spatial_layout: "unavailable"
+      spatial_layout: 'unavailable'
     },
     generation_guidance: {
-      suggested_prompt: "Image analysis failed - manual prompt required",
+      suggested_prompt: 'Image analysis failed - manual prompt required',
       style_keywords: [],
       technical_parameters: {
-        aspect_ratio: "unknown",
-        recommended_model: "gpt-image-1",
+        aspect_ratio: 'unknown',
+        recommended_model: 'gpt-image-1',
         complexity_score: 5
       }
     },
@@ -332,7 +335,7 @@ export function createFallbackResponse(
       weapons: false,
       substances: false
     },
-    uncertainty_notes: ["Complete analysis unavailable due to service error"]
+    uncertainty_notes: ['Complete analysis unavailable due to service error']
   };
 
   switch (strategy) {
@@ -359,7 +362,7 @@ export function createFallbackResponse(
         },
         accessibility: {
           ...baseResponse.accessibility,
-          alt_text: "Image content - full analysis unavailable"
+          alt_text: 'Image content - full analysis unavailable'
         }
       };
 
@@ -413,22 +416,22 @@ export async function checkVisionServiceHealth(
       testUrl = `${baseUrl}/responses?api-version=preview`;
       requestBody = {
         model: azureConfig.visionDeployment,
-        input: [{ role: "user", content: "Health check" }],
+        input: [{ role: 'user', content: 'Health check' }],
         max_output_tokens: 1
       };
     } else {
       // Use Chat Completions API for other models
       testUrl = `${azureConfig.endpoint}/openai/deployments/${encodeURIComponent(azureConfig.visionDeployment)}/chat/completions?api-version=${azureConfig.chatApiVersion}`;
       requestBody = {
-        messages: [{ role: "user", content: "Health check" }],
+        messages: [{ role: 'user', content: 'Health check' }],
         max_tokens: 1
       };
     }
     
     const response = await withTimeout(
       fetch(testUrl, {
-        method: "POST",
-        headers: { ...authHeaders, "Content-Type": "application/json" },
+        method: 'POST',
+        headers: { ...authHeaders, 'Content-Type': 'application/json' },
         body: JSON.stringify(requestBody)
       }),
       5000,

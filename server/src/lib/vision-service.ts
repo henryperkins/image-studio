@@ -9,7 +9,7 @@ import {
   VisionAPIError,
   ErrorCode,
   FallbackStrategy,
-  Frame
+  Frame as _Frame
 } from '../types/vision.js';
 
 import {
@@ -62,15 +62,15 @@ function handleBlockedContent(moderation: ModerationResult): any {
   const mappedFlags = moderationToSafetyFlags(moderation);
   return {
     metadata: {
-      language: "en",
-      confidence: "high",
-      content_type: "blocked",
+      language: 'en',
+      confidence: 'high',
+      content_type: 'blocked',
       sensitive_content: true,
       processing_notes: [`Content blocked: ${moderation.description}`]
     },
     accessibility: {
-      alt_text: "Content not available due to safety policies",
-      long_description: "This content cannot be described due to safety policy violations.",
+      alt_text: 'Content not available due to safety policies',
+      long_description: 'This content cannot be described due to safety policy violations.',
       reading_level: 8,
       color_accessibility: {
         relies_on_color: false,
@@ -78,29 +78,29 @@ function handleBlockedContent(moderation: ModerationResult): any {
       }
     },
     content: {
-      primary_subjects: ["blocked_content"],
-      scene_description: "Content blocked by safety filters",
+      primary_subjects: ['blocked_content'],
+      scene_description: 'Content blocked by safety filters',
       visual_elements: {
-        composition: "unavailable",
-        lighting: "unavailable",
+        composition: 'unavailable',
+        lighting: 'unavailable',
         colors: [],
-        style: "unavailable",
-        mood: "unavailable"
+        style: 'unavailable',
+        mood: 'unavailable'
       },
       text_content: [],
-      spatial_layout: "unavailable"
+      spatial_layout: 'unavailable'
     },
     generation_guidance: {
-      suggested_prompt: "Cannot provide prompt for blocked content",
+      suggested_prompt: 'Cannot provide prompt for blocked content',
       style_keywords: [],
       technical_parameters: {
-        aspect_ratio: "unknown",
-        recommended_model: "none",
+        aspect_ratio: 'unknown',
+        recommended_model: 'none',
         complexity_score: 0
       }
     },
     safety_flags: mappedFlags,
-    uncertainty_notes: ["Content blocked by safety moderation"]
+    uncertainty_notes: ['Content blocked by safety moderation']
   };
 }
 
@@ -127,7 +127,7 @@ import {
   visionCircuitBreaker,
   generateCacheKey,
   createFallbackResponse,
-  withTimeout,
+  withTimeout as _withTimeout,
   VisionMetrics,
   checkVisionServiceHealth
 } from './error-handling.js';
@@ -135,8 +135,8 @@ import {
 import { callVisionAPI } from './vision-api.js';
 import { IMAGE_ANALYSIS_SCHEMA, VIDEO_ANALYSIS_SCHEMA } from './vision-schemas.js';
 
-import { promises as fs } from "node:fs";
-import path from "node:path";
+import { promises as fs } from 'node:fs';
+import path from 'node:path';
 
 // Configuration interface
 export interface VisionServiceConfig {
@@ -235,7 +235,7 @@ export class VisionService {
             this.config.moderation.azureContentSafety,
             options.targetAge
           );
-        } catch (err) {
+        } catch {
           // CRITICAL: Never fail-open for minors
           const isMinor = options.targetAge && options.targetAge < 18;
           if (isMinor || (this.config.moderation.strictMode && !this.config.moderation.failOpen)) {
@@ -277,7 +277,7 @@ export class VisionService {
             const hasAnyFlags = Object.values(moderationResult.flags || {}).some(f => f);
             if (hasAnyFlags || !isAppropriate) {
               throw new VisionAPIError(
-                `Content not appropriate for children under 13`,
+                'Content not appropriate for children under 13',
                 ErrorCode.CONTENT_FILTERED,
                 false,
                 FallbackStrategy.USE_GENERIC_DESCRIPTION
@@ -570,7 +570,7 @@ export class VisionService {
     }
 
     const imageParts = imageDataUrls.map((url, idx) => ({
-      type: "image_url" as const,
+      type: 'image_url' as const,
       image_url: {
         url,
         // Adaptive detail: first two images high, rest low when many
@@ -583,11 +583,11 @@ export class VisionService {
 
     // Build messages without DEVELOPER_MESSAGE in assistant role
     const messages = [
-      { role: "system", content: SYSTEM_PROMPT + this.getSchemaInstructions() },
+      { role: 'system', content: SYSTEM_PROMPT + this.getSchemaInstructions() },
       {
-        role: "user",
+        role: 'user',
         content: [
-          { type: "text", text: optimizedUserMessage },
+          { type: 'text', text: optimizedUserMessage },
           ...imageParts
         ]
       }
@@ -596,7 +596,7 @@ export class VisionService {
     return messages;
   }
 
-  private async callVisionAPI(messages: any[], options: DescriptionParams): Promise<any> {
+  private async callVisionAPI(messages: any[], _options: DescriptionParams): Promise<any> {
     // Delegate to the centralized vision API caller
     const result = await callVisionAPI(
       messages,
@@ -619,7 +619,7 @@ export class VisionService {
   }
 
   // Use the video schema and return raw JSON matching video analysis
-  private async callVideoVisionAPI(messages: any[], options: DescriptionParams): Promise<any> {
+  private async callVideoVisionAPI(messages: any[], _options: DescriptionParams): Promise<any> {
     const result = await callVisionAPI(
       messages,
       VIDEO_ANALYSIS_SCHEMA,
@@ -650,7 +650,7 @@ export class VisionService {
     let parsed;
     try {
       parsed = JSON.parse(responseContent);
-    } catch (error) {
+    } catch {
       throw new VisionAPIError(
         'Invalid JSON response from vision API',
         ErrorCode.VALIDATION,
@@ -730,7 +730,7 @@ export class VisionService {
 
   // Get schema instructions for the prompt
   private getSchemaInstructions(): string {
-    return `\n\nOutput must be valid JSON matching the provided response schema with all required fields. Ensure alt_text is ≤125 characters. Do not include extra commentary.`;
+    return '\n\nOutput must be valid JSON matching the provided response schema with all required fields. Ensure alt_text is ≤125 characters. Do not include extra commentary.';
   }
 
   // Helper methods for video analysis
@@ -738,7 +738,7 @@ export class VisionService {
     const videoUserMessage = createVideoUserMessage(frames, options);
 
     const frameParts = frames.map(f => ({
-      type: "image_url" as const,
+      type: 'image_url' as const,
       image_url: {
         url: f.dataUrl,
         detail: options.detail === 'brief' ? 'low' as const : 'high' as const
@@ -746,11 +746,11 @@ export class VisionService {
     }));
 
     return [
-      { role: "system", content: SYSTEM_PROMPT + this.getSchemaInstructions() },
+      { role: 'system', content: SYSTEM_PROMPT + this.getSchemaInstructions() },
       {
-        role: "user",
+        role: 'user',
         content: [
-          { type: "text", text: videoUserMessage },
+          { type: 'text', text: videoUserMessage },
           ...frameParts
         ]
       }
@@ -769,7 +769,7 @@ export class VisionService {
     let parsed;
     try {
       parsed = JSON.parse(responseContent);
-    } catch (error) {
+    } catch {
       throw new VisionAPIError(
         'Invalid JSON response from vision API',
         ErrorCode.VALIDATION,

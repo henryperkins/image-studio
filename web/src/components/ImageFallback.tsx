@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, memo } from 'react';
+import { cn } from '@/lib/utils';
 
 // ---------- Types ----------
 export interface ImageFallbackProps {
@@ -34,14 +35,14 @@ export const ImageFallback = memo(({
 
   return (
     <div
-      className={`flex flex-col items-center justify-center bg-gradient-to-br from-neutral-900 to-neutral-800 rounded-lg ${className}`}
+      className={cn('flex flex-col items-center justify-center bg-gradient-to-br from-neutral-900 to-neutral-800 rounded-lg', className)}
       style={style}
     >
       {type === 'loading' ? (
         <>
           <div className="relative">
             <div
-              className={`${iconSize} rounded-full border-4 border-neutral-700 border-t-blue-500 animate-spin`}
+              className={cn(iconSize, 'rounded-full border-4 border-neutral-700 border-t-primary animate-spin')}
             />
           </div>
           <p className="text-xs text-neutral-400 mt-2">Loading...</p>
@@ -49,7 +50,7 @@ export const ImageFallback = memo(({
       ) : type === 'error' ? (
         <>
           <svg
-            className={`${iconSize} text-red-400 opacity-60`}
+            className={cn(iconSize, 'text-destructive opacity-60')}
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -61,7 +62,7 @@ export const ImageFallback = memo(({
               d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
             />
           </svg>
-          <p className="text-xs text-red-400 mt-2">Failed to load</p>
+          <p className="text-xs text-destructive-foreground mt-2">Failed to load</p>
           {prompt && (
             <p className="text-xs text-neutral-500 mt-1 px-2 text-center line-clamp-2">
               {prompt}
@@ -71,7 +72,7 @@ export const ImageFallback = memo(({
       ) : type === 'video' ? (
         <>
           <svg
-            className={`${iconSize} text-neutral-500`}
+            className={cn(iconSize, 'text-neutral-500')}
             fill="currentColor"
             viewBox="0 0 20 20"
           >
@@ -82,7 +83,7 @@ export const ImageFallback = memo(({
       ) : (
         <>
           <svg
-            className={`${iconSize} text-neutral-500`}
+            className={cn(iconSize, 'text-neutral-500')}
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -130,7 +131,7 @@ export const ResilientImage = memo(({
   useEffect(() => {
     if (loadState === 'error' && retryCount < retryAttempts) {
       const timeout = setTimeout(() => {
-        console.log(`Retrying image load (attempt ${retryCount + 1}/${retryAttempts}): ${src}`);
+        console.warn(`Retrying image load (attempt ${retryCount + 1}/${retryAttempts}): ${src}`);
         setLoadState('loading');
         const separator = src.includes('?') ? '&' : '?';
         setCurrentSrc(`${src}${separator}_retry=${Date.now()}`);
@@ -161,7 +162,7 @@ export const ResilientImage = memo(({
   }
 
   return (
-    <div className={`relative ${className}`}>
+    <div className={cn('relative', className)}>
       {loadState === 'loading' && (
         <div className="absolute inset-0 flex items-center justify-center">
           <ImageFallback type="loading" className="w-full h-full" />
@@ -171,7 +172,7 @@ export const ResilientImage = memo(({
         ref={imgRef}
         src={currentSrc}
         alt={alt}
-        className={`${className} ${loadState === 'loading' ? 'opacity-0' : 'opacity-100'} transition-opacity duration-300`}
+        className={cn(className, loadState === 'loading' ? 'opacity-0' : 'opacity-100', 'transition-opacity duration-300')}
         onLoad={handleLoad}
         onError={handleError}
         loading="lazy"
@@ -189,7 +190,7 @@ export const ImageLoadingConfig = {
   showPromptInError: true,
   animationDuration: 300,
   onError: (src: string, attempts: number) => {
-    // eslint-disable-next-line no-console
+     
     console.error(`Image load failed after ${attempts} attempts:`, src);
   }
 };

@@ -140,7 +140,7 @@ export function useMediaActions({
     } catch (error) {
       // Don't show error if request was aborted
       if (error instanceof Error && error.name === 'AbortError') {
-        console.log('Analysis aborted');
+        console.warn('Analysis aborted');
       } else {
         const message = error instanceof Error ? error.message : ERROR_MESSAGES.analyze;
         showToast(`Analysis failed: ${message}`, 'error');
@@ -240,8 +240,7 @@ export function useMediaActions({
     handleDelete,
     handleAnalyze,
     handleDownload,
-    handleCopyPrompt,
-    showToast
+    handleCopyPrompt
   ]);
 
   return {

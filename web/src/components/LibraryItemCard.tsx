@@ -1,22 +1,24 @@
 import type React from 'react';
 import { useState, useRef, memo } from 'react';
 import { LibraryItem, isVideoItem, API_BASE_URL } from '../lib/api';
-import { ImageFallback, ResilientImage } from './ImageFallback';
+import { ResilientImage } from './ImageFallback';
 import {
   ContextMenu,
   ContextMenuTrigger,
   ContextMenuContent,
   ContextMenuItem,
-  ContextMenuSeparator,
+  ContextMenuSeparator
 } from '@/components/ui/context-menu';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
+  DropdownMenuSeparator
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import type { MediaAction } from '../hooks/useMediaActions';
 
 interface LibraryItemCardProps {
@@ -54,7 +56,8 @@ const LibraryItemCard = memo(({
     setShowContextMenu(true);
   };
 
-  const hoverTimeoutRef = useRef<NodeJS.Timeout>();
+  // Ref that stores the pending timeout when hovering videos
+  const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   
   const handleMouseEnter = () => {
     setIsHovered(true);
@@ -88,7 +91,8 @@ const LibraryItemCard = memo(({
     if (e.shiftKey || e.ctrlKey || e.metaKey) {
       e.preventDefault();
       onSelect(item.id, !selected);
-    } else if (!isVideo && onView) {
+    } else if (onView) {
+      // Both images and videos can now be viewed
       onView(item);
     }
   };
@@ -110,11 +114,13 @@ const LibraryItemCard = memo(({
     <>
       <ContextMenu onOpenChange={(open)=>setShowContextMenu(open)}>
       <ContextMenuTrigger asChild>
-      <div
+      <Tooltip>
+      <TooltipTrigger asChild>
+      <Card
         ref={cardRef}
-        className="relative cursor-pointer group"
+        className="relative cursor-pointer group overflow-hidden"
         style={{
-          animation: `fadeIn 0.3s ease-out ${index * 0.05}s both`,
+          animation: `fadeIn 0.3s ease-out ${index * 0.05}s both`
         }}
         onContextMenu={handleContextMenu}
         onMouseEnter={handleMouseEnter}
@@ -129,7 +135,7 @@ const LibraryItemCard = memo(({
           <label className="absolute top-1 left-1 md:top-2 md:left-2 z-20 min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0">
             <input
               type="checkbox"
-              className="w-6 h-6 md:w-5 md:h-5 rounded cursor-pointer appearance-none bg-white/90 border-2 border-neutral-400 checked:bg-blue-500 checked:border-blue-500 transition-all duration-200 hover:border-neutral-300 checked:hover:bg-blue-400 shadow-sm"
+              className="w-6 h-6 md:w-5 md:h-5 rounded cursor-pointer appearance-none bg-white/90 border-2 border-neutral-400 checked:bg-primary checked:border-primary transition-all duration-200 hover:border-neutral-300 checked:hover:bg-primary/90 shadow-sm"
               checked={selected}
               onChange={(e) => {
                 e.stopPropagation();
@@ -164,6 +170,30 @@ const LibraryItemCard = memo(({
           >
             ✎
           </Button>
+          {!isVideo && (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="bg-black/80 hover:bg-black text-white text-xs min-w-[32px] min-h-[32px] md:min-w-[28px] md:min-h-[28px] px-1.5 py-1"
+              onClick={(e) => { e.stopPropagation(); onAction('analyze', item); }}
+              title="Analyze"
+              aria-label="Analyze"
+            >
+              🔍
+            </Button>
+          )}
+          {!isVideo && (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="bg-black/80 hover:bg-black text-white text-xs min-w-[32px] min-h-[32px] md:min-w-[28px] md:min-h-[28px] px-1.5 py-1"
+              onClick={(e) => { e.stopPropagation(); onAction('use-in-sora', item); }}
+              title="Use in Sora"
+              aria-label="Use in Sora"
+            >
+              🎬
+            </Button>
+          )}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
@@ -178,21 +208,19 @@ const LibraryItemCard = memo(({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={(e)=>{e.stopPropagation(); onAction('view', item);}}>👁 View</DropdownMenuItem>
+              <DropdownMenuItem onClick={(e)=>{e.stopPropagation(); onAction('edit', item);}}>✏️ Edit</DropdownMenuItem>
               {!isVideoItem(item) && (
-                <DropdownMenuItem onClick={(e)=>{e.stopPropagation(); onAction('view', item)}}>👁 View</DropdownMenuItem>
-              )}
-              <DropdownMenuItem onClick={(e)=>{e.stopPropagation(); onAction('edit', item)}}>✏️ Edit</DropdownMenuItem>
-              {!isVideoItem(item) && (
-                <DropdownMenuItem onClick={(e)=>{e.stopPropagation(); onAction('analyze', item)}}>🔍 Analyze</DropdownMenuItem>
+                <DropdownMenuItem onClick={(e)=>{e.stopPropagation(); onAction('analyze', item);}}>🔍 Analyze</DropdownMenuItem>
               )}
               {!isVideoItem(item) && (
-                <DropdownMenuItem onClick={(e)=>{e.stopPropagation(); onAction('use-in-sora', item)}}>🎬 Use in Sora</DropdownMenuItem>
+                <DropdownMenuItem onClick={(e)=>{e.stopPropagation(); onAction('use-in-sora', item);}}>🎬 Use in Sora</DropdownMenuItem>
               )}
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={(e)=>{e.stopPropagation(); onAction('download', item)}}>⬇️ Download</DropdownMenuItem>
-              <DropdownMenuItem onClick={(e)=>{e.stopPropagation(); onAction('copy-prompt', item)}}>📝 Copy Prompt</DropdownMenuItem>
+              <DropdownMenuItem onClick={(e)=>{e.stopPropagation(); onAction('download', item);}}>⬇️ Download</DropdownMenuItem>
+              <DropdownMenuItem onClick={(e)=>{e.stopPropagation(); onAction('copy-prompt', item);}}>📝 Copy Prompt</DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem className="text-destructive data-[highlighted]:bg-destructive/10" onClick={(e)=>{e.stopPropagation(); onAction('delete', item)}}>🗑️ Delete</DropdownMenuItem>
+              <DropdownMenuItem className="text-destructive data-[highlighted]:bg-destructive/10" onClick={(e)=>{e.stopPropagation(); onAction('delete', item);}}>🗑️ Delete</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -238,7 +266,7 @@ const LibraryItemCard = memo(({
           <video
             ref={videoRef}
             src={`${baseUrl}${item.url}`}
-            className={`rounded-lg border border-neutral-800 transition-all duration-200 hover:shadow-lg hover:shadow-blue-500/20 w-full h-full object-cover ${hasError ? 'hidden' : ''}`}
+            className={`rounded-lg transition-all duration-200 hover:shadow-lg hover:shadow-blue-500/20 w-full h-full object-cover ${hasError ? 'hidden' : ''}`}
             muted
             loop
             playsInline
@@ -254,7 +282,7 @@ const LibraryItemCard = memo(({
           <ResilientImage
             src={`${baseUrl}${item.url}`}
             alt={item.prompt || `Generated image ${index + 1}`}
-            className={`rounded-lg border border-neutral-800 transition-all duration-200 ${
+            className={`rounded-lg transition-all duration-200 ${
               selected ? 'ring-2 ring-blue-400' : 'hover:shadow-lg hover:shadow-blue-500/20'
             } ${hasError ? 'hidden' : ''}`}
             fallbackType="image"
@@ -269,28 +297,24 @@ const LibraryItemCard = memo(({
           />
         )}
 
-        {/* Hover tooltip with better positioning */}
-        {isHovered && !showContextMenu && !isTouchDevice && item.prompt && (
-          <div 
-            className="absolute left-1/2 -translate-x-1/2 p-2 bg-black/95 backdrop-blur-sm rounded-lg text-xs text-white pointer-events-none z-40 w-max max-w-[min(200px,90vw)] whitespace-normal"
-            style={{
-              bottom: '100%',
-              marginBottom: '8px'
-            }}
-          >
-            <div className="font-medium mb-1 line-clamp-2">{item.prompt}</div>
-            <div className="text-neutral-400 text-[10px]">
-              {formatDate(item.createdAt)} • {!isVideo && item.size}
-              {isVideo && `${(item as any).duration}s`}
-            </div>
+        
+      </Card>
+      </TooltipTrigger>
+      {item.prompt && !isTouchDevice && (
+        <TooltipContent side="top" className="w-[240px]">
+          <div className="font-medium mb-1 line-clamp-2">{item.prompt}</div>
+          <div className="text-neutral-400 text-[10px]">
+            {formatDate(item.createdAt)} • {!isVideo && item.size}
+            {isVideo && `${(item as any).duration}s`}
           </div>
-        )}
-      </div>
+        </TooltipContent>
+      )}
+      </Tooltip>
       </ContextMenuTrigger>
 
       {/* Context menu content (right-click) */}
       <ContextMenuContent>
-        {!isVideo && (<ContextMenuItem onClick={()=>onAction('view', item)}>👁 View</ContextMenuItem>)}
+        <ContextMenuItem onClick={()=>onAction('view', item)}>👁 View</ContextMenuItem>
         <ContextMenuItem onClick={()=>onAction('edit', item)}>✏️ Edit</ContextMenuItem>
         {!isVideo && (<ContextMenuItem onClick={()=>onAction('analyze', item)}>🔍 Analyze</ContextMenuItem>)}
         {!isVideo && (<ContextMenuItem onClick={()=>onAction('use-in-sora', item)}>🎬 Use in Sora</ContextMenuItem>)}

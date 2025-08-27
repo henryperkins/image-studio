@@ -1,10 +1,10 @@
 // Video frame analysis capability (placeholder implementation)
 import { VideoParams, Frame } from '../types/vision.js';
-import { promises as fs } from "node:fs";
-import path from "node:path";
-import child_process from "node:child_process";
-import ffmpegStatic from "ffmpeg-static";
-import { setTimeout as sleep } from "node:timers/promises";
+import { promises as _fs } from 'node:fs';
+import _path from 'node:path';
+import child_process from 'node:child_process';
+import ffmpegStatic from 'ffmpeg-static';
+import { setTimeout as sleep } from 'node:timers/promises';
 
 let runningFfmpeg = 0;
 const MAX_CONCURRENT_FFMPEG = Number(process.env.MAX_CONCURRENT_FFMPEG || 2);
@@ -14,7 +14,7 @@ async function withFfmpegSlot<T>(fn: () => Promise<T>): Promise<T> {
   const start = Date.now();
   while (runningFfmpeg >= MAX_CONCURRENT_FFMPEG) {
     await sleep(50);
-    if (Date.now() - start > 5_000) throw new Error("FFmpeg concurrency queue timeout");
+    if (Date.now() - start > 5_000) throw new Error('FFmpeg concurrency queue timeout');
   }
   runningFfmpeg++;
   try { return await fn(); } finally { runningFfmpeg--; }
@@ -318,7 +318,7 @@ export function identifyImportantSegments(
 
 // Quality assessment for extracted frames
 export function assessFrameQuality(frames: Frame[]): string[] {
-  return frames.map((frame, index) => {
+  return frames.map((frame, _index) => {
     // Basic quality assessment based on data size and timestamp
     const sizeKB = (frame.data_url.length * 3/4) / 1024; // Rough base64 to bytes conversion
     

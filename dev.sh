@@ -55,8 +55,19 @@ kill_port() {
         for pid in $pids; do
             local process_name=$(ps -p $pid -o comm= 2>/dev/null)
             print_info "Killing process '$process_name' (PID: $pid) on port $port"
-            kill -9 $pid 2>/dev/null
-            if [ $? -eq 0 ]; then
+            # Try graceful stop first
+            kill -TERM $pid 2>/dev/null || true
+            for i in {1..10}; do
+                if ! kill -0 $pid 2>/dev/null; then
+                    break
+                fi
+                sleep 0.2
+            done
+            # Force kill if still alive
+            if kill -0 $pid 2>/dev/null; then
+                kill -KILL $pid 2>/dev/null || true
+            fi
+            if ! kill -0 $pid 2>/dev/null; then
                 print_success "Process killed successfully"
             else
                 print_error "Failed to kill process $pid"
@@ -121,7 +132,7 @@ check_server_health() {
     print_info "Waiting for server to be ready..."
     
     while [ $attempt -lt $max_attempts ]; do
-        if curl -s -o /dev/null -w "%{http_code}" http://localhost:$SERVER_PORT/healthz 2>/dev/null | grep -q "200\|404"; then
+        if [ "$(curl -s -o /dev/null -w "%{http_code}" http://localhost:$SERVER_PORT/healthz 2>/dev/null)" = "200" ]; then
             print_success "Server is responding on port $SERVER_PORT"
             return 0
         fi
@@ -193,7 +204,7 @@ start_servers() {
     print_info "Starting development servers..."
     
     # Start both servers using pnpm dev (which uses concurrently)
-    pnpm dev > "$LOG_DIR/dev.log" 2>&1 &
+    VITE_DEV_PORT=$WEB_PORT pnpm dev > "$LOG_DIR/dev.log" 2>&1 &
     local main_pid=$!
     echo $main_pid > $PID_FILE
     

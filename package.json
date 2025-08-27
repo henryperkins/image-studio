@@ -4,9 +4,17 @@
   "scripts": {
     "dev": "concurrently -n WEB,API -c blue,green \"pnpm --dir web dev\" \"pnpm --dir server dev\"",
     "build": "pnpm --dir web build && pnpm --dir server build",
-    "start": "pnpm --dir server start"
+    "start": "pnpm --dir server start",
+    "lint": "pnpm --dir web lint && pnpm --dir server lint",
+    "lint:fix": "pnpm --dir web lint:fix && pnpm --dir server lint:fix"
   },
   "devDependencies": {
-    "concurrently": "9.2.1"
+    "@eslint/js": "^9.34.0",
+    "concurrently": "9.2.1",
+    "eslint": "^9.34.0",
+    "typescript-eslint": "^8.41.0"
+  },
+  "dependencies": {
+    "react-router-dom": "^7.8.2"
   }
 }

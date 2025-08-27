@@ -1,7 +1,6 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { usePromptSuggestions } from '../contexts/PromptSuggestionsContext';
 import { usePreferences } from '../contexts/PreferencesContext';
-import { Heading, Text } from './typography';
 import { recordEvent } from '../lib/analytics';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -19,12 +18,12 @@ export default function PromptSuggestions({ onInsert, onReplace }: PromptSuggest
     pin,
     unpin,
     pinnedIds,
-    frequencyByKey,
-    incrementFrequency,
+    frequencyByKey
   } = usePromptSuggestions();
   const { prefs, setInsertSeparator, setAutoPinLastUsed } = usePreferences();
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [query, setQuery] = useState('');
   const panelRef = useRef<HTMLDivElement>(null);
 
   // Accessibility: allow Alt+L to focus panel (App may also set a global shortcut)
@@ -98,6 +97,14 @@ export default function PromptSuggestions({ onInsert, onReplace }: PromptSuggest
   // Settings popover (simple inline)
   const [showPrefs, setShowPrefs] = useState(false);
 
+  // Derived: filtered suggestions by query (text, tags, model)
+  const filtered = suggestions.filter((s) => {
+    const q = query.trim().toLowerCase();
+    if (!q) return true;
+    const hay = `${s.text} ${(s.tags || []).join(' ')} ${s.sourceModel}`.toLowerCase();
+    return hay.includes(q);
+  });
+
   // Render
   return (
     <div
@@ -108,8 +115,8 @@ export default function PromptSuggestions({ onInsert, onReplace }: PromptSuggest
       aria-label="Prompt Suggestions"
       tabIndex={-1}
     >
-      <div className="flex items-center justify-between mb-2">
-        <Heading level={4}>Prompt Suggestions</Heading>
+      <div className="flex items-center justify-between mb-1">
+        <h4 className="text-lg font-semibold">Prompt Suggestions</h4>
         <div className="flex items-center gap-2">
           {selectedIds.size > 0 && (
             <>
@@ -129,6 +136,17 @@ export default function PromptSuggestions({ onInsert, onReplace }: PromptSuggest
           </Button>
         </div>
       </div>
+      <div className="flex gap-2 mb-2 items-center">
+        <input
+          type="search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search suggestions…"
+          aria-label="Search suggestions"
+          className="flex-1 rounded-md border border-neutral-800 bg-neutral-950 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500/30"
+        />
+      </div>
+      <p className="text-xs text-neutral-500 mb-2">Tip: Enter to insert • Shift+Enter to replace • Space to select • Drag into the prompt box</p>
 
       {showPrefs && (
         <Card id="suggestions-settings" className="mb-2 p-3 space-y-2">
@@ -154,11 +172,11 @@ export default function PromptSuggestions({ onInsert, onReplace }: PromptSuggest
         </Card>
       )}
 
-      {suggestions.length === 0 ? (
-        <Text size="xs" tone="muted">No suggestions yet. Analyze images to generate some.</Text>
+      {filtered.length === 0 ? (
+        <p className="text-xs text-neutral-500">No suggestions yet. Analyze images to generate some.</p>
       ) : (
         <ul className="space-y-2 max-h-60 overflow-auto" role="listbox" aria-label="Prompt suggestion list">
-          {suggestions.map(s => (
+          {filtered.map(s => (
             <li
               key={s.id}
               role="option"
@@ -185,25 +203,25 @@ export default function PromptSuggestions({ onInsert, onReplace }: PromptSuggest
                   title={s.text} // full text tooltip
                   aria-label={`Suggestion: ${s.text.slice(0, 100)}`}
                 >
-                  <Text size="sm" className="truncate">{s.text}</Text>
+                  <span className="text-sm truncate">{s.text}</span>
                   <div className="flex items-center gap-2 mt-1">
-                    <Text size="xs" tone="muted" className="flex-shrink-0">
+                    <span className="text-xs text-neutral-500 flex-shrink-0">
                       {new Date(s.createdAt).toLocaleTimeString()} • {s.sourceModel}
                       {frequencyByKey[s.dedupeKey] ? ` • ${frequencyByKey[s.dedupeKey]}×` : ''}
-                    </Text>
+                    </span>
                     <div className="flex gap-1 overflow-hidden">
                       {s.tags?.slice(0, 2).map(t => (
-                        <span key={t} className="text-xs px-2 py-0.5 rounded-full bg-purple-600/20 text-purple-300 whitespace-nowrap flex-shrink-0">{t}</span>
+                        <span key={t} className="text-xs px-2 py-0.5 rounded-full bg-accent/20 text-accent-foreground whitespace-nowrap flex-shrink-0">{t}</span>
                       ))}
                     </div>
                   </div>
                 </button>
                 <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-                  <Button size="sm" variant="ghost" onClick={() => { onInsert(s.text); recordEvent('suggestion_insert', { id: s.id }); }} title="Insert">
-                    Ins
+                  <Button size="sm" variant="ghost" onClick={() => { onInsert(s.text); recordEvent('suggestion_insert', { id: s.id }); }} title="Insert" aria-label="Insert suggestion">
+                    Insert
                   </Button>
-                  <Button size="sm" variant="ghost" onClick={() => { onReplace(s.text); recordEvent('suggestion_replace', { id: s.id }); }} title="Replace">
-                    Rep
+                  <Button size="sm" variant="ghost" onClick={() => { onReplace(s.text); recordEvent('suggestion_replace', { id: s.id }); }} title="Replace" aria-label="Replace prompt">
+                    Replace
                   </Button>
                   <Button size="sm" variant="ghost" onClick={() => onCopy(s.text)} title="Copy" aria-label="Copy">
                     📋

@@ -3,20 +3,20 @@
  * Core schemas have been moved to @image-studio/shared/schemas
  */
 import type {
-  ImageItem,
-  VideoItem,
-  LibraryItem,
-  StructuredVisionResult,
-  AccessibilityAnalysisResult,
-  VisionHealthStatus,
-  VisionMetadata,
-  Accessibility,
-  Content,
-  GenerationGuidance,
-  SafetyFlags,
-  StructuredDescription,
-  VideoAnalysis
-} from "@image-studio/shared";
+  ImageItem as _ImageItem,
+  VideoItem as _VideoItem,
+  LibraryItem as _LibraryItem,
+  StructuredVisionResult as _StructuredVisionResult,
+  AccessibilityAnalysisResult as _AccessibilityAnalysisResult,
+  VisionHealthStatus as _VisionHealthStatus,
+  VisionMetadata as _VisionMetadata,
+  Accessibility as _Accessibility,
+  Content as _Content,
+  GenerationGuidance as _GenerationGuidance,
+  SafetyFlags as _SafetyFlags,
+  StructuredDescription as _StructuredDescription,
+  VideoAnalysis as _VideoAnalysis
+} from '@image-studio/shared';
 
 export type {
   VisionMetadata,
@@ -26,7 +26,7 @@ export type {
   SafetyFlags,
   StructuredDescription,
   VideoAnalysis
-} from "@image-studio/shared";
+} from '@image-studio/shared';
 
 export {
   VisionMetadataSchema,
@@ -36,7 +36,7 @@ export {
   SafetyFlagsSchema,
   StructuredDescriptionSchema,
   VideoAnalysisSchema
-} from "@image-studio/shared";
+} from '@image-studio/shared';
 
 // Moderation result interface
 export interface ModerationResult {
