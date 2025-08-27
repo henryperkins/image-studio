@@ -1,5 +1,5 @@
 import type React from 'react';
-import { useState, useRef, memo } from 'react';
+import { useState, useRef, memo, useMemo } from 'react';
 import { LibraryItem, isVideoItem, API_BASE_URL } from '../lib/api';
 import { ResilientImage } from './ImageFallback';
 import {
@@ -44,11 +44,26 @@ const LibraryItemCard = memo(({
   const [isHovered, setIsHovered] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
-  const [isTouchDevice] = useState(() => 'ontouchstart' in window);
+  const isTouchDevice = useMemo(() => {
+    try {
+      // Prefer coarse pointer or maxTouchPoints for better accuracy on hybrids
+      if (navigator && typeof (navigator as any).maxTouchPoints === 'number') {
+        return (navigator as any).maxTouchPoints > 0;
+      }
+      if (window && 'matchMedia' in window) {
+        return window.matchMedia('(pointer: coarse)').matches;
+      }
+    } catch {}
+    return false;
+  }, []);
   const [showControls, setShowControls] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const cardRef = useRef<HTMLDivElement>(null);
   const isVideo = isVideoItem(item);
+
+  // Compute a stable aspect ratio for consistent grid heights
+  // Use a uniform square aspect ratio for consistent grid rows
+  const aspectRatio = '1 / 1';
 
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -118,7 +133,7 @@ const LibraryItemCard = memo(({
       <TooltipTrigger asChild>
       <Card
         ref={cardRef}
-        className="relative cursor-pointer group overflow-hidden"
+        className="relative cursor-pointer group overflow-hidden bg-neutral-800/40 border-neutral-700 hover:border-purple-500 transition-all duration-200 p-1"
         style={{
           animation: `fadeIn 0.3s ease-out ${index * 0.05}s both`
         }}
@@ -158,48 +173,14 @@ const LibraryItemCard = memo(({
           </label>
         )}
 
-        {/* Quick actions (visible on hover or touch devices) */}
-        <div className={`absolute top-1 right-1 md:top-2 md:right-2 z-30 flex gap-1 transition-opacity duration-200 ${(isHovered || isTouchDevice) && !showContextMenu ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
-          <Button
-            size="sm"
-            variant="ghost"
-            className="bg-black/80 hover:bg-black text-white text-xs min-w-[32px] min-h-[32px] md:min-w-[28px] md:min-h-[28px] px-1.5 py-1"
-            onClick={(e) => { e.stopPropagation(); onAction('edit', item); }}
-            title="Edit"
-            aria-label="Edit"
-          >
-            ✎
-          </Button>
-          {!isVideo && (
-            <Button
-              size="sm"
-              variant="ghost"
-              className="bg-black/80 hover:bg-black text-white text-xs min-w-[32px] min-h-[32px] md:min-w-[28px] md:min-h-[28px] px-1.5 py-1"
-              onClick={(e) => { e.stopPropagation(); onAction('analyze', item); }}
-              title="Analyze"
-              aria-label="Analyze"
-            >
-              🔍
-            </Button>
-          )}
-          {!isVideo && (
-            <Button
-              size="sm"
-              variant="ghost"
-              className="bg-black/80 hover:bg-black text-white text-xs min-w-[32px] min-h-[32px] md:min-w-[28px] md:min-h-[28px] px-1.5 py-1"
-              onClick={(e) => { e.stopPropagation(); onAction('use-in-sora', item); }}
-              title="Use in Sora"
-              aria-label="Use in Sora"
-            >
-              🎬
-            </Button>
-          )}
+        {/* Kebab menu (always visible) */}
+        <div className="absolute top-1 right-1 md:top-2 md:right-2 z-30">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
                 size="sm"
                 variant="ghost"
-                className="bg-black/80 hover:bg-black text-white text-xs min-w-[32px] min-h-[32px] md:min-w-[28px] md:min-h-[28px] px-1.5 py-1"
+                className="bg-black/80 hover:bg-black text-white text-xs min-w-[44px] min-h-[44px] px-2 py-1.5"
                 onClick={(e) => { e.stopPropagation(); setIsHovered(false); }}
                 aria-label="More actions"
                 title="More actions"
@@ -236,6 +217,20 @@ const LibraryItemCard = memo(({
           </div>
         )}
 
+        {/* Primary action overlay (images): keep one visible */}
+        {!isVideo && (
+          <div className={`absolute bottom-2 left-1/2 -translate-x-1/2 z-30 transition-opacity duration-200 ${ (isHovered || isTouchDevice) ? 'opacity-100' : 'opacity-0 group-hover:opacity-100' }`}>
+            <Button
+              size="sm"
+              className="min-h-[36px] px-3 bg-black/80 text-white hover:bg-black"
+              onClick={(e)=>{ e.stopPropagation(); onAction('use-in-sora', item); }}
+              aria-label="Use in Sora"
+            >
+              🎬 Use in Sora
+            </Button>
+          </div>
+        )}
+
         {/* Loading skeleton */}
         {isLoading && (
           <div className="absolute inset-0 bg-neutral-800 rounded-lg animate-pulse" />
@@ -261,41 +256,43 @@ const LibraryItemCard = memo(({
           </div>
         )}
 
-        {/* Media content */}
-        {isVideo ? (
-          <video
-            ref={videoRef}
-            src={`${baseUrl}${item.url}`}
-            className={`rounded-lg transition-all duration-200 hover:shadow-lg hover:shadow-blue-500/20 w-full h-full object-cover ${hasError ? 'hidden' : ''}`}
-            muted
-            loop
-            playsInline
-            preload="metadata"
-            controls={isTouchDevice || showControls}
-            onLoadedMetadata={() => setIsLoading(false)}
-            onError={() => {
-              setIsLoading(false);
-              setHasError(true);
-            }}
-          />
-        ) : (
-          <ResilientImage
-            src={`${baseUrl}${item.url}`}
-            alt={item.prompt || `Generated image ${index + 1}`}
-            className={`rounded-lg transition-all duration-200 ${
-              selected ? 'ring-2 ring-blue-400' : 'hover:shadow-lg hover:shadow-blue-500/20'
-            } ${hasError ? 'hidden' : ''}`}
-            fallbackType="image"
-            prompt={item.prompt}
-            retryAttempts={3}
-            retryDelay={1000}
-            onLoad={() => setIsLoading(false)}
-            onError={() => {
-              setIsLoading(false);
-              setHasError(true);
-            }}
-          />
-        )}
+        {/* Media content in fixed aspect-ratio wrapper */}
+        <div className="relative rounded-lg overflow-hidden" style={{ aspectRatio }}>
+          {isVideo ? (
+            <video
+              ref={videoRef}
+              src={`${baseUrl}${item.url}`}
+              className={`absolute inset-0 rounded-lg transition-all duration-200 hover:shadow-lg hover:shadow-purple-500/20 w-full h-full object-cover ${hasError ? 'hidden' : ''}`}
+              muted
+              loop
+              playsInline
+              preload="metadata"
+              controls={isTouchDevice || showControls}
+              onLoadedMetadata={() => setIsLoading(false)}
+              onError={() => {
+                setIsLoading(false);
+                setHasError(true);
+              }}
+            />
+          ) : (
+            <ResilientImage
+              src={`${baseUrl}${item.url}`}
+              alt={item.prompt || `Generated image ${index + 1}`}
+              className={`absolute inset-0 rounded-lg transition-all duration-200 w-full h-full object-cover ${
+                selected ? 'ring-2 ring-purple-500' : 'hover:shadow-lg hover:shadow-purple-500/20'
+              } ${hasError ? 'hidden' : ''}`}
+              fallbackType="image"
+              prompt={item.prompt}
+              retryAttempts={3}
+              retryDelay={1000}
+              onLoad={() => setIsLoading(false)}
+              onError={() => {
+                setIsLoading(false);
+                setHasError(true);
+              }}
+            />
+          )}
+        </div>
 
         
       </Card>

@@ -1,6 +1,5 @@
-/* Typography-specific styles that extend Tailwind */
+/* Typography-specific styles that extend Tailwind (v4) */
 
-/* Base typography setup */
 @layer base {
   html {
     -webkit-text-size-adjust: 100%;
@@ -8,89 +7,194 @@
     font-optical-sizing: auto;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    font-smooth: always;
   }
 
   body {
-    /* Use theme tokens so light/dark and custom themes work */
-    background-color: var(--background);
+    background: var(--background);
+    background-attachment: fixed;
     color: var(--foreground);
     @apply font-sans font-normal;
+    text-wrap: pretty;
+    position: relative;
   }
 
-  /* Links */
+  body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 100vh;
+    background: var(--gradient-glow);
+    opacity: 0.4;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  body::after {
+    content: '';
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 60vh;
+    background: radial-gradient(ellipse at bottom, rgb(var(--color-accent-600) / 0.08), transparent 80%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* Theme-aware code colors */
+  :root {
+    --code-bg: rgb(var(--color-neutral-100) / 0.5);
+    --code-fg: rgb(var(--color-neutral-900));
+  }
+
+  .dark {
+    --code-bg: rgb(var(--color-neutral-900) / 0.5);
+    --code-fg: rgb(var(--color-neutral-50));
+  }
+
+  /* Links with enhanced hover effects */
   a {
     @apply text-primary no-underline;
     text-underline-offset: 3px;
+    transition: all 0.2s ease;
   }
-  
+
   a:hover {
     @apply underline;
+    filter: brightness(1.2);
+    text-shadow: 0 0 20px rgb(var(--color-brand-500) / 0.5);
   }
 
-  /* Code blocks */
+  /* Inline code with glass effect */
   code {
-    @apply font-mono text-sm bg-neutral-900 px-1 py-0.5 rounded;
+    @apply font-mono text-sm px-1.5 py-0.5 rounded-md;
+    background: var(--code-bg);
+    color: var(--code-fg);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgb(var(--color-neutral-200) / 0.2);
   }
 
+  .dark code {
+    border-color: rgb(var(--color-neutral-700) / 0.3);
+  }
+
+  /* Code blocks with glass morphism */
   pre {
-    @apply font-mono text-sm overflow-x-auto p-4;
-    @apply bg-neutral-900 border border-neutral-800 rounded-xl;
+    @apply font-mono text-sm overflow-x-auto p-4 border rounded-xl;
+    background: var(--code-bg);
+    backdrop-filter: blur(10px);
+    color: var(--code-fg);
+    border-color: rgb(var(--color-neutral-200) / 0.3);
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  }
+
+  .dark pre {
+    border-color: rgb(var(--color-neutral-800) / 0.5);
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.3), 0 2px 4px -2px rgb(0 0 0 / 0.2);
   }
 
   /* Emphasis */
   em {
     @apply italic;
   }
-  
+
   strong {
     @apply font-semibold;
+    color: rgb(var(--color-brand-500));
+  }
+
+  .dark strong {
+    color: rgb(var(--color-brand-400));
+  }
+
+  /* Headings with gradient text */
+  h1, h2, h3, h4, h5, h6 {
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    background: var(--gradient-brand);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
   }
 }
 
-/* Component layer for reusable patterns */
 @layer components {
-  /* Removed legacy .btn/.input/.card in favor of shadcn/ui */
 
-  /* Loading skeleton */
+  /* Loading skeleton with gradient shimmer */
   .skeleton {
-    @apply bg-gradient-to-r from-neutral-800 via-neutral-700 to-neutral-800;
+    @apply rounded-lg;
+    background: linear-gradient(90deg,
+        rgb(var(--color-neutral-200) / 0.5) 0%,
+        rgb(var(--color-neutral-100) / 0.8) 50%,
+        rgb(var(--color-neutral-200) / 0.5) 100%);
     background-size: 200% 100%;
     animation: var(--animate-shimmer);
+    backdrop-filter: blur(4px);
   }
 
-  /* Progress bars */
+  .dark .skeleton {
+    background: linear-gradient(90deg,
+        rgb(var(--color-neutral-800) / 0.5) 0%,
+        rgb(var(--color-neutral-700) / 0.8) 50%,
+        rgb(var(--color-neutral-800) / 0.5) 100%);
+  }
+
+  /* Enhanced Progress bars with gradient */
   .progress-bar {
-    @apply h-1 bg-primary rounded-full transition-all duration-300 ease-out;
+    @apply relative h-1.5 bg-neutral-200 dark:bg-neutral-800 rounded-full transition-all duration-300 ease-out;
+    overflow: hidden;
+  }
+
+  .progress-bar::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--gradient-brand);
+    border-radius: inherit;
+    transform: scaleX(var(--progress, 0));
+    transform-origin: left;
+    transition: transform 0.3s ease;
   }
 
   .progress-bar-indeterminate {
     @apply absolute h-full rounded-full;
-    background: linear-gradient(to right, var(--primary), var(--primary));
+    left: 0;
+    background: var(--gradient-brand);
     animation: var(--animate-progress);
   }
 
-  /* Removed bespoke toast styles (using shadcn Radix Toast) */
-
-  /* Text utilities */
+  /* Enhanced text utilities */
   .text-body {
     @apply text-base leading-relaxed;
+    font-weight: 400;
   }
 
   .text-small {
     @apply text-sm leading-normal;
+    opacity: 0.9;
   }
 
   .text-caption {
-    @apply text-xs leading-normal tracking-wide font-medium;
+    @apply text-xs leading-normal tracking-wide font-medium uppercase;
+    letter-spacing: 0.08em;
+    opacity: 0.85;
   }
 
   .text-muted {
-    @apply text-neutral-400;
+    @apply text-neutral-600 dark:text-neutral-300;
   }
 
   .text-longform {
     @apply font-serif text-base leading-relaxed max-w-prose;
+  }
+
+  .text-gradient {
+    background: var(--gradient-brand);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
   }
 
   /* Numeric text */
@@ -98,7 +202,28 @@
     font-variant-numeric: tabular-nums slashed-zero lining-nums;
   }
 
-  /* Truncation */
+  /* Glass morphism card */
+  .glass {
+    background: rgb(255 255 255 / 0.05);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgb(255 255 255 / 0.1);
+  }
+
+  .dark .glass {
+    background: rgb(0 0 0 / 0.2);
+    border-color: rgb(255 255 255 / 0.05);
+  }
+
+  /* Glow effects */
+  .glow {
+    box-shadow: var(--shadow-glow);
+  }
+
+  .glow-lg {
+    box-shadow: var(--shadow-glow-lg);
+  }
+
+  /* Truncation (no plugin needed) */
   .line-clamp-2 {
     display: -webkit-box;
     -webkit-line-clamp: 2;
@@ -111,5 +236,27 @@
     -webkit-line-clamp: 3;
     -webkit-box-orient: vertical;
     @apply overflow-hidden;
+  }
+
+  /* Media card improvements */
+  .media-card {
+    @apply overflow-hidden rounded-lg transition-all duration-300;
+    background: rgb(var(--color-neutral-800) / 0.6);
+    border: 1px solid rgb(var(--color-neutral-700) / 0.5);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
+
+  .media-card:hover {
+    transform: translateY(-2px) scale(1.01);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2), 0 0 0 1px rgb(var(--color-brand-500) / 0.3);
+    border-color: rgb(var(--color-brand-500) / 0.3);
+  }
+
+  .media-card img {
+    @apply transition-transform duration-500;
+  }
+
+  .media-card:hover img {
+    transform: scale(1.05);
   }
 }

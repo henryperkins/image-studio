@@ -18,6 +18,14 @@ import { useToast } from '../contexts/ToastContext';
 import ConnectionStatus from './ConnectionStatus';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select';
 import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 
@@ -38,6 +46,7 @@ function AppContent() {
   // Library filters/search
   const [libraryQuery, setLibraryQuery] = useState('');
   const [libraryType, setLibraryType] = useState<'all' | 'images' | 'videos'>('all');
+  const [librarySort, setLibrarySort] = useState<'newest' | 'oldest' | 'name-asc' | 'name-desc'>('newest');
 
   // Prompt state (shared between creators)
   const [prompt, setPrompt] = useState('');
@@ -162,25 +171,43 @@ function AppContent() {
     return hay.includes(q);
   });
 
-  // Reset page on filter/search change
-  useEffect(() => { setLibraryPage(0); }, [libraryQuery, libraryType]);
+  // Reset page on filter/search/sort change
+  useEffect(() => { setLibraryPage(0); }, [libraryQuery, libraryType, librarySort]);
 
   return (
-    <div className="mx-auto max-w-6xl p-4 space-y-4">
-      <header className="flex items-center justify-between">
-        <h1 className="!text-2xl font-sans font-semibold">AI Media Studio</h1>
-        <Tabs value={tabsValue} onValueChange={(v) => navigate(v)}>
-          <TabsList className="inline-flex rounded-2xl border border-neutral-800">
-            <TabsTrigger value="/">Images</TabsTrigger>
-            <TabsTrigger value="/sora">Sora</TabsTrigger>
-          </TabsList>
-        </Tabs>
+    <div className="relative z-10 mx-auto max-w-6xl p-4 space-y-4 min-h-screen bg-gradient-to-br from-neutral-900 via-purple-900/10 to-neutral-900">
+      <header className="sticky top-0 z-40 flex items-center justify-between mb-6 py-4 border-b border-neutral-800/50 bg-background/80 supports-[backdrop-filter]:bg-background/60 backdrop-blur">
+        <h1 className="!text-2xl font-sans font-semibold flex items-center gap-2">
+          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-cyan-500 flex items-center justify-center">
+            <span className="text-white text-sm">AI</span>
+          </div>
+          <span className="text-gradient">AI Media Studio</span>
+        </h1>
+
+        <div className="flex items-center gap-2">
+          <Tabs value={tabsValue} onValueChange={(v) => navigate(v)}>
+            <TabsList className="inline-flex rounded-2xl border border-input/20 bg-muted/30 p-1 text-muted-foreground shadow-lg supports-[backdrop-filter]:bg-muted/20 backdrop-blur">
+              <TabsTrigger value="/">Images</TabsTrigger>
+              <TabsTrigger value="/sora">Sora</TabsTrigger>
+            </TabsList>
+          </Tabs>
+
+          <button
+            className="p-2 rounded-full bg-neutral-800/50 text-neutral-200 hover:text-white hover:bg-neutral-700/60 supports-[backdrop-filter]:bg-neutral-800/40 backdrop-blur"
+            onClick={() => document.documentElement.classList.toggle('dark')}
+            aria-label="Toggle dark mode"
+            title="Toggle dark mode"
+          >
+            {/* Simple icon swap via text; could be replaced with SVGs */}
+            <span aria-hidden>🌓</span>
+          </button>
+        </div>
       </header>
 
       <div className="flex flex-col md:grid md:grid-cols-3 gap-4">
         {/* Left column (main content) */}
         <div className="md:col-span-2">
-          <Card className="transition-opacity duration-200 p-6 md:p-8 space-y-4">
+          <Card className="transition-opacity duration-200 p-6 md:p-8 space-y-6 bg-neutral-800/60 backdrop-blur-lg border-neutral-700 shadow-2xl">
             <div className="relative min-h-[600px]">
               <Routes>
                 <Route
@@ -238,29 +265,42 @@ function AppContent() {
         {/* Library panel */}
         <Card
           id="library-panel"
-          className={cn('transition-opacity duration-200 p-3', mobileLibraryOpen ? 'block' : 'hidden md:block')}
+          className={cn('transition-opacity duration-200 p-4 bg-neutral-800/60 backdrop-blur-lg border-neutral-700 shadow-2xl', mobileLibraryOpen ? 'block' : 'hidden md:block')}
         >
-          <h4 className="mb-2 text-xl font-medium">Media Library</h4>
-          <p className="text-xs text-neutral-400 mb-2">
-            Your generated images and videos. Select images to use as references for Sora. Tip: Shift/Ctrl click to multi‑select.
+          <h4 className="mb-3 text-xl font-medium text-neutral-100">Media Library</h4>
+          <p className="text-xs text-neutral-400 mb-3">
+            Your generated images and videos. Select images to use as references for Sora. Tip: tap the checkbox on mobile; use Shift/Ctrl click to multi‑select on desktop.
           </p>
 
           {/* Filters + Search */}
           <div className="flex flex-col sm:flex-row gap-2 mb-2 items-stretch sm:items-center">
-            <div className="inline-flex rounded-md overflow-hidden border border-neutral-700">
+            <div className="inline-flex rounded-md overflow-hidden border border-input bg-background/60 supports-[backdrop-filter]:bg-background/40 backdrop-blur">
               <Button size="sm" variant={libraryType === 'all' ? 'default' : 'outline'} onClick={() => setLibraryType('all')}>All</Button>
               <Button size="sm" variant={libraryType === 'images' ? 'default' : 'outline'} onClick={() => setLibraryType('images')}>Images</Button>
               <Button size="sm" variant={libraryType === 'videos' ? 'default' : 'outline'} onClick={() => setLibraryType('videos')}>Videos</Button>
             </div>
             <div className="flex-1">
-              <input
+              <Input
                 type="search"
                 value={libraryQuery}
                 onChange={(e) => setLibraryQuery(e.target.value)}
                 placeholder="Search by prompt or filename…"
-                className="w-full rounded-md border border-neutral-700 bg-neutral-950 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500/30"
                 aria-label="Search media library"
+                className="w-full bg-background/60 supports-[backdrop-filter]:bg-background/40 backdrop-blur"
               />
+            </div>
+            <div className="sm:w-[200px] w-full">
+              <Select value={librarySort} onValueChange={(v) => setLibrarySort(v as any)}>
+                <SelectTrigger aria-label="Sort library">
+                  <SelectValue placeholder="Sort" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="newest">Newest</SelectItem>
+                  <SelectItem value="oldest">Oldest</SelectItem>
+                  <SelectItem value="name-asc">Name A–Z</SelectItem>
+                  <SelectItem value="name-desc">Name Z–A</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
@@ -272,7 +312,7 @@ function AppContent() {
             </div>
           ) : library.length === 0 ? (
             <div className="py-12 text-center space-y-3">
-              <div className="text-neutral-500">
+              <div className="text-muted-foreground">
                 <svg className="w-12 h-12 mx-auto mb-3 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path
                     strokeLinecap="round"
@@ -282,7 +322,7 @@ function AppContent() {
                   />
                 </svg>
                 <p className="font-medium text-sm">No media yet</p>
-                <p className="text-xs text-neutral-400 mt-1">Generate your first image or video to get started</p>
+                <p className="text-xs text-muted-foreground mt-1">Generate your first image or video to get started</p>
               </div>
               <Button
                 className="mx-auto"
@@ -296,8 +336,19 @@ function AppContent() {
             </div>
           ) : (
             <div className="space-y-3">
-              <div className="grid grid-cols-2 gap-2 fade-in">
-                {filteredLibrary
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 fade-in">
+                {[...filteredLibrary]
+                  .sort((a, b) => {
+                    if (librarySort === 'newest' || librarySort === 'oldest') {
+                      const da = new Date(a.createdAt).getTime();
+                      const db = new Date(b.createdAt).getTime();
+                      return librarySort === 'newest' ? db - da : da - db;
+                    }
+                    const nameA = ((a.filename || a.prompt || '').toLowerCase());
+                    const nameB = ((b.filename || b.prompt || '').toLowerCase());
+                    const cmp = nameA.localeCompare(nameB);
+                    return librarySort === 'name-asc' ? cmp : -cmp;
+                  })
                   .slice(libraryPage * itemsPerPage, (libraryPage + 1) * itemsPerPage)
                   .map((item, index) => (
                     <LibraryItemCard
@@ -335,7 +386,7 @@ function AppContent() {
                   >
                     ← Previous
                   </Button>
-                  <span className="text-xs text-neutral-400 flex-1 text-center min-w-[100px]">
+                  <span className="text-xs text-muted-foreground flex-1 text-center min-w-[100px]">
                     Page {libraryPage + 1} of {Math.ceil(filteredLibrary.length / itemsPerPage)}
                   </span>
                   <Button
@@ -394,7 +445,7 @@ function AppContent() {
         </Card>
       </div>
 
-      <footer className="text-caption text-muted">
+      <footer className="text-sm text-neutral-400 mt-6">
         Images: Azure OpenAI <code>gpt-image-1</code>. Vision: Azure OpenAI <code>gpt-4.1</code>. Videos: Azure OpenAI
         Sora (preview).
       </footer>

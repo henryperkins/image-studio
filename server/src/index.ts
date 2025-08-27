@@ -41,6 +41,9 @@ await app.register(cors, {
     // Allow non-browser or same-origin requests with no Origin header
     if (!origin) return cb(null, true);
 
+    // Check if wildcard is configured
+    if (ORIGIN_ENV === '*') return cb(null, true);
+
     // Explicit allowlist always wins
     if (ORIGIN_LIST.includes(origin)) return cb(null, true);
 
@@ -892,28 +895,9 @@ app.get('/api/videos/sora/thumbnail/:generationId', async (req, reply) => {
   }
 });
 
-// HEAD request passthrough for content metadata (size, etc.)
-app.head('/api/videos/sora/content/:generationId', async (req, reply) => {
-  const generationId = (req.params as any)?.generationId as string | undefined;
-  const { quality } = (req.query as any) as { quality?: 'high' | 'low' };
-  if (!generationId) return reply.status(400).send({ error: 'Missing generationId' });
-  try {
-    const base = `${AZ.endpoint.replace(/\/+$/, '')}/openai/v1`;
-    const qp = quality ? `&quality=${encodeURIComponent(quality)}` : '';
-    const url = `${base}/video/generations/${encodeURIComponent(generationId)}/content/video?api-version=${AZ.apiVersion}${qp}`;
-    const r = await fetch(url, { method: 'HEAD', headers: soraHeaders() });
-    // Mirror status and headers that matter
-    reply.headers({
-      'content-type': r.headers.get('content-type') || 'video/mp4',
-      'content-length': r.headers.get('content-length') || undefined,
-      'accept-ranges': r.headers.get('accept-ranges') || undefined
-    });
-    return reply.status(r.status).send();
-  } catch (e: any) {
-    req.log.error(e);
-    return reply.status(400).send({ error: e.message || 'HEAD request failed' });
-  }
-});
+// Note: Fastify auto-exposes HEAD for GET routes by default.
+// We intentionally avoid defining an explicit HEAD handler for
+// /api/videos/sora/content/:generationId to prevent duplicate-route errors.
 
 // ----------------- VIDEOS: basic edits (trim) -----------------
 const VideoTrimReq = z.object({

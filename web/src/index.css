@@ -1,13 +1,12 @@
-/* Import Tailwind CSS v4 */
+/* Import Tailwind first so it processes tokens and layers */
 @import "tailwindcss";
 
-/* Import theme and typography styles */
+/* Token + layers */
 @import "./styles/theme.css";
 @import "./styles/typography.css";
 @import "./styles/animate-compat.css";
 
-
-/* Font faces - consider self-hosting for production */
+/* Variable fonts (consider self-hosting for prod) */
 @font-face {
   font-family: "InterVariable";
   src: url("https://fonts.gstatic.com/s/inter/v13/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuLyfAZ9hiA.woff2") format("woff2-variations");
@@ -32,16 +31,19 @@
   font-style: normal;
 }
 
-/* Keyframe animations are defined in theme.css via @theme */
-
-/* Additional utility classes */
+/* Modern UI Utilities and Effects */
 @layer utilities {
-  .grid2 { 
+  /* Grid helpers */
+  .grid2 {
     @apply grid md:grid-cols-2 gap-4;
   }
 
+  .grid3 {
+    @apply grid md:grid-cols-3 gap-4;
+  }
+
+  /* Animation utilities */
   .fade-in {
-    /* Use token from theme.css to keep a single source of truth */
     animation: var(--animate-fade-in);
   }
 
@@ -49,9 +51,275 @@
     animation: var(--animate-slide-up);
   }
 
-  .image-hover {
-    @apply transition-all duration-200 hover:scale-105 hover:shadow-xl;
+  /* Modern glassmorphism effect */
+  .glass {
+    background: rgba(255, 255, 255, 0.06);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
   }
 
-  /* Removed legacy .btn.loading utility */
+  .glass-subtle {
+    background: rgba(255, 255, 255, 0.03);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+  }
+
+  /* Gradient backgrounds */
+  .gradient-brand {
+    background: var(--gradient-brand);
+  }
+
+  .gradient-glow {
+    background: var(--gradient-glow);
+  }
+
+  .gradient-dark {
+    background: var(--gradient-dark);
+  }
+
+  /* Fix dropdown z-index issues */
+  .dropdown-menu {
+    @apply z-50 bg-neutral-900 border border-neutral-700 rounded-lg shadow-xl;
+  }
+
+  /* Improve form field spacing */
+  .form-field {
+    @apply mb-4 space-y-2;
+  }
+
+  /* Better button visibility */
+  .btn-primary-enhanced {
+    @apply bg-gradient-to-r from-purple-600 to-pink-600 text-white font-medium px-6 py-3 rounded-lg shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200;
+  }
+
+  /* Improve text contrast */
+  .text-high-contrast {
+    @apply text-neutral-100;
+  }
+
+  /* Media library item improvements */
+  .library-item {
+    @apply p-2 rounded-lg border border-neutral-700 hover:border-purple-500 transition-all duration-200;
+  }
+
+  /* Touch-friendly controls */
+  .touch-target {
+    @apply min-h-[44px] min-w-[44px];
+  }
+
+  /* Enhanced hover effects */
+  .image-hover {
+    @apply transition-all duration-300 hover:scale-105;
+    box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.2);
+  }
+
+  .image-hover:hover {
+    box-shadow: var(--shadow-glow);
+  }
+
+  /* Button enhancements */
+  .btn-glow {
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s ease;
+  }
+
+  .btn-glow::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    transition: left 0.5s ease;
+  }
+
+  .btn-glow:hover::before {
+    left: 100%;
+  }
+
+  /* Card hover effect */
+  .card-hover {
+    @apply transition-all duration-300;
+    transform: translateY(0);
+  }
+
+  .card-hover:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-glow);
+    border-color: rgb(var(--color-brand-500) / 0.3);
+  }
+
+  /* Text gradient */
+  .text-gradient {
+    background: var(--gradient-brand);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Smooth scrollbar */
+  .scrollbar-custom {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(var(--color-brand-600) / 0.3) transparent;
+  }
+
+  .scrollbar-custom::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .scrollbar-custom::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .scrollbar-custom::-webkit-scrollbar-thumb {
+    background: rgb(var(--color-brand-600) / 0.3);
+    border-radius: 3px;
+  }
+
+  .scrollbar-custom::-webkit-scrollbar-thumb:hover {
+    background: rgb(var(--color-brand-600) / 0.5);
+  }
+
+  /* Glow text effect */
+  .text-glow {
+    text-shadow: 0 0 20px rgb(var(--color-brand-500) / 0.5);
+  }
+
+  /* Neon border effect */
+  .border-glow {
+    box-shadow:
+      inset 0 0 0 1px rgb(var(--color-brand-500) / 0.2),
+      0 0 20px -5px rgb(var(--color-brand-500) / 0.35);
+  }
+
+  /* Pulse animation for buttons */
+  .pulse-soft {
+    animation: var(--animate-pulse-soft);
+  }
+
+  /* Loading shimmer effect */
+  .shimmer {
+    background: linear-gradient(
+      90deg,
+      rgb(var(--color-neutral-800)) 0%,
+      rgb(var(--color-neutral-700)) 50%,
+      rgb(var(--color-neutral-800)) 100%
+    );
+    background-size: 200% 100%;
+    animation: var(--animate-shimmer);
+  }
+
+  /* Glassy surfaces */
+  .surface {
+    background: var(--surface-1);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+  }
+
+  .surface-muted {
+    background: rgb(var(--color-neutral-800) / 0.4);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgb(var(--border) / 0.4);
+  }
+
+  /* Ambient glow border */
+  .border-ambient {
+    box-shadow:
+      inset 0 0 0 1px color-mix(in srgb, var(--border) 60%, transparent),
+      0 0 24px -8px rgb(var(--color-brand-500) / 0.35);
+  }
+
+  /* Enhanced button effects */
+  .btn-primary {
+    background: var(--gradient-brand);
+    border: none;
+    box-shadow: 0 2px 10px rgb(var(--color-brand-600) / 0.3);
+    transition: all 0.2s ease;
+  }
+
+  .btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgb(var(--color-brand-600) / 0.4);
+  }
+
+  /* Enhanced input fields */
+  .input-glow {
+    border: 1px solid rgb(var(--color-brand-600) / 0.3);
+    transition: all 0.2s ease;
+  }
+
+  .input-glow:focus {
+    border-color: rgb(var(--color-brand-500));
+    box-shadow: 0 0 0 3px rgb(var(--color-brand-500) / 0.15);
+  }
+
+  /* Loading state */
+  .loading-card {
+    animation: var(--animate-pulse-glow);
+  }
+}
+
+/* Global improvements */
+@layer base {
+  /* Smoother transitions globally */
+  * {
+    @apply transition-colors duration-200;
+  }
+
+  /* Better focus states */
+  *:focus-visible {
+    @apply outline-none ring-2 ring-purple-500 ring-offset-2 ring-offset-neutral-900;
+  }
+
+  /* Fix select/dropdown positioning */
+  select, .select-dropdown {
+    @apply relative z-30;
+  }
+
+  /* Improve form contrast */
+  input, textarea, select {
+    @apply bg-neutral-800/80 border-neutral-600 text-neutral-100 placeholder-neutral-500;
+  }
+
+  input:focus, textarea:focus, select:focus {
+    @apply border-purple-500 bg-neutral-800;
+  }
+
+  /* Enhanced selection */
+  ::selection {
+    background: rgb(var(--color-brand-500) / 0.3);
+    color: rgb(var(--color-brand-50));
+  }
+
+  /* Improved scrollbar globally */
+  :root {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(var(--color-neutral-600) / 0.3) transparent;
+  }
+
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: rgb(var(--color-neutral-600) / 0.3);
+    border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgb(var(--color-neutral-600) / 0.5);
+  }
 }

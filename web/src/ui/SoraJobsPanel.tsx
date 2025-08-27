@@ -123,9 +123,11 @@ export default function SoraJobsPanel({ onOpenGeneration }: Props) {
                           {expanded[job.id].gens.map(gid => (
                             <div key={gid} className="flex flex-col items-center gap-1">
                               {expanded[job.id].thumbs[gid] ? (
-                                <img src={expanded[job.id].thumbs[gid]} alt="thumb" className="w-28 h-16 object-cover rounded border border-neutral-800" />
+                                <div className="w-28 relative rounded border border-neutral-800 overflow-hidden" style={{ aspectRatio: '16 / 9' }}>
+                                  <img src={expanded[job.id].thumbs[gid]} alt="thumb" className="absolute inset-0 w-full h-full object-cover" />
+                                </div>
                               ) : (
-                                <div className="w-28 h-16 rounded border border-neutral-800 bg-neutral-900" />
+                                <div className="w-28 relative rounded border border-neutral-800 bg-neutral-900" style={{ aspectRatio: '16 / 9' }} />
                               )}
                               <div className="text-[10px] font-mono max-w-28 truncate" title={gid}>{gid}</div>
                               {onOpenGeneration && (
@@ -146,4 +148,3 @@ export default function SoraJobsPanel({ onOpenGeneration }: Props) {
     </Card>
   )
 }
-

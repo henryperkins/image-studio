@@ -1,11 +1,10 @@
-// Tailwind v4 uses CSS-first configuration via @theme and @layer.
-// This minimal config exists only for tooling (e.g., shadcn/ui CLI)
-// and deliberately avoids duplicating theme tokens defined in CSS.
+// Tailwind v4 uses CSS-first config via @theme/@layer.
+// Keep this minimal: only mode + optional plugin stubs for tooling.
 import type { Config } from 'tailwindcss';
 
 const config: Config = {
-  // No content/globs needed in v4 when using @tailwindcss/vite
   darkMode: 'class',
+  // No `content` needed with @tailwindcss/vite + CSS tokens.
   theme: {},
   plugins: []
 };

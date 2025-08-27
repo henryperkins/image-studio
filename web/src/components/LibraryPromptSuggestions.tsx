@@ -153,44 +153,49 @@ export default function LibraryPromptSuggestions({
         </Button>
       </div>
 
-      {/* Image selector grid - show first 8 images without scroll */}
+      {/* Image selector grid - show first 8 images without scroll (fixed aspect ratios) */}
       <div className="grid grid-cols-4 gap-1 mb-3">
-        {images.slice(0, 8).map(item => (
-          <div
-            key={item.id}
-            className={`relative cursor-pointer rounded border-2 transition-all ${
-              selectedForAnalysis.has(item.id)
-                ? 'border-blue-400 scale-95'
-                : 'border-transparent hover:border-neutral-600'
-            }`}
-            onClick={() => {
-              setSelectedForAnalysis(prev => {
-                const next = new Set(prev);
-                if (next.has(item.id)) {
-                  next.delete(item.id);
-                } else {
-                  next.add(item.id);
-                }
-                return next;
-              });
-            }}
-            title={item.prompt}
-          >
-            <img
-              src={`${API_BASE_URL}${item.url}`}
-              alt={item.prompt || 'Library image'}
-              className="w-full h-full object-cover rounded"
-              loading="lazy"
-            />
-            {selectedForAnalysis.has(item.id) && (
-              <div className="absolute inset-0 bg-blue-500/20 rounded flex items-center justify-center">
-                <svg className="w-6 h-6 text-white" viewBox="0 0 20 20" fill="currentColor">
-                  <path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" />
-                </svg>
+        {images.slice(0, 8).map(item => {
+          const ratio = '1 / 1'; // uniform tiles
+          return (
+            <div
+              key={item.id}
+              className={`relative cursor-pointer rounded border-2 transition-all ${
+                selectedForAnalysis.has(item.id)
+                  ? 'border-blue-400 scale-95'
+                  : 'border-transparent hover:border-neutral-600'
+              }`}
+              onClick={() => {
+                setSelectedForAnalysis(prev => {
+                  const next = new Set(prev);
+                  if (next.has(item.id)) {
+                    next.delete(item.id);
+                  } else {
+                    next.add(item.id);
+                  }
+                  return next;
+                });
+              }}
+              title={item.prompt}
+            >
+              <div className="relative rounded overflow-hidden" style={{ aspectRatio: ratio }}>
+                <img
+                  src={`${API_BASE_URL}${item.url}`}
+                  alt={item.prompt || 'Library image'}
+                  className="absolute inset-0 w-full h-full object-cover"
+                  loading="lazy"
+                />
               </div>
-            )}
-          </div>
-        ))}
+              {selectedForAnalysis.has(item.id) && (
+                <div className="absolute inset-0 bg-blue-500/20 rounded flex items-center justify-center">
+                  <svg className="w-6 h-6 text-white" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" />
+                  </svg>
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
 
       {/* Suggestions grouped by source */}

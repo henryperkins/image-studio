@@ -129,10 +129,10 @@ export default function ImageCreator({ onSaved, promptInputRef, prompt, setPromp
   };
 
   return (
-    <div className="space-y-3">
-      <h3 className="text-lg font-semibold">Create Image (gpt-image-1)</h3>
+    <div className="space-y-4">
+      <h3 className="text-xl font-semibold text-neutral-100">Create Image (gpt-image-1)</h3>
       <div className="space-y-2">
-        <Label htmlFor="image-prompt">Image Description</Label>
+        <Label htmlFor="image-prompt" className="text-sm font-medium text-neutral-200">Image Description</Label>
         <Textarea
           ref={promptInputRef}
           id="image-prompt"
@@ -147,12 +147,12 @@ export default function ImageCreator({ onSaved, promptInputRef, prompt, setPromp
           placeholder="Describe the image…"
           maxLength={32000}
           disabled={busy}
-          className="min-h-[100px] resize-y"
+          className="min-h-[100px] resize-y bg-neutral-800/80 border-neutral-600 text-neutral-100 placeholder-neutral-500 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20"
           aria-label="Image description prompt"
         />
-        <p className="text-xs text-muted-foreground">{prompt.length} / 32000</p>
+        <p className="text-xs text-neutral-500">{prompt.length} / 32000</p>
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         <div className="space-y-2">
           <Label htmlFor="size-select">Size</Label>
           <Select value={size} onValueChange={setSize}>
@@ -210,7 +210,7 @@ export default function ImageCreator({ onSaved, promptInputRef, prompt, setPromp
         )}
         {(format === 'jpeg' || format === 'webp') && (
           <div className="space-y-2">
-            <Label htmlFor="compression-slider">Compression ({outputCompression}%)</Label>
+            <Label htmlFor="compression-slider" className="text-sm font-medium text-neutral-200">Compression ({outputCompression}%)</Label>
             <Slider
               id="compression-slider"
               min={0}
@@ -223,19 +223,20 @@ export default function ImageCreator({ onSaved, promptInputRef, prompt, setPromp
           </div>
         )}
       </div>
-      <div className="flex gap-2">
+      <div className="flex gap-3 mt-6">
         <Button
           variant="default"
           disabled={!prompt.trim() || busy}
           onClick={() => generate()}
           aria-describedby={!prompt.trim() ? 'prompt-required' : undefined}
+          className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-medium px-6 py-2.5 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200"
         >
           {busy ? 'Generating…' : 'Generate & Save'}
         </Button>
         {!prompt.trim() && (
           <span id="prompt-required" className="sr-only">Enter a prompt to generate an image</span>
         )}
-        <Button variant="outline" disabled={!result} onClick={download}>
+        <Button variant="outline" disabled={!result} onClick={download} className="border-neutral-600 hover:border-purple-500 text-neutral-200 hover:text-white">
           Download
         </Button>
       </div>
