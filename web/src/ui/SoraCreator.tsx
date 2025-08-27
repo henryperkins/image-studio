@@ -1,5 +1,6 @@
 import { useMemo, useState, useRef, useEffect } from 'react';
 import { analyzeImages, generateVideoWithProgress, generateSoraPrompt, getSoraVideoContent } from '../lib/api';
+import SoraJobsPanel from './SoraJobsPanel';
 import { processApiError } from '../lib/errorUtils';
 import { useToast } from '../contexts/ToastContext';
 import EnhancedVisionAnalysis from './EnhancedVisionAnalysis';
@@ -581,6 +582,28 @@ export default function SoraCreator({
           </Button>
         </div>
       )}
+
+      {/* Recent jobs panel */}
+      <SoraJobsPanel onOpenGeneration={openGeneration} />
+  // Open an existing generation (from jobs panel)
+  async function openGeneration(generationId: string) {
+    try {
+      const r = await getSoraVideoContent(generationId, 'high');
+      const bytes = atob(r.video_base64);
+      const arr = new Uint8Array(bytes.length);
+      for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
+      const blob = new Blob([arr], { type: r.content_type || 'video/mp4' });
+      const url = URL.createObjectURL(blob);
+      if (videoDataRef.current) URL.revokeObjectURL(videoDataRef.current);
+      videoDataRef.current = url;
+      setVideoUrl(url);
+      setGenerationId(generationId);
+      setCurrentQuality('high');
+      showToast('Opened generation', 'success');
+    } catch (e: any) {
+      showToast(e.message || 'Failed to open generation', 'error');
+    }
+  }
     </div>
   );
 }

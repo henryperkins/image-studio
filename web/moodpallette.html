@@ -796,7 +796,7 @@
             <div class="export-menu" id="exportMenu">
               <div class="export-option" data-format="css">CSS Variables</div>
               <div class="export-option" data-format="scss">SCSS Variables</div>
-              <div class="export-option" data-format="tailwind">Tailwind Config</div>
+              <div class="export-option" data-format="tailwind">Tailwind v4 Theme CSS</div>
               <div class="export-option" data-format="json">JSON</div>
               <div class="export-option" data-format="array">Hex Array</div>
               <div class="export-option" data-format="ase">Adobe ASE</div>
@@ -1006,9 +1006,10 @@
           this.elements.exportMenu.classList.toggle('show');
         });
         document.querySelectorAll('.export-option').forEach(option => {
-          option.addEventListener('click', (e) => {
-            this.export(e.target.dataset.format);
-            this.showFeedback(e.target, '✓ Copied');
+          option.addEventListener('click', async (e) => {
+            const result = await this.export(e.target.dataset.format);
+            const msg = result === 'copied' ? '✓ Copied' : (result === 'saved' ? '⬇ Saved' : '');
+            if (msg) this.showFeedback(e.target, msg);
             this.elements.exportMenu.classList.remove('show');
           });
         });
@@ -1021,6 +1022,13 @@
 
         // Keyboard
         document.addEventListener('keydown', (e) => this.handleKeyboard(e));
+
+        // Close export menu when clicking outside
+        document.addEventListener('click', (e) => {
+          const dd = this.elements.exportDropdown;
+          if (!dd) return;
+          if (!dd.contains(e.target)) this.elements.exportMenu.classList.remove('show');
+        });
 
         // Region selection (container-level events, but we map to image rect)
         const container = this.elements.imageContainer;
@@ -1150,7 +1158,13 @@
           this.currentImage = adjustedImg;
           this.extractColors();
         };
-        adjustedImg.src = this.adjustCanvas.toDataURL('image/png');
+        try {
+          adjustedImg.src = this.adjustCanvas.toDataURL('image/png');
+        } catch (e) {
+          console.warn('Adjust toDataURL blocked by CORS', e);
+          // If tainted, keep current image and skip applying adjustments
+          return;
+        }
       }
 
       async extractColors() {
@@ -1186,7 +1200,8 @@
         const methodKey = this.method || this.options?.method || 'kmeans';
         
         if (methodKey === 'kmeans') {
-          const centers = this.kMeansPlusPlus(new Uint8ClampedArray(pixels.flat()), k);
+          // Pass pixels as array of [r,g,b] triplets; sampler inside kMeans caps size
+          const centers = this.kMeansPlusPlus(pixels, k);
           this.colors = centers;
           this.displayColors(centers);
           this.analyzeColors(centers);
@@ -1284,10 +1299,12 @@
       }
 
       // ------------ Clustering ------------
-      kMeansPlusPlus(data, k) {
-        // Sample pixels (every 4th pixel): RGBA stride=4, step=16 => ~25%
+      kMeansPlusPlus(pixels, k) {
+        // pixels: Array<[r,g,b]>. Sample to at most ~10k for speed.
         const px = [];
-        for (let i = 0; i < data.length; i += 16) { px.push([data[i], data[i + 1], data[i + 2]]); }
+        const stride = Math.max(1, Math.floor((pixels?.length || 0) / 10000));
+        for (let i = 0; i < (pixels?.length || 0); i += stride) px.push(pixels[i]);
+        if (px.length === 0) return [];
 
         // Precompute Lab for distance & centroid calc
         const labs = px.map(([r, g, b]) => this.rgbToLab(r, g, b));
@@ -1429,7 +1446,9 @@
 
           item.addEventListener('click', async () => {
             this.selectColor(index);
-            try { await navigator.clipboard.writeText(color.hex); this.showFeedback(item, '✓'); } catch { }
+            const hexEl = item.querySelector('.color-hex') || item;
+            const ok = await this.copyToClipboard(color.hex);
+            this.showFeedback(hexEl, ok ? '✓' : '⬇');
           });
 
           this.elements.colorList.appendChild(item);
@@ -1477,9 +1496,9 @@
             </div>`).join('');
           hc.innerHTML = html;
           hc.querySelectorAll('[data-copy]').forEach(el => {
-            el.addEventListener('click', () => {
+            el.addEventListener('click', async () => {
               const hex = el.getAttribute('data-copy');
-              navigator.clipboard.writeText(hex).catch(() => { });
+              await this.copyToClipboard(hex);
               el.style.outline = '2px solid var(--accent)';
               setTimeout(() => { el.style.outline = 'none'; }, 700);
             });
@@ -1534,8 +1553,11 @@
         const reader = new FileReader();
         reader.onload = (ev) => {
           try {
-            const palettes = JSON.parse(ev.target.result);
-            localStorage.setItem('palettes', JSON.stringify(palettes));
+            const parsed = JSON.parse(ev.target.result);
+            if (!Array.isArray(parsed)) throw new Error('format');
+            const ok = parsed.every(p => p && typeof p === 'object' && Array.isArray(p.colors));
+            if (!ok) throw new Error('items');
+            localStorage.setItem('palettes', JSON.stringify(parsed));
             this.loadSavedPalettes();
           } catch { alert('Invalid palette file'); }
         };
@@ -1553,8 +1575,10 @@
         const k = e.key.toLowerCase();
         if (k >= '1' && k <= '9') {
           const idx = parseInt(k, 10) - 1; if (idx < this.colors.length) this.selectColor(idx);
-        } else if (k === 'c' && this.colors.length > 0) {
-          navigator.clipboard.writeText(this.colors[this.selectedColorIndex].hex).catch(() => { });
+        } else if (k === 'c' && e.shiftKey) { // focus contrast slider (Shift+C)
+          this.elements.contrastSlider.focus();
+        } else if (k === 'c' && this.colors.length > 0) { // copy selected hex
+          this.copyToClipboard(this.colors[this.selectedColorIndex].hex);
         } else if (k === 'r' && this.currentImage) {
           this.regionSelection = !this.regionSelection;
           this.elements.imageContainer.style.cursor = this.regionSelection ? 'crosshair' : 'default';
@@ -1563,7 +1587,6 @@
           }
         } else if (k === 'b') { this.elements.brightnessSlider.focus(); }
         else if (k === 's') { this.elements.saturationSlider.focus(); }
-        else if (k === 'c' && e.shiftKey) { this.elements.contrastSlider.focus(); }
         else if (e.key === 'Escape') {
           this.selectionRect = null;
           this.elements.selectionOverlay.classList.remove('active');
@@ -1578,20 +1601,80 @@
         this.renderHarmonies();
       }
 
-      export(format) {
+      async export(format) {
         const formats = {
           css: () => `:root {\n${this.colors.map((c, i) => `  --color-${i + 1}: ${c.hex};`).join('\n')}\n}`,
           scss: () => this.colors.map((c, i) => `$color-${i + 1}: ${c.hex};`).join('\n'),
-          tailwind: () => `// Tailwind colors snippet\nexport default {\n  theme: {\n    extend: {\n      colors: {\n${this.colors.map((c, i) => `        'brand-${i + 1}': '${c.hex}',`).join('\n')}\n      }\n    }\n  }\n}`,
+          tailwind: () => {
+            const base = (this.colors[this.selectedColorIndex] || this.colors[0] || { hex: '#3b82f6' }).hex;
+            const hexToRgb = (hex) => {
+              const h = hex.replace('#','');
+              const v = h.length===3 ? h.split('').map(c=>c+c).join('') : h.padEnd(6,'0').slice(0,6);
+              return { r: parseInt(v.slice(0,2),16), g: parseInt(v.slice(2,4),16), b: parseInt(v.slice(4,6),16) };
+            };
+            const hslToRgb = (h, s, l) => {
+              h = ((h % 360) + 360) % 360; s/=100; l/=100;
+              if (s===0) { const v = Math.round(l*255); return { r:v,g:v,b:v }; }
+              const q = l < 0.5 ? l*(1+s) : l + s - l*s; const p = 2*l - q; const hk = h/360;
+              const tc = [hk+1/3, hk, hk-1/3].map(v => (v+1)%1);
+              const c = tc.map(t => t < 1/6 ? p+(q-p)*6*t : t < 1/2 ? q : t < 2/3 ? p+(q-p)*(2/3 - t)*6 : p);
+              return { r: Math.round(c[0]*255), g: Math.round(c[1]*255), b: Math.round(c[2]*255) };
+            };
+            const clamp = (n,min,max)=>Math.max(min,Math.min(max,n));
+            const { r:br, g:bg, b:bb } = hexToRgb(base);
+            const { h, s } = this.rgbToHsl(br, bg, bb);
+            const steps = [50,100,200,300,400,500,600,700,800,900,950];
+            const L = {50:98,100:95,200:90,300:82,400:72,500:60,600:50,700:42,800:32,900:22,950:12};
+            const S = lvl => clamp(Math.round(s * (lvl>=500 && lvl<=700 ? 1.0 : lvl<300 ? 0.9 : lvl>800 ? 0.85 : 0.95)), 8, 100);
+            const toTriplet = (r,g,b) => `${r} ${g} ${b}`;
+            const brand = {};
+            for (const lvl of steps) {
+              const rgb = hslToRgb(h, S(lvl), L[lvl] ?? 60);
+              brand[lvl] = toTriplet(rgb.r, rgb.g, rgb.b);
+            }
+            // Optional secondary colors from additional swatches
+            const accentHex = this.colors[1]?.hex;
+            const neutralHex = this.colors[2]?.hex;
+            const rampFor = (hex) => {
+              if (!hex) return null;
+              const { r, g, b } = hexToRgb(hex);
+              const hsl = this.rgbToHsl(r, g, b);
+              const out = {};
+              for (const lvl of steps) {
+                const rgb = hslToRgb(hsl.h, S(lvl), L[lvl] ?? 60);
+                out[lvl] = toTriplet(rgb.r, rgb.g, rgb.b);
+              }
+              return out;
+            };
+            const accent = rampFor(accentHex);
+            const neutral = rampFor(neutralHex);
+
+            const lines = steps.map(lvl => `  --color-brand-${lvl}: ${brand[lvl]};`).join('\n');
+            const alines = accent ? '\n' + steps.map(lvl => `  --color-accent-${lvl}: ${accent[lvl]};`).join('\n') : '';
+            const nlines = neutral ? '\n' + steps.map(lvl => `  --color-neutral-${lvl}: ${neutral[lvl]};`).join('\n') : '';
+            const prim = '  --color-primary: var(--color-brand-600);\n';
+            const usage = '/* Usage: bg-brand-600/80 text-primary/70 hover:bg-brand-700 */';
+            return `/* Tailwind CSS v4 Theme (generated by Mood Palette) */\n@theme {\n${lines}${alines}${nlines}\n${prim}}\n\n${usage}`;
+          },
           json: () => JSON.stringify(this.colors, null, 2),
           array: () => `[${this.colors.map(c => `'${c.hex}'`).join(', ')}]`
         };
         if (format === 'ase' || format === 'aco' || format === 'sketch') {
-          this.exportBinary(format);
-          return;
+          await this.exportBinary(format);
+          return 'saved';
         }
         const text = formats[format] ? formats[format]() : '';
-        if (text) navigator.clipboard.writeText(text).catch(() => { });
+        if (!text) return 'noop';
+        const copied = await this.copyToClipboard(text);
+        if (!copied) {
+          const names = { css: 'palette.css', scss: 'palette.scss', tailwind: 'tailwind-colors.js', json: 'palette.json', array: 'palette.txt' };
+          const types = { css: 'text/css', scss: 'text/x-scss', tailwind: 'application/javascript', json: 'application/json', array: 'text/plain' };
+          const fname = names[format] || 'palette.txt';
+          const mime = types[format] || 'text/plain';
+          this.downloadBlob(new Blob([text], { type: mime }), fname);
+          return 'saved';
+        }
+        return 'copied';
       }
 
       async exportBinary(kind) {
@@ -1618,10 +1701,35 @@
         setTimeout(() => URL.revokeObjectURL(url), 1000);
       }
 
+      async copyToClipboard(text) {
+        try {
+          if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+            await navigator.clipboard.writeText(text);
+            return true;
+          }
+        } catch {}
+        try {
+          const ta = document.createElement('textarea');
+          ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0'; ta.style.left = '-9999px';
+          document.body.appendChild(ta); ta.focus(); ta.select();
+          const ok = document.execCommand('copy');
+          document.body.removeChild(ta);
+          return !!ok;
+        } catch {
+          return false;
+        }
+      }
+
       showFeedback(el, text) {
-        const orig = el.textContent;
-        el.textContent = text;
-        setTimeout(() => el.textContent = orig, 1200);
+        // Append a temporary badge without destroying existing DOM content
+        if (!el) return;
+        const badge = document.createElement('span');
+        badge.textContent = text;
+        badge.style.marginLeft = '6px';
+        badge.style.color = 'var(--accent)';
+        badge.style.fontWeight = '600';
+        el.appendChild(badge);
+        setTimeout(() => badge.remove(), 1200);
       }
 
       getColorName(r, g, b) {

@@ -90,8 +90,9 @@ Web (`/web`):
 
 The server requires Azure OpenAI environment variables (configured in `server/.env`):
 - `AZURE_OPENAI_ENDPOINT` (required)
-- `AZURE_OPENAI_API_KEY` or `AZURE_OPENAI_BEARER` (for authentication)
+- `AZURE_OPENAI_API_KEY` or `AZURE_OPENAI_AUTH_TOKEN` (for authentication)
 - `AZURE_OPENAI_IMAGE_DEPLOYMENT` (deployment name for gpt-image-1)
+- `AZURE_OPENAI_IMAGE_BASE` (optional: base model family hint: `gpt-image-1` | `dall-e-3` | `dall-e-2`)
 - `AZURE_OPENAI_VIDEO_DEPLOYMENT` (deployment name for Sora/video)
 - `AZURE_OPENAI_VISION_DEPLOYMENT` (for GPT-4.1 vision or GPT-5)
 - `AZURE_OPENAI_CHAT_API_VERSION` (for vision/chat completions, e.g., "2025-04-01-preview")
@@ -127,6 +128,19 @@ For the new modular vision system with enhanced safety:
 - **CORS**: Server configured for web client (configurable via CORS_ORIGIN env var)
 - **Error handling**: Zod validation with structured error responses
 - **Logging**: Fastify built-in logging for debugging
+
+### Sora (Video) v1 Preview Alignment
+- **Create job**: `POST {endpoint}/openai/v1/video/generations/jobs?api-version=preview` with JSON `{ model, prompt, width, height, n_seconds, n_variants? }`.
+- **Poll job**: `GET {endpoint}/openai/v1/video/generations/jobs/{jobId}?api-version=preview` until `status = succeeded`.
+- **Get video**: `GET {endpoint}/openai/v1/video/generations/{generationId}/content/video?api-version=preview[&quality=high|low]`.
+- **Get thumbnail**: `GET {endpoint}/openai/v1/video/generations/{generationId}/content/thumbnail?api-version=preview`.
+- **List jobs**: `GET {endpoint}/openai/v1/video/generations/jobs?api-version=preview&limit=...` (+ before/after/statuses).
+- Server routes:
+  - `POST /api/videos/sora/generate` → creates job, polls, saves MP4 to library.
+  - `GET /api/videos/sora/content/:generationId[?quality=...]` → returns base64 video.
+  - `HEAD /api/videos/sora/content/:generationId[?quality=...]` → passthrough headers (size, type).
+  - `GET /api/videos/sora/thumbnail/:generationId` → returns base64 JPEG thumbnail.
+  - `GET /api/videos/sora/jobs` and `GET/DELETE /api/videos/sora/jobs/:jobId` → list/get/delete jobs.
 
 ## UI/UX Design Patterns
 

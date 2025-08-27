@@ -462,6 +462,40 @@ export async function getSoraVideoContent(generation_id: string, quality: 'high'
   return r as { generation_id: string; quality?: 'high' | 'low'; content_type: string; video_base64: string };
 }
 
+// --- Sora jobs helpers ---
+export type SoraJob = {
+  id: string;
+  status: string;
+  created_at?: number | string;
+  prompt?: string;
+};
+
+export async function listSoraJobs(params: { limit?: number; before?: string; after?: string; statuses?: string } = {}) {
+  const p = new URLSearchParams();
+  if (params.limit) p.set('limit', String(params.limit)); else p.set('limit', '10');
+  if (params.before) p.set('before', params.before);
+  if (params.after) p.set('after', params.after);
+  if (params.statuses) p.set('statuses', params.statuses);
+  const r = await fetchJson(`${API_BASE_URL}/api/videos/sora/jobs?${p.toString()}`, { headers: { 'Accept':'application/json' } });
+  return r as { data?: SoraJob[]; jobs?: SoraJob[]; [k: string]: any };
+}
+
+export async function getSoraJob(jobId: string) {
+  const r = await fetchJson(`${API_BASE_URL}/api/videos/sora/jobs/${encodeURIComponent(jobId)}`, { headers: { 'Accept':'application/json' } });
+  return r as { id: string; status: string; generations?: Array<{ id: string }>; [k: string]: any };
+}
+
+export async function deleteSoraJob(jobId: string) {
+  const r = await fetch(`${API_BASE_URL}/api/videos/sora/jobs/${encodeURIComponent(jobId)}`, { method: 'DELETE' });
+  if (!r.ok) throw new Error(await r.text());
+  return true;
+}
+
+export async function getSoraThumbnail(generationId: string) {
+  const r = await fetchJson(`${API_BASE_URL}/api/videos/sora/thumbnail/${encodeURIComponent(generationId)}`, { headers: { 'Accept': 'application/json' } });
+  return r as { generation_id: string; content_type: string; image_base64: string };
+}
+
 export async function trimVideo(video_id: string, start: number, duration: number) {
   const r = await fetch(`${API_BASE_URL}/api/videos/edit/trim`, {
     method: 'POST', headers: { 'Content-Type':'application/json' },

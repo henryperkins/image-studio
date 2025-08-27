@@ -123,7 +123,7 @@ export default function ImageCreator({ onSaved, promptInputRef, prompt, setPromp
     if (!result) return;
     const a = document.createElement('a');
     a.href = `data:image/${result.format};base64,${result.image_base64}`;
-    a.download = `gpt-image-1_${Date.now()}.${result.format}`;
+    a.download = `${(result.model || 'image').replace(/\W+/g,'_')}_${Date.now()}.${result.format}`;
     a.click();
     showToast('Image downloaded!', 'success');
   };

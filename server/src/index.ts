@@ -75,6 +75,8 @@ const AZ = {
   apiVersion: process.env.AZURE_OPENAI_API_VERSION || 'preview',
   // Images gen
   imageDeployment: process.env.AZURE_OPENAI_IMAGE_DEPLOYMENT || 'gpt-image-1',
+  // Optional: explicitly declare the base image model family (gpt-image-1 | dall-e-3 | dall-e-2)
+  imageBase: process.env.AZURE_OPENAI_IMAGE_BASE || '',
   // Video gen (Sora)
   videoDeployment: process.env.AZURE_OPENAI_VIDEO_DEPLOYMENT || 'sora',
   // Vision chat
@@ -123,6 +125,21 @@ function authHeaders(): Record<string, string> {
     h['api-key'] = AZ.key;
   }
   return h;
+}
+
+// Heuristic to determine the base image model family for request shaping
+function detectImageBase(): 'gpt-image-1' | 'dall-e-3' | 'dall-e-2' | 'unknown' {
+  if (AZ.imageBase) {
+    const v = AZ.imageBase.toLowerCase();
+    if (v.includes('gpt-image-1')) return 'gpt-image-1';
+    if (v.includes('dall-e-3') || v.includes('dalle-3') || v.includes('dall-e3')) return 'dall-e-3';
+    if (v.includes('dall-e-2') || v.includes('dalle-2') || v.includes('dall-e2')) return 'dall-e-2';
+  }
+  const d = AZ.imageDeployment.toLowerCase();
+  if (d.includes('gpt-image-1')) return 'gpt-image-1';
+  if (d.includes('dall-e-3') || d.includes('dalle-3') || d.includes('dall-e3')) return 'dall-e-3';
+  if (d.includes('dall-e-2') || d.includes('dalle-2') || d.includes('dall-e2')) return 'dall-e-2';
+  return 'unknown';
 }
 
 // ----------------- IMAGES: generate -----------------
@@ -208,17 +225,34 @@ app.post('/api/images/generate', async (req, reply) => {
       hasAuth: !!(AZ.key || AZ.token)
     });
 
-    const isGptImage = /gpt-image-1/i.test(AZ.imageDeployment);
+    const imageBase = detectImageBase();
+    const isGptImage = imageBase === 'gpt-image-1';
+    const isDalle3 = imageBase === 'dall-e-3';
+    const isDalle2 = imageBase === 'dall-e-2';
     const fmt = body.output_format;
     const requestBody: AzureImageGenerationRequest = {
       model: AZ.imageDeployment,
       prompt: body.prompt,
       size: body.size,
-      quality: body.quality,
+      // Map quality by model family
+      quality: ((): string => {
+        if (isGptImage) return body.quality;
+        if (isDalle3) {
+          // Allowed: 'hd' | 'standard'. Map others sensibly.
+          if (body.quality === 'hd') return 'hd';
+          if (body.quality === 'standard') return 'standard';
+          if (body.quality === 'high') return 'hd';
+          if (body.quality === 'medium' || body.quality === 'low') return 'standard';
+          // 'auto' → let service choose; omit by returning 'auto'
+          return 'standard';
+        }
+        // DALL·E 2 only supports 'standard'
+        return 'standard';
+      })(),
       n: body.n,
-      ...(body.moderation ? { moderation: body.moderation } : {}),
-      ...(body.style ? { style: body.style } : {}),
-      ...(body.response_format ? { response_format: body.response_format } : {}),
+      ...(isGptImage && body.moderation ? { moderation: body.moderation } : {}),
+      ...(isDalle3 && body.style ? { style: body.style } : {}),
+      ...((isDalle2 || isDalle3) && body.response_format ? { response_format: body.response_format } : {}),
       ...(body.user ? { user: body.user } : {})
     };
     // gpt-image-1 only
@@ -300,7 +334,7 @@ app.post('/api/images/generate', async (req, reply) => {
     items.unshift(item);
     await writeManifest(items);
 
-    return reply.send({ image_base64: b64, model: AZ.imageDeployment, size: body.size, format: ext, library_item: item });
+    return reply.send({ image_base64: b64, model: AZ.imageDeployment, size: body.size, format: format, extension: ext, library_item: item });
   } catch (e: any) {
     req.log.error(e);
     return reply.status(400).send({ error: e.message || 'Image generation failed' });
@@ -340,11 +374,26 @@ app.post('/api/images/edit', async (req, reply) => {
     form.set('model', AZ.imageDeployment);
     form.set('prompt', body.prompt);
     form.set('size', body.size);
-    form.set('output_format', body.output_format);
+    // Shape request strictly by model family
+    const imageBase = detectImageBase();
+    const isGptImage = imageBase === 'gpt-image-1';
+    if (isGptImage) {
+      form.set('output_format', body.output_format);
+    }
     // Optional enhancements
-    if (body.quality) form.set('quality', body.quality);
-    if (body.background) form.set('background', body.background);
-    if (typeof body.output_compression === 'number') form.set('output_compression', String(body.output_compression));
+    if (body.quality) {
+      // For edits, only gpt-image-1 supports high/medium/low; others standard
+      if (isGptImage) form.set('quality', body.quality);
+      else form.set('quality', 'standard');
+    }
+    if (isGptImage && body.background) {
+      const fmt = body.output_format;
+      const bg = (body.background === 'transparent' && fmt === 'jpeg') ? 'opaque' : body.background;
+      form.set('background', bg);
+    }
+    if (isGptImage && typeof body.output_compression === 'number' && (body.output_format === 'jpeg' || body.output_format === 'webp')) {
+      form.set('output_compression', String(body.output_compression));
+    }
 
     // image file
     const srcPath = path.join(IMG_DIR, src.filename);
@@ -361,9 +410,22 @@ app.post('/api/images/edit', async (req, reply) => {
       form.set('mask', new File([maskView], 'mask.png', { type: 'image/png' }));
     }
 
-    const url = `${AZ.endpoint}/openai/v1/images/edits?api-version=${AZ.apiVersion}`;
+    const baseEndpoint = AZ.endpoint.replace(/\/+$/, '');
+    const url = `${baseEndpoint}/openai/v1/images/edits?api-version=${AZ.apiVersion}`;
     const r = await fetch(url, { method: 'POST', headers: authHeaders(), body: form as any });
-    if (!r.ok) throw new Error(`Azure image edit failed: ${r.status} ${await r.text()}`);
+    if (!r.ok) {
+      const errorText = await r.text();
+      req.log.error({ msg: 'Azure image edit failed', status: r.status, error: errorText, url, deployment: AZ.imageDeployment });
+      if (r.status === 404) {
+        throw new Error(
+          `404 Not Found - Verify: 1) Endpoint format: ${baseEndpoint}, ` +
+          `2) Deployment name: ${AZ.imageDeployment}, ` +
+          `3) API version: ${AZ.apiVersion}, ` +
+          '4) Azure OpenAI Foundry models (Preview) is enabled in your resource'
+        );
+      }
+      throw new Error(`Azure image edit failed: ${r.status} ${errorText}`);
+    }
     const j = await r.json() as any;
     const b64: string | undefined = j?.data?.[0]?.b64_json;
     if (!b64) throw new Error('No edited image returned');
@@ -747,6 +809,109 @@ app.get('/api/videos/sora/content/:generationId', async (req, reply) => {
   } catch (e: any) {
     req.log.error(e);
     return reply.status(400).send({ error: e.message || 'Failed to retrieve video content' });
+  }
+});
+
+// List Sora jobs (proxied to Azure v1 list endpoint)
+const SoraListQuery = z.object({
+  limit: z.coerce.number().int().min(1).max(100).default(10),
+  before: z.string().optional(),
+  after: z.string().optional(),
+  statuses: z.string().optional() // comma-separated, pass-through
+});
+app.get('/api/videos/sora/jobs', async (req, reply) => {
+  try {
+    if (!AZ.endpoint) return reply.status(400).send({ error: 'Azure endpoint not configured' });
+    const q = SoraListQuery.parse(req.query ?? {});
+    const params = new URLSearchParams({ limit: String(q.limit) });
+    if (q.before) params.set('before', q.before);
+    if (q.after) params.set('after', q.after);
+    if (q.statuses) params.set('statuses', q.statuses);
+    const url = `${AZ.endpoint.replace(/\/+$/, '')}/openai/v1/video/generations/jobs?api-version=${AZ.apiVersion}&${params.toString()}`;
+    const r = await fetch(url, { headers: { ...soraHeaders(), 'Accept': 'application/json' } });
+    if (!r.ok) {
+      const text = await r.text();
+      return reply.status(r.status).send({ error: text });
+    }
+    return reply.send(await r.json());
+  } catch (e: any) {
+    req.log.error(e);
+    return reply.status(400).send({ error: e.message || 'Failed to list Sora jobs' });
+  }
+});
+
+// Get single job by id
+app.get('/api/videos/sora/jobs/:jobId', async (req, reply) => {
+  const jobId = (req.params as any)?.jobId as string | undefined;
+  if (!jobId) return reply.status(400).send({ error: 'Missing jobId' });
+  try {
+    const base = `${AZ.endpoint.replace(/\/+$/, '')}/openai/v1`;
+    const url = `${base}/video/generations/jobs/${encodeURIComponent(jobId)}?api-version=${AZ.apiVersion}`;
+    const r = await fetch(url, { headers: { ...soraHeaders(), 'Accept': 'application/json' } });
+    if (!r.ok) return reply.status(r.status).send({ error: await r.text() });
+    return reply.send(await r.json());
+  } catch (e: any) {
+    req.log.error(e);
+    return reply.status(400).send({ error: e.message || 'Failed to get Sora job' });
+  }
+});
+
+// Delete a job
+app.delete('/api/videos/sora/jobs/:jobId', async (req, reply) => {
+  const jobId = (req.params as any)?.jobId as string | undefined;
+  if (!jobId) return reply.status(400).send({ error: 'Missing jobId' });
+  try {
+    const base = `${AZ.endpoint.replace(/\/+$/, '')}/openai/v1`;
+    const url = `${base}/video/generations/jobs/${encodeURIComponent(jobId)}?api-version=${AZ.apiVersion}`;
+    const r = await fetch(url, { method: 'DELETE', headers: soraHeaders() });
+    if (r.status === 204) return reply.send({ ok: true });
+    if (!r.ok) return reply.status(r.status).send({ error: await r.text() });
+    return reply.send({ ok: true });
+  } catch (e: any) {
+    req.log.error(e);
+    return reply.status(400).send({ error: e.message || 'Failed to delete Sora job' });
+  }
+});
+
+// Retrieve generation thumbnail (base64)
+app.get('/api/videos/sora/thumbnail/:generationId', async (req, reply) => {
+  const generationId = (req.params as any)?.generationId as string | undefined;
+  if (!generationId) return reply.status(400).send({ error: 'Missing generationId' });
+  try {
+    const base = `${AZ.endpoint.replace(/\/+$/, '')}/openai/v1`;
+    const url = `${base}/video/generations/${encodeURIComponent(generationId)}/content/thumbnail?api-version=${AZ.apiVersion}`;
+    const r = await fetch(url, { headers: { ...soraHeaders(), 'Accept': 'image/jpg' } });
+    if (!r.ok) return reply.status(r.status).send({ error: await r.text() });
+    const ab = await r.arrayBuffer();
+    const b64 = Buffer.from(ab).toString('base64');
+    const ct = r.headers.get('content-type') || 'image/jpeg';
+    return reply.send({ generation_id: generationId, content_type: ct, image_base64: b64 });
+  } catch (e: any) {
+    req.log.error(e);
+    return reply.status(400).send({ error: e.message || 'Failed to retrieve thumbnail' });
+  }
+});
+
+// HEAD request passthrough for content metadata (size, etc.)
+app.head('/api/videos/sora/content/:generationId', async (req, reply) => {
+  const generationId = (req.params as any)?.generationId as string | undefined;
+  const { quality } = (req.query as any) as { quality?: 'high' | 'low' };
+  if (!generationId) return reply.status(400).send({ error: 'Missing generationId' });
+  try {
+    const base = `${AZ.endpoint.replace(/\/+$/, '')}/openai/v1`;
+    const qp = quality ? `&quality=${encodeURIComponent(quality)}` : '';
+    const url = `${base}/video/generations/${encodeURIComponent(generationId)}/content/video?api-version=${AZ.apiVersion}${qp}`;
+    const r = await fetch(url, { method: 'HEAD', headers: soraHeaders() });
+    // Mirror status and headers that matter
+    reply.headers({
+      'content-type': r.headers.get('content-type') || 'video/mp4',
+      'content-length': r.headers.get('content-length') || undefined,
+      'accept-ranges': r.headers.get('accept-ranges') || undefined
+    });
+    return reply.status(r.status).send();
+  } catch (e: any) {
+    req.log.error(e);
+    return reply.status(400).send({ error: e.message || 'HEAD request failed' });
   }
 });
 
