@@ -101,7 +101,8 @@ import type {
   LibraryItem,
   StructuredVisionResult,
   AccessibilityAnalysisResult,
-  VisionHealthStatus
+  VisionHealthStatus,
+  Playbook
 } from '@image-studio/shared';
 import { hashText, safeRandomUUID } from './hash';
 
@@ -112,7 +113,8 @@ export type {
   LibraryItem,
   StructuredVisionResult,
   AccessibilityAnalysisResult,
-  VisionHealthStatus
+  VisionHealthStatus,
+  Playbook
 };
 
 export const isVideoItem = (i: LibraryItem): i is VideoItem => i.kind === 'video';
@@ -163,6 +165,15 @@ export async function deleteLibraryItem(id: string) {
   const r = await fetch(`${API_BASE_URL}/api/library/media/${id}`, { method: 'DELETE' });
   if (!r.ok) throw new Error(await r.text());
   return true;
+}
+
+export async function uploadLibraryImages(files: File[]): Promise<LibraryItem[]> {
+  const form = new FormData();
+  for (const f of files) form.append('file', f);
+  const r = await fetch(`${API_BASE_URL}/api/library/upload`, { method: 'POST', body: form });
+  if (!r.ok) throw new Error(await r.text());
+  const j = await r.json();
+  return (j.items || []) as LibraryItem[];
 }
 
 export async function generateImage(
@@ -494,6 +505,12 @@ export async function deleteSoraJob(jobId: string) {
 export async function getSoraThumbnail(generationId: string) {
   const r = await fetchJson(`${API_BASE_URL}/api/videos/sora/thumbnail/${encodeURIComponent(generationId)}`, { headers: { 'Accept': 'application/json' } });
   return r as { generation_id: string; content_type: string; image_base64: string };
+}
+
+// --- Playbooks ---
+export async function listPlaybooks(): Promise<Playbook[]> {
+  const r = await fetchJson(`${API_BASE_URL}/api/playbooks`, { headers: { 'Accept': 'application/json' } });
+  return (r.playbooks || []) as Playbook[];
 }
 
 export async function trimVideo(video_id: string, start: number, duration: number) {

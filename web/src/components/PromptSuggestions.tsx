@@ -5,6 +5,7 @@ import { recordEvent } from '../lib/analytics';
 import { Card } from './ui/card';
 import { Input } from './ui/input';
 import { Button } from './ui/button';
+import { Copy, Pin, PinOff, Trash2, Cog } from 'lucide-react';
 
 interface PromptSuggestionsProps {
   onInsert: (text: string) => void;
@@ -132,7 +133,7 @@ export default function PromptSuggestions({ onInsert, onReplace }: PromptSuggest
             </>
           )}
           <Button size="sm" variant="ghost" onClick={() => setShowPrefs(v => !v)} aria-expanded={showPrefs} aria-controls="suggestions-settings" aria-label="Settings">
-            ⚙
+            <Cog className="w-4 h-4" />
           </Button>
         </div>
       </div>
@@ -224,19 +225,19 @@ export default function PromptSuggestions({ onInsert, onReplace }: PromptSuggest
                     Replace
                   </Button>
                   <Button size="sm" variant="ghost" onClick={() => onCopy(s.text)} title="Copy" aria-label="Copy">
-                    📋
+                    <Copy className="w-4 h-4" />
                   </Button>
                   {isPinned(s.id) ? (
                     <Button size="sm" variant="ghost" onClick={() => unpin(s.id)} title="Unpin" aria-label="Unpin">
-                      📌
+                      <PinOff className="w-4 h-4" />
                     </Button>
                   ) : (
                     <Button size="sm" variant="ghost" onClick={() => pin(s.id)} title="Pin" aria-label="Pin">
-                      📍
+                      <Pin className="w-4 h-4" />
                     </Button>
                   )}
                   <Button size="sm" variant="ghost" onClick={() => deleteSuggestion(s.id)} title="Delete" aria-label="Delete suggestion">
-                    🗑
+                    <Trash2 className="w-4 h-4" />
                   </Button>
                 </div>
               </div>

@@ -15,6 +15,7 @@ import { Input } from './ui/input';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from './ui/select';
 import { PromptTextarea } from '../components/PromptTextarea';
 import { cn } from '@/lib/utils';
+import { Image as ImageIcon, ChevronDown, Loader2, AlertTriangle, AlertCircle } from 'lucide-react';
 
 interface EnhancedVisionAnalysisProps {
   selectedIds: string[];
@@ -220,14 +221,7 @@ export default function EnhancedVisionAnalysis({
   if (!selectedIds.length) {
     return (
       <div className="text-center text-neutral-400 py-8">
-        <svg className="w-12 h-12 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-          />
-        </svg>
+        <ImageIcon className="w-12 h-12 mx-auto mb-4 opacity-50" />
         <p>Select images to analyze with enhanced vision AI</p>
       </div>
     );
@@ -264,14 +258,7 @@ export default function EnhancedVisionAnalysis({
           aria-controls="basic-settings-panel"
         >
           <span className="font-medium">{mode === 'sora' ? 'Prompt Settings' : 'Basic Settings'}</span>
-          <svg
-            className={cn('w-4 h-4 transform transition-transform', expandedSections.basic && 'rotate-180')}
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-          </svg>
+          <ChevronDown className={cn('w-4 h-4 transform transition-transform', expandedSections.basic && 'rotate-180')} />
         </button>
 
         {expandedSections.basic && (
@@ -280,7 +267,7 @@ export default function EnhancedVisionAnalysis({
               {mode !== 'sora' && (
                 <div>
                   <label className="block text-sm font-medium mb-2">Purpose</label>
-                  <Select value={params.purpose} onValueChange={(v)=>setParams(prev=>({ ...prev, purpose: v }))}>
+                  <Select value={params.purpose} onValueChange={(v) => setParams(prev => ({ ...prev, purpose: v }))}>
                     <SelectTrigger id="purpose-select"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="Sora video prompt creation">Sora Video Prompts</SelectItem>
@@ -297,7 +284,7 @@ export default function EnhancedVisionAnalysis({
               {mode !== 'sora' && (
                 <div>
                   <label className="block text-sm font-medium mb-2">Audience</label>
-                  <Select value={params.audience as any} onValueChange={(v)=>setParams(prev=>({ ...prev, audience: v as any }))}>
+                  <Select value={params.audience as any} onValueChange={(v) => setParams(prev => ({ ...prev, audience: v as any }))}>
                     <SelectTrigger id="audience-select"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="general">General Public</SelectItem>
@@ -311,7 +298,7 @@ export default function EnhancedVisionAnalysis({
 
               <div>
                 <label className="block text-sm font-medium mb-2">Detail</label>
-                <Select value={params.detail as any} onValueChange={(v)=>setParams(prev=>({ ...prev, detail: v as any }))}>
+                <Select value={params.detail as any} onValueChange={(v) => setParams(prev => ({ ...prev, detail: v as any }))}>
                   <SelectTrigger id="detail-select"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="brief">Brief</SelectItem>
@@ -323,33 +310,33 @@ export default function EnhancedVisionAnalysis({
               </div>
             </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium mb-2">Tone</label>
-          <Select value={params.tone as any} onValueChange={(v)=>setParams(prev=>({ ...prev, tone: v as any }))}>
-            <SelectTrigger id="tone-select"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="casual">Casual</SelectItem>
-              <SelectItem value="formal">Formal</SelectItem>
-              <SelectItem value="technical">Technical</SelectItem>
-              <SelectItem value="creative">Creative</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        {mode !== 'sora' && (
-          <div>
-            <label className="block text-sm font-medium mb-2">Language</label>
-            <Select value={params.language} onValueChange={(v)=>setParams(prev=>({ ...prev, language: v }))}>
-              <SelectTrigger id="language-select"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {languages.map((lang) => (
-                  <SelectItem key={lang.code} value={lang.code}>{lang.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        )}
-      </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-2">Tone</label>
+                <Select value={params.tone as any} onValueChange={(v) => setParams(prev => ({ ...prev, tone: v as any }))}>
+                  <SelectTrigger id="tone-select"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="casual">Casual</SelectItem>
+                    <SelectItem value="formal">Formal</SelectItem>
+                    <SelectItem value="technical">Technical</SelectItem>
+                    <SelectItem value="creative">Creative</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {mode !== 'sora' && (
+                <div>
+                  <label className="block text-sm font-medium mb-2">Language</label>
+                  <Select value={params.language} onValueChange={(v) => setParams(prev => ({ ...prev, language: v }))}>
+                    <SelectTrigger id="language-select"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {languages.map((lang) => (
+                        <SelectItem key={lang.code} value={lang.code}>{lang.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>
@@ -484,15 +471,9 @@ export default function EnhancedVisionAnalysis({
           aria-live="polite"
         >
           {analyzing ? (
-            <span className="inline-flex items-center gap-2">
-              <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" aria-hidden="true">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-              </svg>
-              {`Analyze ${selectedIds.length} image${selectedIds.length > 1 ? 's' : ''}`}
-            </span>
+            <span className="inline-flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" /> {`Analyze ${selectedIds.length} image${selectedIds.length > 1 ? 's' : ''}`}</span>
           ) : (
-            `Run Full Analysis`
+            'Run Full Analysis'
           )}
         </Button>
       </div>
@@ -504,14 +485,7 @@ export default function EnhancedVisionAnalysis({
           {warnings.length > 0 && (
             <div className="bg-amber-900/20 border border-amber-600/50 rounded-lg p-4">
               <div className="flex items-center gap-2 mb-2">
-                <svg className="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"
-                  />
-                </svg>
+                <AlertTriangle className="w-5 h-5 text-amber-400" />
                 <span className="font-medium text-amber-300">Content Advisories</span>
               </div>
               <ul className="text-sm space-y-1">
@@ -528,9 +502,7 @@ export default function EnhancedVisionAnalysis({
           {error && (
             <div className="bg-destructive/20 border border-destructive/50 rounded-lg p-4">
               <div className="flex items-center gap-2 mb-2">
-                <svg className="w-5 h-5 text-destructive" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
+                <AlertCircle className="w-5 h-5 text-destructive" />
                 <span className="font-medium text-destructive-foreground">Analysis Error</span>
               </div>
               <p className="text-sm text-destructive-foreground/90">{error}</p>
@@ -581,7 +553,7 @@ export default function EnhancedVisionAnalysis({
 }
 
 // Sub-components for displaying different result types
-function StructuredResultDisplay({ result, onInsert }: { result: StructuredVisionResult, onInsert?: (p: string)=>void }) {
+function StructuredResultDisplay({ result, onInsert }: { result: StructuredVisionResult, onInsert?: (p: string) => void }) {
   return (
     <div className="space-y-4">
       {/* Quality Panel */}
@@ -597,8 +569,8 @@ function StructuredResultDisplay({ result, onInsert }: { result: StructuredVisio
                 result.metadata.confidence === 'high'
                   ? 'text-success'
                   : result.metadata.confidence === 'medium'
-                  ? 'text-warning'
-                  : 'text-destructive'
+                    ? 'text-warning'
+                    : 'text-destructive'
               )}
             >
               {result.metadata.confidence}
@@ -691,7 +663,7 @@ function QualityPanel({ result }: { result: StructuredVisionResult }) {
           <span
             className={cn('font-medium',
               result.metadata.confidence === 'high' ? 'text-success' :
-              result.metadata.confidence === 'medium' ? 'text-warning' : 'text-destructive'
+                result.metadata.confidence === 'medium' ? 'text-warning' : 'text-destructive'
             )}
           >
             {result.metadata.confidence}
@@ -715,7 +687,7 @@ function isSalvaged(result: StructuredVisionResult): boolean {
   return notes.includes('partially recovered') || notes.includes('partially invalid') || notes.includes('fallback response');
 }
 
-function GenerationGuidanceBlock({ prompt, styleKeywords, onInsert }: { prompt: string; styleKeywords: string[]; onInsert?: (p: string)=>void }) {
+function GenerationGuidanceBlock({ prompt, styleKeywords, onInsert }: { prompt: string; styleKeywords: string[]; onInsert?: (p: string) => void }) {
   const { showToast } = useToast();
   const copy = async () => {
     await navigator.clipboard.writeText(prompt);

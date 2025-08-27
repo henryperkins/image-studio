@@ -1,5 +1,6 @@
 import { useMemo, useState, useRef, useEffect } from 'react';
-import { analyzeImages, generateVideoWithProgress, generateSoraPrompt, getSoraVideoContent } from '../lib/api';
+import { analyzeImages, generateVideoWithProgress, getSoraVideoContent } from '../lib/api';
+import { X } from 'lucide-react';
 import SoraJobsPanel from './SoraJobsPanel';
 import { processApiError } from '../lib/errorUtils';
 import { useToast } from '../contexts/ToastContext';
@@ -62,6 +63,14 @@ export default function SoraCreator({
   const videoDataRef = useRef<string|null>(null);
   const { showToast } = useToast();
 
+  // Simple stepper state
+  const currentStep = useMemo(() => {
+    if (videoUrl) return 4;
+    if (busy) return 3;
+    if (prompt.trim() || analysisData) return 2;
+    return 1;
+  }, [videoUrl, busy, prompt, analysisData]);
+
   const finalPrompt = useMemo(() => {
     const base = prompt;
     const refs = selectedUrls.length ? `\n\n[Reference images]\n${selectedUrls.join('\n')}` : '';
@@ -98,8 +107,8 @@ export default function SoraCreator({
         motion_elements: result.metadata.processing_notes
           .filter((note: string) => note.includes('motion') || note.includes('movement'))
           .slice(0, 3),
-        camera_technique: result.generation_guidance.technical_parameters?.camera_movement,
-        duration_recommendation: result.generation_guidance.technical_parameters?.recommended_duration
+        camera_technique: (result.generation_guidance.technical_parameters as any)?.camera_movement,
+        duration_recommendation: (result.generation_guidance.technical_parameters as any)?.recommended_duration
       });
       
       // Keep legacy format for backward compatibility
@@ -134,10 +143,10 @@ export default function SoraCreator({
         motion_elements: result.metadata.processing_notes
           .filter((note: string) => note.includes('motion') || note.includes('movement'))
           .slice(0, 5),
-        camera_technique: result.generation_guidance.technical_parameters?.camera_movement || 
+        camera_technique: (result.generation_guidance.technical_parameters as any)?.camera_movement ||
                          'Slow push in with shallow depth of field',
         style_notes: result.generation_guidance.style_keywords?.join(', '),
-        duration_recommendation: result.generation_guidance.technical_parameters?.recommended_duration || 
+        duration_recommendation: (result.generation_guidance.technical_parameters as any)?.recommended_duration ||
                                 '10-15 seconds'
       });
       
@@ -269,6 +278,16 @@ export default function SoraCreator({
         </div>
       </div>
 
+      {/* Stepper */}
+      <ol className="grid grid-cols-4 gap-2 text-xs">
+        {[{ n: 1, l: 'Analyze' }, { n: 2, l: 'Prompt' }, { n: 3, l: 'Generate' }, { n: 4, l: 'Review' }].map((s) => (
+          <li key={s.n} className={`flex items-center gap-2 rounded-md px-2 py-1 border ${currentStep > s.n ? 'bg-neutral-800/60 border-neutral-700 text-neutral-200' : currentStep === s.n ? 'bg-accent/20 border-accent text-accent-foreground' : 'bg-neutral-900/40 border-neutral-800 text-neutral-400'}`}>
+            <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-semibold ${currentStep >= s.n ? 'bg-primary text-white' : 'bg-neutral-700 text-neutral-300'}`}>{s.n}</span>
+            <span className="truncate">{s.l}</span>
+          </li>
+        ))}
+      </ol>
+
       {/* Enhanced Vision Analysis */}
       {showEnhancedAnalysis && selectedIds.length > 0 && (
         <Card>
@@ -291,7 +310,7 @@ export default function SoraCreator({
             onClick={generateEnhancedPrompt}
             className="flex-1"
           >
-            {analyzingImages ? 'Generating advanced prompt…' : `Generate Sora Prompt (GPT-5) for ${selectedIds.length} image${selectedIds.length > 1 ? 's' : ''}`}
+            {analyzingImages ? 'Generating advanced prompt…' : `Generate Sora Prompt (advanced) for ${selectedIds.length} image${selectedIds.length > 1 ? 's' : ''}`}
           </Button>
           <Button
             variant="outline"
@@ -392,7 +411,7 @@ export default function SoraCreator({
                       }}
                       aria-label={`Remove reference image ${index + 1}`}
                     >
-                      ✕
+                      <X className="w-3 h-3" />
                     </Button>
                   </div>
                 ))}
@@ -419,7 +438,7 @@ export default function SoraCreator({
                     }}
                     aria-label={`Remove reference image ${index + 1}`}
                   >
-                    ✕
+                    <X className="w-3 h-3" />
                   </Button>
                 </div>
               ))}
@@ -524,7 +543,7 @@ export default function SoraCreator({
       </div>
 
       {busy && (
-        <div className="space-y-1">
+        <div className="space-y-1" role="status" aria-live="polite">
           <div className="flex justify-between text-xs text-neutral-400">
             <span>
               {stage === 'submitting' && 'Submitting job…'}

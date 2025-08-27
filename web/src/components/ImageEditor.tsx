@@ -42,6 +42,21 @@ export default function ImageEditor({ item, onClose, onEdited, baseUrl }: Props)
 
   // Initialize mask canvas as opaque (white). Transparent pixels will be areas to change.
   useEffect(() => {
+    // Apply preset if present (from Playbooks)
+    try {
+      const raw = localStorage.getItem('IMAGE_EDITOR_PRESET');
+      if (raw) {
+        const p = JSON.parse(raw) as Partial<{ prompt: string; size: any; format: any; background: any; quality: any; brush: number; outputCompression: number }>
+        if (p.prompt && !prompt) setPrompt(p.prompt)
+        if (p.size) setSize(p.size as any)
+        if (p.format) setFormat(p.format as any)
+        if (p.background) setBackground(p.background as any)
+        if (p.quality) setQuality(p.quality as any)
+        if (typeof p.outputCompression === 'number') setOutputCompression(p.outputCompression)
+        if (typeof p.brush === 'number') setBrush(p.brush)
+        localStorage.removeItem('IMAGE_EDITOR_PRESET')
+      }
+    } catch {}
     const c = canvasRef.current!;
     const ctx = c.getContext('2d')!;
     ctx.globalCompositeOperation = 'source-over';

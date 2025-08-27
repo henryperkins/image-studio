@@ -9,7 +9,9 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import child_process from 'node:child_process';
 import ffmpegStatic from 'ffmpeg-static';
-import type { ImageItem, VideoItem, LibraryItem } from '@image-studio/shared';
+import type { ImageItem, VideoItem, LibraryItem, Playbook } from '@image-studio/shared';
+import { PLAYBOOKS } from '@image-studio/shared';
+import { ensureMaskMatchesImage, ensurePngMask } from './lib/image-utils.js';
 import { AnalyticsEventSchema } from '@image-studio/shared';
 
 const app = Fastify({ logger: true });
@@ -407,8 +409,11 @@ app.post('/api/images/edit', async (req, reply) => {
     form.set('image', new File([srcView], src.filename, { type: srcMime }));
 
     // optional mask (PNG with transparent regions to edit)
-    if (body.mask_data_url) {
+  if (body.mask_data_url) {
+      // Validate mask type and dimensions before upload
+      ensurePngMask(body.mask_data_url);
       const maskBuf = dataURLtoBuffer(body.mask_data_url);
+      ensureMaskMatchesImage(srcBuf, maskBuf);
       const maskView = new Uint8Array(maskBuf);
       form.set('mask', new File([maskView], 'mask.png', { type: 'image/png' }));
     }
@@ -479,6 +484,61 @@ app.delete('/api/library/media/:id', async (req, reply) => {
     await fs.unlink(path.join(dir, removed.filename));
   } catch { /* empty */ }
   return reply.send({ ok: true });
+});
+
+// ----------------- LIBRARY: upload (images) -----------------
+app.post('/api/library/upload', async (req, reply) => {
+  if (!(req as any).isMultipart?.()) return reply.status(400).send({ error: 'Content-Type must be multipart/form-data' });
+  const created: LibraryItem[] = [];
+  const maxBytes = Number(process.env.MAX_UPLOAD_BYTES || 20 * 1024 * 1024); // 20MB default
+  const allowed = new Set(['image/png', 'image/jpeg', 'image/webp']);
+
+  try {
+    for await (const part of (req as any).parts()) {
+      if (!part?.file) continue;
+      const mime: string = String(part.mimetype || '');
+      if (!allowed.has(mime)) {
+        for await (const _ of part.file) {}
+        continue;
+      }
+      const chunks: Buffer[] = [];
+      let size = 0;
+      for await (const chunk of part.file as AsyncIterable<Buffer>) {
+        size += chunk.length;
+        if (size > maxBytes) throw new Error(`File exceeds limit of ${maxBytes} bytes`);
+        chunks.push(Buffer.from(chunk));
+      }
+      const buf = Buffer.concat(chunks);
+      const id = crypto.randomUUID();
+      const ext = mime === 'image/png' ? 'png' : mime === 'image/webp' ? 'webp' : 'jpg';
+      const filename = `${id}.${ext}`;
+      await fs.writeFile(path.join(IMG_DIR, filename), buf);
+      const item: ImageItem = {
+        kind: 'image',
+        id, filename,
+        url: `/static/images/${filename}`,
+        prompt: 'uploaded image',
+        size: 'auto',
+        format: (ext === 'jpg' ? 'jpeg' : ext) as any,
+        createdAt: new Date().toISOString()
+      };
+      created.push(item);
+    }
+    if (created.length === 0) return reply.status(400).send({ error: 'No valid image files found' });
+    const lib = await readManifest();
+    for (const it of created) lib.unshift(it);
+    await writeManifest(lib);
+    return reply.send({ items: created });
+  } catch (e: any) {
+    (req as any).log?.error?.(e);
+    return reply.status(400).send({ error: e.message || 'Upload failed' });
+  }
+});
+
+// ----------------- PLAYBOOKS: list -----------------
+app.get('/api/playbooks', async (_req, reply) => {
+  const list: Playbook[] = PLAYBOOKS;
+  return reply.send({ playbooks: list });
 });
 
 // ----------------- VISION Analysis (Enhanced GPT-4.1) -----------------

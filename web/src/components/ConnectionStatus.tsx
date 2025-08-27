@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { API_BASE_URL } from '../lib/api';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { Check, X as XIcon, RefreshCw } from 'lucide-react';
 
 export default function ConnectionStatus() {
   const [status, setStatus] = useState<'checking' | 'connected' | 'disconnected'>('checking');
@@ -36,13 +37,9 @@ export default function ConnectionStatus() {
     return null; // Don't show anything when connected normally
   }
 
-  const statusColor = status === 'connected' ? 'text-success' : 
-                     status === 'disconnected' ? 'text-destructive' : 
+  const statusColor = status === 'connected' ? 'text-success' :
+                     status === 'disconnected' ? 'text-destructive' :
                      'text-warning';
-
-  const statusIcon = status === 'connected' ? '✓' : 
-                    status === 'disconnected' ? '✗' : 
-                    '⟳';
 
   return (
     <div className="fixed bottom-4 right-4 z-50">
@@ -54,7 +51,9 @@ export default function ConnectionStatus() {
         aria-expanded={showDetails}
         aria-controls="connection-details"
       >
-        <span className="text-xl">{statusIcon}</span>
+        {status === 'connected' && <Check className="w-4 h-4" />}
+        {status === 'disconnected' && <XIcon className="w-4 h-4" />}
+        {status === 'checking' && <RefreshCw className="w-4 h-4 animate-spin" />}
         <span className="text-sm">
           {status === 'checking' ? 'Checking...' : 
            status === 'connected' ? 'Connected' : 

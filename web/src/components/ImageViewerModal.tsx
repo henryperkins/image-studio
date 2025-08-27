@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { type LibraryItem, API_BASE_URL, isVideoItem } from '../lib/api';
 import { useMediaActions } from '../hooks/useMediaActions';
 import { Button } from '@/components/ui/button';
+import { ChevronLeft, ChevronRight, X, AlertCircle, Pencil, Search, Trash2, Download as DownloadIcon, Clipboard, Loader2 } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { cn } from '@/lib/utils';
 
@@ -125,9 +126,7 @@ export default function ImageViewerModal({
                 onClick={() => onNavigate(images[currentIndex - 1].id)}
                 aria-label="Previous image"
               >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                </svg>
+                <ChevronLeft className="w-6 h-6" />
               </Button>
             )}
             {currentIndex < images.length - 1 && (
@@ -137,9 +136,7 @@ export default function ImageViewerModal({
                 onClick={() => onNavigate(images[currentIndex + 1].id)}
                 aria-label="Next image"
               >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
+                <ChevronRight className="w-6 h-6" />
               </Button>
             )}
           </div>
@@ -155,9 +152,7 @@ export default function ImageViewerModal({
               onClick={onClose}
               aria-label="Close viewer"
             >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
+              <X className="w-6 h-6" />
             </Button>
           </div>
         </div>
@@ -166,9 +161,7 @@ export default function ImageViewerModal({
         <div className="absolute inset-0 flex items-center justify-center p-4" onClick={(e) => e.stopPropagation()}>
           {imageError ? (
             <div className="text-center text-neutral-400">
-              <svg className="w-16 h-16 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
+              <AlertCircle className="w-16 h-16 mx-auto mb-4" />
               <p>Failed to load image</p>
             </div>
           ) : (
@@ -191,14 +184,18 @@ export default function ImageViewerModal({
                 className="bg-black/70 hover:bg-black/90 text-white rounded-lg border border-white/10"
                 onClick={() => setShowControls(true)}
               >
-                ✎ Edit
+                <Pencil className="w-4 h-4 mr-1" /> Edit
               </Button>
               <Button
                 className="bg-black/70 hover:bg-black/90 text-white rounded-lg border border-white/10"
                 onClick={() => item && handleAnalyze(item)}
                 disabled={isAnalyzing}
               >
-                {isAnalyzing ? '🔄 Analyzing...' : '🔍 Analyze'}
+                {isAnalyzing ? (
+                  <span className="inline-flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" /> Analyzing…</span>
+                ) : (
+                  <span className="inline-flex items-center gap-2"><Search className="w-4 h-4" /> Analyze</span>
+                )}
               </Button>
               <Button
                 variant="destructive"
@@ -206,19 +203,23 @@ export default function ImageViewerModal({
                 onClick={handleDeleteWithConfirm}
                 disabled={isDeleting}
               >
-                {confirmDelete ? '⚠️ Confirm?' : '🗑️ Delete'}
+                {confirmDelete ? (
+                  <span className="inline-flex items-center gap-2"><AlertCircle className="w-4 h-4" /> Confirm?</span>
+                ) : (
+                  <span className="inline-flex items-center gap-2"><Trash2 className="w-4 h-4" /> Delete</span>
+                )}
               </Button>
               <Button
                 className="bg-black/70 hover:bg-black/90 text-white rounded-lg border border-white/10"
                 onClick={() => item && handleDownload(item)}
               >
-                ⬇️ Download
+                <DownloadIcon className="w-4 h-4 mr-1" /> Download
               </Button>
               <Button
                 className="bg-black/70 hover:bg-black/90 text-white rounded-lg border border-white/10"
                 onClick={() => item && handleCopyPrompt(item)}
               >
-                📋 Copy Prompt
+                <Clipboard className="w-4 h-4 mr-1" /> Copy Prompt
               </Button>
             </div>
           ) : (

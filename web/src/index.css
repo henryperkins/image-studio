@@ -151,7 +151,7 @@
   .card-hover:hover {
     transform: translateY(-4px);
     box-shadow: var(--shadow-glow);
-    border-color: rgb(var(--color-brand-500) / 0.3);
+    border-color: color-mix(in oklch, var(--color-brand-500) 30%, transparent);
   }
 
   /* Text gradient */
@@ -165,7 +165,7 @@
   /* Smooth scrollbar */
   .scrollbar-custom {
     scrollbar-width: thin;
-    scrollbar-color: rgb(var(--color-brand-600) / 0.3) transparent;
+    scrollbar-color: color-mix(in oklch, var(--color-brand-600) 30%, transparent) transparent;
   }
 
   .scrollbar-custom::-webkit-scrollbar {
@@ -178,24 +178,24 @@
   }
 
   .scrollbar-custom::-webkit-scrollbar-thumb {
-    background: rgb(var(--color-brand-600) / 0.3);
+    background: color-mix(in oklch, var(--color-brand-600) 30%, transparent);
     border-radius: 3px;
   }
 
   .scrollbar-custom::-webkit-scrollbar-thumb:hover {
-    background: rgb(var(--color-brand-600) / 0.5);
+    background: color-mix(in oklch, var(--color-brand-600) 50%, transparent);
   }
 
   /* Glow text effect */
   .text-glow {
-    text-shadow: 0 0 20px rgb(var(--color-brand-500) / 0.5);
+    text-shadow: 0 0 20px color-mix(in oklch, var(--color-brand-500) 50%, transparent);
   }
 
   /* Neon border effect */
   .border-glow {
     box-shadow:
-      inset 0 0 0 1px rgb(var(--color-brand-500) / 0.2),
-      0 0 20px -5px rgb(var(--color-brand-500) / 0.35);
+      inset 0 0 0 1px color-mix(in oklch, var(--color-brand-500) 20%, transparent),
+      0 0 20px -5px color-mix(in oklch, var(--color-brand-500) 35%, transparent);
   }
 
   /* Pulse animation for buttons */
@@ -207,9 +207,9 @@
   .shimmer {
     background: linear-gradient(
       90deg,
-      rgb(var(--color-neutral-800)) 0%,
-      rgb(var(--color-neutral-700)) 50%,
-      rgb(var(--color-neutral-800)) 100%
+      var(--color-neutral-800) 0%,
+      var(--color-neutral-700) 50%,
+      var(--color-neutral-800) 100%
     );
     background-size: 200% 100%;
     animation: var(--animate-shimmer);
@@ -220,45 +220,45 @@
     background: var(--surface-1);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
-    border: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+    border: 1px solid color-mix(in oklch, var(--border) 60%, transparent);
   }
 
   .surface-muted {
-    background: rgb(var(--color-neutral-800) / 0.4);
+    background: color-mix(in oklch, var(--color-neutral-800) 40%, transparent);
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
-    border: 1px solid rgb(var(--border) / 0.4);
+    border: 1px solid color-mix(in oklch, var(--border) 40%, transparent);
   }
 
   /* Ambient glow border */
   .border-ambient {
     box-shadow:
-      inset 0 0 0 1px color-mix(in srgb, var(--border) 60%, transparent),
-      0 0 24px -8px rgb(var(--color-brand-500) / 0.35);
+      inset 0 0 0 1px color-mix(in oklch, var(--border) 60%, transparent),
+      0 0 24px -8px color-mix(in oklch, var(--color-brand-500) 35%, transparent);
   }
 
   /* Enhanced button effects */
   .btn-primary {
     background: var(--gradient-brand);
     border: none;
-    box-shadow: 0 2px 10px rgb(var(--color-brand-600) / 0.3);
+    box-shadow: 0 2px 10px color-mix(in oklch, var(--color-brand-600) 30%, transparent);
     transition: all 0.2s ease;
   }
 
   .btn-primary:hover {
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgb(var(--color-brand-600) / 0.4);
+    box-shadow: 0 4px 12px color-mix(in oklch, var(--color-brand-600) 40%, transparent);
   }
 
   /* Enhanced input fields */
   .input-glow {
-    border: 1px solid rgb(var(--color-brand-600) / 0.3);
+    border: 1px solid color-mix(in oklch, var(--color-brand-600) 30%, transparent);
     transition: all 0.2s ease;
   }
 
   .input-glow:focus {
-    border-color: rgb(var(--color-brand-500));
-    box-shadow: 0 0 0 3px rgb(var(--color-brand-500) / 0.15);
+    border-color: var(--color-brand-500);
+    box-shadow: 0 0 0 3px color-mix(in oklch, var(--color-brand-500) 15%, transparent);
   }
 
   /* Loading state */
@@ -288,14 +288,14 @@
 
   /* Enhanced selection */
   ::selection {
-    background: rgb(var(--color-brand-500) / 0.3);
-    color: rgb(var(--color-brand-50));
+    background: color-mix(in oklch, var(--color-brand-500) 30%, transparent);
+    color: var(--color-brand-50);
   }
 
   /* Improved scrollbar globally */
   :root {
     scrollbar-width: thin;
-    scrollbar-color: rgb(var(--color-neutral-600) / 0.3) transparent;
+    scrollbar-color: color-mix(in oklch, var(--color-neutral-600) 30%, transparent) transparent;
   }
 
   ::-webkit-scrollbar {
@@ -308,11 +308,32 @@
   }
 
   ::-webkit-scrollbar-thumb {
-    background: rgb(var(--color-neutral-600) / 0.3);
+    background: color-mix(in oklch, var(--color-neutral-600) 30%, transparent);
     border-radius: 4px;
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    background: rgb(var(--color-neutral-600) / 0.5);
+    background: color-mix(in oklch, var(--color-neutral-600) 50%, transparent);
+  }
+}
+
+/* Respect reduced motion: tone down animations and parallax glows */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
+  }
+  body::before,
+  body::after,
+  .image-hover,
+  .card-hover,
+  .btn-glow,
+  .pulse-soft,
+  .loading-card,
+  .shimmer {
+    animation: none !important;
+    transition: none !important;
+    box-shadow: none !important;
   }
 }

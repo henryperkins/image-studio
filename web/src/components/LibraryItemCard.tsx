@@ -17,6 +17,7 @@ import {
   DropdownMenuSeparator
 } from './ui/dropdown-menu';
 import { Button } from './ui/button';
+import { Eye, Pencil, Search, Clapperboard, Download as DownloadIcon, Clipboard, Trash2, MoreVertical, Film } from 'lucide-react';
 import { Card } from './ui/card';
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip';
 import type { MediaAction } from '../hooks/useMediaActions';
@@ -40,7 +41,7 @@ const LibraryItemCard = memo(({
   onView,
   baseUrl = API_BASE_URL
 }: LibraryItemCardProps) => {
-  const [showContextMenu, setShowContextMenu] = useState(false); // kept for hover/tooltip gating
+  const [_showContextMenu, setShowContextMenu] = useState(false); // kept for hover/tooltip gating
   const [isHovered, setIsHovered] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
@@ -144,6 +145,19 @@ const LibraryItemCard = memo(({
         role="button"
         aria-label={`${isVideo ? 'Video' : 'Image'}: ${item.prompt || 'Untitled'}`}
         tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            handleClick(e as any);
+          } else if (e.key === ' ') {
+            e.preventDefault();
+            if (!isVideo) {
+              onSelect(item.id, !selected);
+            } else if (onView) {
+              onView(item);
+            }
+          }
+        }}
       >
         {/* Selection checkbox with proper touch target */}
         {!isVideo && (
@@ -176,32 +190,29 @@ const LibraryItemCard = memo(({
         {/* Kebab menu (always visible) */}
         <div className="absolute top-1 right-1 md:top-2 md:right-2 z-30">
           <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                size="sm"
-                variant="ghost"
-                className="bg-black/80 hover:bg-black text-white text-xs min-w-[44px] min-h-[44px] px-2 py-1.5"
-                onClick={(e) => { e.stopPropagation(); setIsHovered(false); }}
-                aria-label="More actions"
-                title="More actions"
-              >
-                ⋮
-              </Button>
+            {/* Avoid asChild here to reduce composed ref churn under React 19 */}
+            <DropdownMenuTrigger
+              className="bg-black/80 hover:bg-black text-white text-xs min-w-[44px] min-h-[44px] px-2 py-1.5 rounded-md inline-flex items-center justify-center"
+              onClick={(e) => { e.stopPropagation(); setIsHovered(false); }}
+              aria-label="More actions"
+              title="More actions"
+            >
+              <MoreVertical className="w-4 h-4" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={(e)=>{e.stopPropagation(); onAction('view', item);}}>👁 View</DropdownMenuItem>
-              <DropdownMenuItem onClick={(e)=>{e.stopPropagation(); onAction('edit', item);}}>✏️ Edit</DropdownMenuItem>
+              <DropdownMenuItem onClick={(e)=>{e.stopPropagation(); onAction('view', item);}}><Eye className="w-4 h-4 mr-2" /> View</DropdownMenuItem>
+              <DropdownMenuItem onClick={(e)=>{e.stopPropagation(); onAction('edit', item);}}><Pencil className="w-4 h-4 mr-2" /> Edit</DropdownMenuItem>
               {!isVideoItem(item) && (
-                <DropdownMenuItem onClick={(e)=>{e.stopPropagation(); onAction('analyze', item);}}>🔍 Analyze</DropdownMenuItem>
+                <DropdownMenuItem onClick={(e)=>{e.stopPropagation(); onAction('analyze', item);}}><Search className="w-4 h-4 mr-2" /> Analyze</DropdownMenuItem>
               )}
               {!isVideoItem(item) && (
-                <DropdownMenuItem onClick={(e)=>{e.stopPropagation(); onAction('use-in-sora', item);}}>🎬 Use in Sora</DropdownMenuItem>
+                <DropdownMenuItem onClick={(e)=>{e.stopPropagation(); onAction('use-in-sora', item);}}><Clapperboard className="w-4 h-4 mr-2" /> Use in Sora</DropdownMenuItem>
               )}
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={(e)=>{e.stopPropagation(); onAction('download', item);}}>⬇️ Download</DropdownMenuItem>
-              <DropdownMenuItem onClick={(e)=>{e.stopPropagation(); onAction('copy-prompt', item);}}>📝 Copy Prompt</DropdownMenuItem>
+              <DropdownMenuItem onClick={(e)=>{e.stopPropagation(); onAction('download', item);}}><DownloadIcon className="w-4 h-4 mr-2" /> Download</DropdownMenuItem>
+              <DropdownMenuItem onClick={(e)=>{e.stopPropagation(); onAction('copy-prompt', item);}}><Clipboard className="w-4 h-4 mr-2" /> Copy Prompt</DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem className="text-destructive data-[highlighted]:bg-destructive/10" onClick={(e)=>{e.stopPropagation(); onAction('delete', item);}}>🗑️ Delete</DropdownMenuItem>
+              <DropdownMenuItem className="text-destructive data-[highlighted]:bg-destructive/10" onClick={(e)=>{e.stopPropagation(); onAction('delete', item);}}><Trash2 className="w-4 h-4 mr-2" /> Delete</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -210,9 +221,7 @@ const LibraryItemCard = memo(({
         {/* Video duration badge */}
         {isVideo && (
           <div className="absolute bottom-1 left-1 md:bottom-2 md:left-2 z-20 bg-neutral-800/90 backdrop-blur-sm rounded px-1 py-0.5 flex items-center gap-1 pointer-events-none">
-            <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
-              <path d="M2 6a2 2 0 012-2h6a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V6zM14.553 7.106A1 1 0 0014 8v4a1 1 0 00.553.894l2 1A1 1 0 0018 13V7a1 1 0 00-1.447-.894l-2 1z" />
-            </svg>
+            <Film className="w-4 h-4 text-white" />
             <span className="text-xs text-white font-medium">{(item as any).duration}s</span>
           </div>
         )}
@@ -226,7 +235,7 @@ const LibraryItemCard = memo(({
               onClick={(e)=>{ e.stopPropagation(); onAction('use-in-sora', item); }}
               aria-label="Use in Sora"
             >
-              🎬 Use in Sora
+              <Clapperboard className="w-4 h-4 mr-1" /> Use in Sora
             </Button>
           </div>
         )}
@@ -311,15 +320,15 @@ const LibraryItemCard = memo(({
 
       {/* Context menu content (right-click) */}
       <ContextMenuContent>
-        <ContextMenuItem onClick={()=>onAction('view', item)}>👁 View</ContextMenuItem>
-        <ContextMenuItem onClick={()=>onAction('edit', item)}>✏️ Edit</ContextMenuItem>
-        {!isVideo && (<ContextMenuItem onClick={()=>onAction('analyze', item)}>🔍 Analyze</ContextMenuItem>)}
-        {!isVideo && (<ContextMenuItem onClick={()=>onAction('use-in-sora', item)}>🎬 Use in Sora</ContextMenuItem>)}
+        <ContextMenuItem onClick={()=>onAction('view', item)}><Eye className="w-4 h-4 mr-2" /> View</ContextMenuItem>
+        <ContextMenuItem onClick={()=>onAction('edit', item)}><Pencil className="w-4 h-4 mr-2" /> Edit</ContextMenuItem>
+        {!isVideo && (<ContextMenuItem onClick={()=>onAction('analyze', item)}><Search className="w-4 h-4 mr-2" /> Analyze</ContextMenuItem>)}
+        {!isVideo && (<ContextMenuItem onClick={()=>onAction('use-in-sora', item)}><Clapperboard className="w-4 h-4 mr-2" /> Use in Sora</ContextMenuItem>)}
         <ContextMenuSeparator />
-        <ContextMenuItem onClick={()=>onAction('download', item)}>⬇️ Download</ContextMenuItem>
-        <ContextMenuItem onClick={()=>onAction('copy-prompt', item)}>📝 Copy Prompt</ContextMenuItem>
+        <ContextMenuItem onClick={()=>onAction('download', item)}><DownloadIcon className="w-4 h-4 mr-2" /> Download</ContextMenuItem>
+        <ContextMenuItem onClick={()=>onAction('copy-prompt', item)}><Clipboard className="w-4 h-4 mr-2" /> Copy Prompt</ContextMenuItem>
         <ContextMenuSeparator />
-        <ContextMenuItem className="text-destructive data-[highlighted]:bg-destructive/10" onClick={()=>onAction('delete', item)}>🗑️ Delete</ContextMenuItem>
+        <ContextMenuItem className="text-destructive data-[highlighted]:bg-destructive/10" onClick={()=>onAction('delete', item)}><Trash2 className="w-4 h-4 mr-2" /> Delete</ContextMenuItem>
       </ContextMenuContent>
       </ContextMenu>
     </>

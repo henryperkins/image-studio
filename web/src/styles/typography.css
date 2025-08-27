@@ -38,20 +38,20 @@
     left: 0;
     right: 0;
     height: 60vh;
-    background: radial-gradient(ellipse at bottom, rgb(var(--color-accent-600) / 0.08), transparent 80%);
+    background: radial-gradient(ellipse at bottom, color-mix(in oklch, rgb(var(--color-accent-600)) 8%, transparent), transparent 80%);
     pointer-events: none;
     z-index: 0;
   }
 
   /* Theme-aware code colors */
   :root {
-    --code-bg: rgb(var(--color-neutral-100) / 0.5);
-    --code-fg: rgb(var(--color-neutral-900));
+    --code-bg: color-mix(in oklch, var(--color-neutral-100) 50%, transparent);
+    --code-fg: var(--color-neutral-900);
   }
 
   .dark {
-    --code-bg: rgb(var(--color-neutral-900) / 0.5);
-    --code-fg: rgb(var(--color-neutral-50));
+    --code-bg: color-mix(in oklch, var(--color-neutral-900) 50%, transparent);
+    --code-fg: var(--color-neutral-50);
   }
 
   /* Links with enhanced hover effects */
@@ -64,7 +64,7 @@
   a:hover {
     @apply underline;
     filter: brightness(1.2);
-    text-shadow: 0 0 20px rgb(var(--color-brand-500) / 0.5);
+    text-shadow: 0 0 20px color-mix(in oklch, var(--color-brand-500) 50%, transparent);
   }
 
   /* Inline code with glass effect */
@@ -73,11 +73,11 @@
     background: var(--code-bg);
     color: var(--code-fg);
     backdrop-filter: blur(10px);
-    border: 1px solid rgb(var(--color-neutral-200) / 0.2);
+    border: 1px solid color-mix(in oklch, var(--color-neutral-200) 20%, transparent);
   }
 
   .dark code {
-    border-color: rgb(var(--color-neutral-700) / 0.3);
+    border-color: color-mix(in oklch, var(--color-neutral-700) 30%, transparent);
   }
 
   /* Code blocks with glass morphism */
@@ -86,12 +86,12 @@
     background: var(--code-bg);
     backdrop-filter: blur(10px);
     color: var(--code-fg);
-    border-color: rgb(var(--color-neutral-200) / 0.3);
+    border-color: color-mix(in oklch, var(--color-neutral-200) 30%, transparent);
     box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
   }
 
   .dark pre {
-    border-color: rgb(var(--color-neutral-800) / 0.5);
+    border-color: color-mix(in oklch, var(--color-neutral-800) 50%, transparent);
     box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.3), 0 2px 4px -2px rgb(0 0 0 / 0.2);
   }
 
@@ -102,11 +102,11 @@
 
   strong {
     @apply font-semibold;
-    color: rgb(var(--color-brand-500));
+    color: var(--color-brand-500);
   }
 
   .dark strong {
-    color: rgb(var(--color-brand-400));
+    color: var(--color-brand-400);
   }
 
   /* Headings default to solid foreground; use .text-gradient utility where desired */
@@ -123,9 +123,9 @@
   .skeleton {
     @apply rounded-lg;
     background: linear-gradient(90deg,
-        rgb(var(--color-neutral-200) / 0.5) 0%,
-        rgb(var(--color-neutral-100) / 0.8) 50%,
-        rgb(var(--color-neutral-200) / 0.5) 100%);
+        color-mix(in oklch, var(--color-neutral-200) 50%, transparent) 0%,
+        color-mix(in oklch, var(--color-neutral-100) 80%, transparent) 50%,
+        color-mix(in oklch, var(--color-neutral-200) 50%, transparent) 100%);
     background-size: 200% 100%;
     animation: var(--animate-shimmer);
     backdrop-filter: blur(4px);
@@ -133,9 +133,9 @@
 
   .dark .skeleton {
     background: linear-gradient(90deg,
-        rgb(var(--color-neutral-800) / 0.5) 0%,
-        rgb(var(--color-neutral-700) / 0.8) 50%,
-        rgb(var(--color-neutral-800) / 0.5) 100%);
+        color-mix(in oklch, var(--color-neutral-800) 50%, transparent) 0%,
+        color-mix(in oklch, var(--color-neutral-700) 80%, transparent) 50%,
+        color-mix(in oklch, var(--color-neutral-800) 50%, transparent) 100%);
   }
 
   /* Enhanced Progress bars with gradient */
@@ -238,15 +238,15 @@
   /* Media card improvements */
   .media-card {
     @apply overflow-hidden rounded-lg transition-all duration-300;
-    background: rgb(var(--color-neutral-800) / 0.6);
-    border: 1px solid rgb(var(--color-neutral-700) / 0.5);
+    background: color-mix(in oklch, var(--color-neutral-800) 60%, transparent);
+    border: 1px solid color-mix(in oklch, var(--color-neutral-700) 50%, transparent);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   }
 
   .media-card:hover {
     transform: translateY(-2px) scale(1.01);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2), 0 0 0 1px rgb(var(--color-brand-500) / 0.3);
-    border-color: rgb(var(--color-brand-500) / 0.3);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2), 0 0 0 1px color-mix(in oklch, var(--color-brand-500) 30%, transparent);
+    border-color: color-mix(in oklch, var(--color-brand-500) 30%, transparent);
   }
 
   .media-card img {

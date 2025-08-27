@@ -3,6 +3,7 @@ import { LibraryItem, isVideoItem, analyzeImages, API_BASE_URL } from '../lib/ap
 import { usePromptSuggestions } from '../contexts/PromptSuggestionsContext';
 import { useToast } from '../contexts/ToastContext';
 import { Button } from './ui/button';
+import { Search, Palette, Loader2, Check } from 'lucide-react';
 import { Separator } from './ui/separator';
 import { ScrollArea } from './ui/scroll-area';
 import { Badge } from './ui/badge';
@@ -140,7 +141,7 @@ export default function LibraryPromptSuggestions({
           onClick={handleAnalyzeSelected}
           disabled={analyzing || selectedForAnalysis.size === 0}
         >
-          {analyzing ? '🔄 Analyzing...' : '🔍 Analyze Selected'}
+          {analyzing ? (<span className="inline-flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" /> Analyzing…</span>) : (<span className="inline-flex items-center gap-2"><Search className="w-4 h-4" /> Analyze Selected</span>)}
         </Button>
         <Button
           size="sm"
@@ -149,7 +150,7 @@ export default function LibraryPromptSuggestions({
           onClick={handleRemixPrompts}
           disabled={selectedForAnalysis.size < 2}
         >
-          🎨 Remix Prompts
+          <span className="inline-flex items-center gap-2"><Palette className="w-4 h-4" /> Remix Prompts</span>
         </Button>
       </div>
 
@@ -188,9 +189,7 @@ export default function LibraryPromptSuggestions({
               </div>
               {selectedForAnalysis.has(item.id) && (
                 <div className="absolute inset-0 bg-blue-500/20 rounded flex items-center justify-center">
-                  <svg className="w-6 h-6 text-white" viewBox="0 0 20 20" fill="currentColor">
-                    <path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" />
-                  </svg>
+                  <Check className="w-5 h-5 text-white" />
                 </div>
               )}
             </div>

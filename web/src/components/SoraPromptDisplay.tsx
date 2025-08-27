@@ -1,6 +1,5 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
-import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { 
   Film, 
@@ -44,7 +43,7 @@ export default function SoraPromptDisplay({
       setCopied(true);
       showToast('Copied to clipboard', 'success');
       setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
+    } catch {
       showToast('Failed to copy', 'error');
     }
   };
@@ -82,27 +81,23 @@ export default function SoraPromptDisplay({
             <div className="flex items-center justify-between">
               <span className="text-xs text-neutral-400 uppercase tracking-wide">Generated Prompt</span>
               <div className="flex gap-1">
-                <Button
-                  size="sm"
-                  variant="ghost"
+                <button
                   onClick={() => handleCopy(data.suggested_prompt!)}
-                  className="h-6 px-2"
+                  className="h-6 px-2 inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
                 >
                   {copied ? (
                     <CheckCircle className="w-3 h-3" />
                   ) : (
                     <Copy className="w-3 h-3" />
                   )}
-                </Button>
+                </button>
                 {onInsertPrompt && (
-                  <Button
-                    size="sm"
-                    variant="outline"
+                  <button
                     onClick={handleInsert}
-                    className="h-6 px-2 text-xs"
+                    className="h-6 px-2 text-xs inline-flex items-center justify-center rounded-md border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground"
                   >
                     Insert
-                  </Button>
+                  </button>
                 )}
               </div>
             </div>

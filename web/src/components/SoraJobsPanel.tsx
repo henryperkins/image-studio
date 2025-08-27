@@ -1,70 +1,70 @@
-import { useEffect, useMemo, useState } from 'react'
-import { Button } from './ui/button'
-import { Skeleton } from './ui/skeleton'
-import { Card, CardContent } from './ui/card'
-import { ScrollArea } from './ui/scroll-area'
-import { useToast } from '../contexts/ToastContext'
-import { deleteSoraJob, getSoraJob, getSoraThumbnail, listSoraJobs, type SoraJob } from '../lib/api'
+import { useEffect, useMemo, useState } from 'react';
+import { Button } from './ui/button';
+import { Skeleton } from './ui/skeleton';
+import { Card, CardContent } from './ui/card';
+import { ScrollArea } from './ui/scroll-area';
+import { useToast } from '../contexts/ToastContext';
+import { deleteSoraJob, getSoraJob, getSoraThumbnail, listSoraJobs, type SoraJob } from '../lib/api';
 
 type Props = {
   onOpenGeneration?: (generationId: string) => Promise<void> | void
 }
 
 export default function SoraJobsPanel({ onOpenGeneration }: Props) {
-  const { showToast } = useToast()
-  const [loading, setLoading] = useState(true)
-  const [jobs, setJobs] = useState<SoraJob[]>([])
-  const [expanded, setExpanded] = useState<Record<string, { loading: boolean; gens: string[]; thumbs: Record<string, string> }>>({})
-  const [error, setError] = useState<string | null>(null)
+  const { showToast } = useToast();
+  const [loading, setLoading] = useState(true);
+  const [jobs, setJobs] = useState<SoraJob[]>([]);
+  const [expanded, setExpanded] = useState<Record<string, { loading: boolean; gens: string[]; thumbs: Record<string, string> }>>({});
+  const [error, setError] = useState<string | null>(null);
 
   const refresh = async () => {
-    setLoading(true); setError(null)
+    setLoading(true); setError(null);
     try {
-      const res = await listSoraJobs({ limit: 10 })
-      const arr = (res.jobs ?? res.data ?? []) as SoraJob[]
-      setJobs(arr)
+      const res = await listSoraJobs({ limit: 10 });
+      const arr = (res.jobs ?? res.data ?? []) as SoraJob[];
+      setJobs(arr);
     } catch (e: any) {
-      setError(e.message || 'Failed to load jobs')
-    } finally { setLoading(false) }
-  }
+      setError(e.message || 'Failed to load jobs');
+    } finally { setLoading(false); }
+  };
 
-  useEffect(() => { refresh() }, [])
+  useEffect(() => { refresh(); }, []);
 
-  const hasJobs = useMemo(() => (jobs?.length ?? 0) > 0, [jobs])
+  const hasJobs = useMemo(() => (jobs?.length ?? 0) > 0, [jobs]);
 
   async function toggle(job: SoraJob) {
-    const isOpen = !!expanded[job.id]
+    const isOpen = !!expanded[job.id];
     if (isOpen) {
-      setExpanded(prev => { const n = { ...prev }; delete n[job.id]; return n })
-      return
+      setExpanded(prev => { const n = { ...prev }; delete n[job.id]; return n; });
+      return;
     }
-    setExpanded(prev => ({ ...prev, [job.id]: { loading: true, gens: [], thumbs: {} } }))
+    setExpanded(prev => ({ ...prev, [job.id]: { loading: true, gens: [], thumbs: {} } }));
     try {
-      const detail = await getSoraJob(job.id)
-      const gens = (detail.generations || []).map(g => g.id)
-      const thumbs: Record<string, string> = {}
+      const detail = await getSoraJob(job.id);
+      const gens = (detail.generations || []).map(g => g.id);
+      const thumbs: Record<string, string> = {};
       // Fetch thumbnails sequentially to avoid spiking the server
       for (const gid of gens) {
         try {
-          const t = await getSoraThumbnail(gid)
-          thumbs[gid] = `data:${t.content_type};base64,${t.image_base64}`
+          const t = await getSoraThumbnail(gid);
+          thumbs[gid] = `data:${t.content_type};base64,${t.image_base64}`;
         } catch { /* ignore per-gen errors */ }
       }
-      setExpanded(prev => ({ ...prev, [job.id]: { loading: false, gens, thumbs } }))
+      setExpanded(prev => ({ ...prev, [job.id]: { loading: false, gens, thumbs } }));
     } catch (e: any) {
-      showToast(e.message || 'Failed to load job details', 'error')
-      setExpanded(prev => ({ ...prev, [job.id]: { loading: false, gens: [], thumbs: {} } }))
+      showToast(e.message || 'Failed to load job details', 'error');
+      setExpanded(prev => ({ ...prev, [job.id]: { loading: false, gens: [], thumbs: {} } }));
     }
   }
 
   async function remove(jobId: string) {
     try {
-      await deleteSoraJob(jobId)
-      setJobs(prev => prev.filter(j => j.id !== jobId))
-      setExpanded(prev => { const n = { ...prev }; delete n[jobId]; return n })
-      showToast('Job deleted', 'success')
+      await deleteSoraJob(jobId);
+      setJobs(prev => prev.filter(j => j.id !== jobId));
+      setExpanded(prev => { const n = { ...prev }; delete n[jobId]; return n; });
+      showToast('Job deleted', 'success');
     } catch (e: any) {
-      showToast(e.message || 'Failed to delete job', 'error')
+      showToast(e.message || 'Failed to delete job', 'error');
     }
   }
 
@@ -146,5 +146,5 @@ export default function SoraJobsPanel({ onOpenGeneration }: Props) {
         )}
       </CardContent>
     </Card>
-  )
+  );
 }

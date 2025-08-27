@@ -1,6 +1,6 @@
-import React from 'react'
-import { Tabs, TabsList, TabsTrigger } from './ui/tabs'
-import { Button } from './ui/button'
+import React from 'react';
+import { Tabs, TabsList, TabsTrigger } from './ui/tabs';
+import { Button } from './ui/button';
 
 type Props = {
   summaryText?: string
@@ -10,14 +10,14 @@ type Props = {
 }
 
 export default function AnalysisViewer({ summaryText, raw, tokensText, className }: Props) {
-  const hasPretty = !!summaryText
-  const hasRaw = raw !== undefined || !!summaryText
-  const hasTokens = !!tokensText
-  const defaultTab = hasPretty ? 'pretty' : hasRaw ? 'raw' : 'tokens'
+  const hasPretty = !!summaryText;
+  const hasRaw = raw !== undefined || !!summaryText;
+  const hasTokens = !!tokensText;
+  const defaultTab = hasPretty ? 'pretty' : hasRaw ? 'raw' : 'tokens';
 
   const copy = async (text: string) => {
-    try { await navigator.clipboard.writeText(text) } catch {}
-  }
+    try { await navigator.clipboard.writeText(text); } catch {}
+  };
 
   return (
     <div className={className}>
@@ -54,6 +54,6 @@ export default function AnalysisViewer({ summaryText, raw, tokensText, className
         )}
       </Tabs>
     </div>
-  )
+  );
 }
 
