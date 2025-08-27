@@ -274,9 +274,9 @@
     @apply transition-colors duration-200;
   }
 
-  /* Better focus states */
+  /* Better focus states (token-based to support light/dark) */
   *:focus-visible {
-    @apply outline-none ring-2 ring-purple-500 ring-offset-2 ring-offset-neutral-900;
+    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
   }
 
   /* Fix select/dropdown positioning */
@@ -284,14 +284,7 @@
     @apply relative z-30;
   }
 
-  /* Improve form contrast */
-  input, textarea, select {
-    @apply bg-neutral-800/80 border-neutral-600 text-neutral-100 placeholder-neutral-500;
-  }
-
-  input:focus, textarea:focus, select:focus {
-    @apply border-purple-500 bg-neutral-800;
-  }
+  /* Remove global input overrides; rely on component variants for consistency */
 
   /* Enhanced selection */
   ::selection {

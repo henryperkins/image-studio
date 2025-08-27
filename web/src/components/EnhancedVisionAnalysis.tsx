@@ -10,9 +10,9 @@ import {
 } from '../lib/api';
 import { useToast } from '../contexts/ToastContext';
 import { usePromptSuggestions } from '../contexts/PromptSuggestionsContext';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
+import { Button } from './ui/button';
+import { Input } from './ui/input';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from './ui/select';
 import { PromptTextarea } from '../components/PromptTextarea';
 import { cn } from '@/lib/utils';
 

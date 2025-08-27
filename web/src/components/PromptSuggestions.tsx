@@ -2,9 +2,9 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { usePromptSuggestions } from '../contexts/PromptSuggestionsContext';
 import { usePreferences } from '../contexts/PreferencesContext';
 import { recordEvent } from '../lib/analytics';
-import { Card } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
+import { Card } from './ui/card';
+import { Input } from './ui/input';
+import { Button } from './ui/button';
 
 interface PromptSuggestionsProps {
   onInsert: (text: string) => void;

@@ -109,14 +109,11 @@
     color: rgb(var(--color-brand-400));
   }
 
-  /* Headings with gradient text */
+  /* Headings default to solid foreground; use .text-gradient utility where desired */
   h1, h2, h3, h4, h5, h6 {
     font-weight: 700;
     letter-spacing: -0.02em;
-    background: var(--gradient-brand);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+    color: var(--foreground);
   }
 }
 

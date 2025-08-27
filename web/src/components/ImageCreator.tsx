@@ -2,19 +2,19 @@ import { useState } from 'react';
 import { useToast } from '../contexts/ToastContext';
 import { generateImage } from '../lib/api';
 import { processApiError } from '../lib/errorUtils';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Progress } from '@/components/ui/progress';
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
-import { Slider } from '@/components/ui/slider';
+import { Skeleton } from './ui/skeleton';
+import { Progress } from './ui/progress';
+import { Button } from './ui/button';
+import { Textarea } from './ui/textarea';
+import { Label } from './ui/label';
+import { Slider } from './ui/slider';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue
-} from '@/components/ui/select';
+} from './ui/select';
 
 type Resp = {
   image_base64: string;

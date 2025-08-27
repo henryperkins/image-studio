@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Button } from '@/components/ui/button'
-import { Skeleton } from '@/components/ui/skeleton'
-import { Card, CardContent } from '@/components/ui/card'
-import { ScrollArea } from '@/components/ui/scroll-area'
+import { Button } from './ui/button'
+import { Skeleton } from './ui/skeleton'
+import { Card, CardContent } from './ui/card'
+import { ScrollArea } from './ui/scroll-area'
 import { useToast } from '../contexts/ToastContext'
 import { deleteSoraJob, getSoraJob, getSoraThumbnail, listSoraJobs, type SoraJob } from '../lib/api'
 

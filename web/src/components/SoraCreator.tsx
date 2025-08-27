@@ -4,23 +4,25 @@ import SoraJobsPanel from './SoraJobsPanel';
 import { processApiError } from '../lib/errorUtils';
 import { useToast } from '../contexts/ToastContext';
 import EnhancedVisionAnalysis from './EnhancedVisionAnalysis';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Progress } from '@/components/ui/progress';
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent } from '@/components/ui/card';
-import { Switch } from '@/components/ui/switch';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Checkbox } from '@/components/ui/checkbox';
+import { Skeleton } from './ui/skeleton';
+import { Progress } from './ui/progress';
+import { Button } from './ui/button';
+import { Textarea } from './ui/textarea';
+import { Label } from './ui/label';
+import { Input } from './ui/input';
+import { Card, CardContent } from './ui/card';
+import { Switch } from './ui/switch';
+import { ScrollArea } from './ui/scroll-area';
+import { Checkbox } from './ui/checkbox';
+import AnalysisViewer from './AnalysisViewer';
+import SoraPromptDisplay from './SoraPromptDisplay';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue
-} from '@/components/ui/select';
+} from './ui/select';
 
 export default function SoraCreator({
   selectedIds = [] as string[],
@@ -51,6 +53,7 @@ export default function SoraCreator({
   const [currentQuality, setCurrentQuality] = useState<'high' | 'low'>('high');
   const [fetchingQuality, setFetchingQuality] = useState(false);
   const [analysis, setAnalysis] = useState<string>('');
+  const [analysisData, setAnalysisData] = useState<any>(null);
   const [progress, setProgress] = useState(0);
   const [stage, setStage] = useState<'idle'|'submitting'|'generating'|'downloading'|'finalizing'>('idle');
   const [analyzingImages, setAnalyzingImages] = useState(false);
@@ -86,6 +89,20 @@ export default function SoraCreator({
         audience: 'general'
       });
       
+      // Store structured data for new display component
+      setAnalysisData({
+        suggested_prompt: result.generation_guidance.suggested_prompt,
+        style_keywords: result.generation_guidance.style_keywords,
+        scene_description: result.content.scene_description,
+        // Extract additional fields if available from metadata or technical params
+        motion_elements: result.metadata.processing_notes
+          .filter((note: string) => note.includes('motion') || note.includes('movement'))
+          .slice(0, 3),
+        camera_technique: result.generation_guidance.technical_parameters?.camera_movement,
+        duration_recommendation: result.generation_guidance.technical_parameters?.recommended_duration
+      });
+      
+      // Keep legacy format for backward compatibility
       const description = `${result.content.scene_description}\n\nSuggested prompt: ${result.generation_guidance.suggested_prompt}`;
       setAnalysis(description);
       showToast('Images analyzed successfully!', 'success');
@@ -103,13 +120,30 @@ export default function SoraCreator({
     if (!selectedIds.length) return;
     setAnalyzingImages(true); setError(null);
     try {
-      const soraPrompt = await generateSoraPrompt(selectedIds, {
+      const result = await analyzeImages(selectedIds, {
+        purpose: 'Sora video prompt creation',
         detail: 'detailed',
         tone: 'creative',
         audience: 'technical'
       });
-      setPrompt(prev => prev + (prev ? '\n\n' : '') + soraPrompt);
-      showToast('Advanced Sora prompt generated with GPT-5!', 'success');
+      
+      // Store enhanced structured data
+      setAnalysisData({
+        suggested_prompt: result.generation_guidance.suggested_prompt,
+        style_keywords: result.generation_guidance.style_keywords,
+        motion_elements: result.metadata.processing_notes
+          .filter((note: string) => note.includes('motion') || note.includes('movement'))
+          .slice(0, 5),
+        camera_technique: result.generation_guidance.technical_parameters?.camera_movement || 
+                         'Slow push in with shallow depth of field',
+        style_notes: result.generation_guidance.style_keywords?.join(', '),
+        duration_recommendation: result.generation_guidance.technical_parameters?.recommended_duration || 
+                                '10-15 seconds'
+      });
+      
+      // Auto-insert the prompt
+      setPrompt(prev => prev + (prev ? '\n\n' : '') + result.generation_guidance.suggested_prompt);
+      showToast('Advanced Sora prompt generated!', 'success');
     } catch (e: any) {
       const errorMsg = e.message || 'Enhanced analysis failed';
       setError(errorMsg);
@@ -282,22 +316,32 @@ export default function SoraCreator({
         </div>
       )}
 
-      {analyzingImages && !analysis && (
-        <Card className="bg-neutral-950">
-          <CardContent className="p-3 space-y-2">
-            <Skeleton className="h-3 w-3/4" />
-            <Skeleton className="h-3 w-5/6" />
-            <Skeleton className="h-3 w-2/3" />
-            <Skeleton className="h-3 w-1/2" />
-          </CardContent>
-        </Card>
-      )}
+  {analyzingImages && !analysis && (
+    <Card className="bg-neutral-950">
+      <CardContent className="p-3 space-y-2">
+        <Skeleton className="h-3 w-3/4" />
+        <Skeleton className="h-3 w-5/6" />
+        <Skeleton className="h-3 w-2/3" />
+        <Skeleton className="h-3 w-1/2" />
+      </CardContent>
+    </Card>
+  )}
 
-      {!!analysis && !analyzingImages && (
-        <pre className="rounded-xl bg-neutral-950 border border-neutral-800 p-3 text-xs whitespace-pre-wrap fade-in">
-{analysis}
-        </pre>
-      )}
+  {!!analysisData && !analyzingImages && (
+    <SoraPromptDisplay 
+      data={analysisData}
+      onInsertPrompt={(prompt) => {
+        setPrompt(p => p + (p ? '\n\n' : '') + prompt);
+        showToast('Prompt inserted', 'success');
+      }}
+      className="fade-in"
+    />
+  )}
+  
+  {/* Fallback to legacy viewer if no structured data */}
+  {!analysisData && !!analysis && !analyzingImages && (
+    <AnalysisViewer summaryText={analysis} className="fade-in" />
+  )}
 
       <div className="space-y-2">
         <Label htmlFor="video-prompt">Video Description</Label>
@@ -462,17 +506,22 @@ export default function SoraCreator({
         </div>
       </div>
 
-      <Button
-        variant="default"
-        disabled={!prompt.trim() || busy}
-        onClick={() => generate()}
-        aria-describedby={!prompt.trim() ? 'video-prompt-required' : undefined}
-      >
-        {busy ? 'Generating…' : 'Generate'}
-      </Button>
-      {!prompt.trim() && (
-        <span id="video-prompt-required" className="sr-only">Enter a prompt to generate a video</span>
-      )}
+      {/* Sticky action bar to keep the primary CTA visible */}
+      <div className="sticky bottom-0 z-30 bg-background/80 supports-[backdrop-filter]:bg-background/60 backdrop-blur border-t border-neutral-800 py-2">
+        <div className="flex items-center gap-2">
+          <Button
+            variant="default"
+            disabled={!prompt.trim() || busy}
+            onClick={() => generate()}
+            aria-describedby={!prompt.trim() ? 'video-prompt-required' : undefined}
+          >
+            {busy ? 'Generating…' : 'Generate'}
+          </Button>
+          {!prompt.trim() && (
+            <span id="video-prompt-required" className="sr-only">Enter a prompt to generate a video</span>
+          )}
+        </div>
+      </div>
 
       {busy && (
         <div className="space-y-1">

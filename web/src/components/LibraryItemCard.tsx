@@ -8,17 +8,17 @@ import {
   ContextMenuContent,
   ContextMenuItem,
   ContextMenuSeparator
-} from '@/components/ui/context-menu';
+} from './ui/context-menu';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator
-} from '@/components/ui/dropdown-menu';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
+} from './ui/dropdown-menu';
+import { Button } from './ui/button';
+import { Card } from './ui/card';
+import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip';
 import type { MediaAction } from '../hooks/useMediaActions';
 
 interface LibraryItemCardProps {

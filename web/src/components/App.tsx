@@ -7,26 +7,26 @@ import ImageEditor from './ImageEditor';
 import VideoEditor from './VideoEditor';
 import ImageViewerModal from './ImageViewerModal';
 import VideoViewerModal from './VideoViewerModal';
-import LibraryItemCard from '../components/LibraryItemCard';
+import LibraryItemCard from './LibraryItemCard';
 import { useMediaActions } from '../hooks/useMediaActions';
 import { PromptSuggestionsProvider } from '../contexts/PromptSuggestionsContext';
 import { PreferencesProvider } from '../contexts/PreferencesContext';
 import PromptSuggestions from './PromptSuggestions';
-import LibraryPromptSuggestions from '../components/LibraryPromptSuggestions';
+import LibraryPromptSuggestions from './LibraryPromptSuggestions';
 import { usePromptSuggestions } from '../contexts/PromptSuggestionsContext';
 import { useToast } from '../contexts/ToastContext';
 import ConnectionStatus from './ConnectionStatus';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Tabs, TabsList, TabsTrigger } from './ui/tabs';
+import { Button } from './ui/button';
+import { Input } from './ui/input';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue
-} from '@/components/ui/select';
-import { Card } from '@/components/ui/card';
+} from './ui/select';
+import { Card } from './ui/card';
 import { cn } from '@/lib/utils';
 
 function AppContent() {
@@ -265,7 +265,7 @@ function AppContent() {
         {/* Library panel */}
         <Card
           id="library-panel"
-          className={cn('transition-opacity duration-200 p-4 bg-neutral-800/60 backdrop-blur-lg border-neutral-700 shadow-2xl', mobileLibraryOpen ? 'block' : 'hidden md:block')}
+          className={cn('transition-opacity duration-200 p-4 bg-neutral-800/60 backdrop-blur-lg border-neutral-700 shadow-2xl md:sticky md:top-16', mobileLibraryOpen ? 'block' : 'hidden md:block')}
         >
           <h4 className="mb-3 text-xl font-medium text-neutral-100">Media Library</h4>
           <p className="text-xs text-neutral-400 mb-3">

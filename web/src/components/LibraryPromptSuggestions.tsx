@@ -2,10 +2,10 @@ import { useState, useCallback } from 'react';
 import { LibraryItem, isVideoItem, analyzeImages, API_BASE_URL } from '../lib/api';
 import { usePromptSuggestions } from '../contexts/PromptSuggestionsContext';
 import { useToast } from '../contexts/ToastContext';
-import { Button } from '@/components/ui/button';
-import { Separator } from '@/components/ui/separator';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Badge } from '@/components/ui/badge';
+import { Button } from './ui/button';
+import { Separator } from './ui/separator';
+import { ScrollArea } from './ui/scroll-area';
+import { Badge } from './ui/badge';
 
 interface LibraryPromptSuggestionsProps {
   library: LibraryItem[];
