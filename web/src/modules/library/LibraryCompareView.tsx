@@ -160,7 +160,7 @@ function CompareItem({ item, isVideo, baseUrl, label }: CompareItemProps) {
               <span>
                 Size: {item.size}
               </span>
-                Format: {typeof item.format === 'string' ? item.format.toUpperCase() : item.format}
+            )}
 
             {!isVideo && 'format' in item && (
               <span>

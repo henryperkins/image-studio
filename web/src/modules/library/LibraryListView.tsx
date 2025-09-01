@@ -1,5 +1,5 @@
 import React from 'react';
-import { LibraryItem, isVideoItem, API_BASE_URL } from '@/lib/api';
+import { LibraryItem, isVideoItem } from '@/lib/api';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 import {
@@ -22,7 +22,7 @@ import {
   Image as ImageIcon
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { formatBytes, formatDuration, formatRelativeDate } from '@/lib/format';
+import { formatDuration, formatRelativeDate } from '@/lib/format';
 import type { MediaAction } from '@/hooks/useMediaActions';
 
 interface LibraryListViewProps {
@@ -136,14 +136,14 @@ export default function LibraryListView({
                 )}
                 {!isVideo && item.size && (
                   <span className="text-muted-foreground">
-                    {item.size.width}×{item.size.height}
+                    {item.size === 'auto' ? 'auto' : item.size.replace('x', '×')}
                   </span>
                 )}
               </div>
               
-              {/* File size */}
+              {/* Size (dimensions) */}
               <div className="text-xs text-muted-foreground">
-                {item.fileSize ? formatBytes(item.fileSize) : '—'}
+                {isVideoItem(item) ? `${item.width}×${item.height}` : (item.size ? (item.size === 'auto' ? 'auto' : item.size.replace('x', '×')) : '—')}
               </div>
               
               {/* Created date */}

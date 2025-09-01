@@ -50,8 +50,8 @@ function AppContent() {
     selectedIds: selected,
     setSelectedIds: setSelected,
     sortedFilteredLibrary,
-    refreshLibrary,
-    setVisibleIds
+    refreshLibrary
+    // removed: setVisibleIds from context to avoid name collision
   } = useLibrary();
   const [mobileLibraryOpen, setMobileLibraryOpen] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);

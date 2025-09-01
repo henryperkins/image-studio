@@ -91,9 +91,11 @@ export default defineConfig({
         "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
         "font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net",
-        "img-src 'self' data: blob: http://localhost:* http://127.0.0.1:*",
-        "connect-src 'self' http://localhost:* http://127.0.0.1:* ws://localhost:* ws://127.0.0.1:*",
-        "media-src 'self' blob: data: http://localhost:* http://127.0.0.1:*",
+        // Allow connecting to APIs, images, and media over any HTTP(S) host in dev.
+        // This enables testing from phones/laptops to a remote dev server (same host different port or different host).
+        "img-src 'self' data: blob: http: https:",
+        "connect-src 'self' http: https: ws:",
+        "media-src 'self' blob: data: http: https:",
         "object-src 'none'",
         "frame-src 'none'",
         "base-uri 'self'",

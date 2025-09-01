@@ -94,7 +94,9 @@ app.addHook('onSend', async (req, reply, payload) => {
     reply.header('Cross-Origin-Opener-Policy', 'same-origin');
     // Consider enabling COEP if you adopt heavy WASM or SharedArrayBuffer:
     // reply.header('Cross-Origin-Embedder-Policy', 'require-corp');
-  } catch {}
+  } catch {
+    // Silently ignore header setting errors
+  }
   return payload;
 });
 
@@ -545,7 +547,9 @@ app.post('/api/library/upload', async (req, reply) => {
       if (!part?.file) continue;
       const mime: string = String(part.mimetype || '');
       if (!allowed.has(mime)) {
-        for await (const _ of part.file) {}
+        for await (const _ of part.file) {
+          // Consume stream to avoid memory leak
+        }
         continue;
       }
       const chunks: Buffer[] = [];

@@ -49,7 +49,7 @@ export function createImageUserMessage(params: DescriptionParams): string {
 
   // Add temporal analysis for multiple images
   if (params.focus?.includes('temporal')) {
-    message += `\n- Temporal analysis: Identify scene progression, motion continuity, and narrative flow`;
+    message += '\n- Temporal analysis: Identify scene progression, motion continuity, and narrative flow';
   }
 
   if (params.specific_questions) {

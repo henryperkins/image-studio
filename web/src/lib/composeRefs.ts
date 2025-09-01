@@ -23,7 +23,7 @@ export function useComposedRef<T>(
         for (const ref of refs) setRef(ref, node);
       },
     // React compares dependency elements, not the array instance
-    refs
+    [refs]
   );
 }
 

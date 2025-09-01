@@ -32,10 +32,10 @@ export default function ImageEditor({ item, onClose, onEdited, baseUrl }: Props)
   const [prompt, setPrompt] = useState('');
   const [busy, setBusy] = useState(false);
   const [size, setSize] = useState(item.size);
-  const [format, setFormat] = useState<'png'|'jpeg'|'webp'>(item.format as any);
+  const [format, setFormat] = useState<'png' | 'jpeg' | 'webp'>(item.format as any);
   // API enhancements
-  const [quality, setQuality] = useState<'auto'|'low'|'medium'|'high'>('high');
-  const [background, setBackground] = useState<'transparent'|'opaque'|'auto'>('opaque');
+  const [quality, setQuality] = useState<'auto' | 'low' | 'medium' | 'high'>('high');
+  const [background, setBackground] = useState<'transparent' | 'opaque' | 'auto'>('opaque');
   const [outputCompression, setOutputCompression] = useState<number>(100);
   // Added: track whether user has drawn and last pointer position for smooth strokes
   const [hasMask, setHasMask] = useState(false);
@@ -49,7 +49,9 @@ export default function ImageEditor({ item, onClose, onEdited, baseUrl }: Props)
       const raw = localStorage.getItem('IMAGE_EDITOR_PRESET');
       if (raw) {
         const p = JSON.parse(raw) as Partial<{ prompt: string; size: any; format: any; background: any; quality: any; brush: number; outputCompression: number }>;
-        if (p.prompt && !prompt) setPrompt(p.prompt);
+        // Avoid capturing `prompt` by using a functional updater
+        const presetPrompt = p.prompt;
+        if (presetPrompt) setPrompt(prev => prev || presetPrompt);
         if (p.size) setSize(p.size as any);
         if (p.format) setFormat(p.format as any);
         if (p.background) setBackground(p.background as any);
@@ -58,7 +60,7 @@ export default function ImageEditor({ item, onClose, onEdited, baseUrl }: Props)
         if (typeof p.brush === 'number') setBrush(p.brush);
         localStorage.removeItem('IMAGE_EDITOR_PRESET');
       }
-    } catch {}
+    } catch { }
     // In Dialog portal, canvases may not be mounted on the very first effect tick
     const c = canvasRef.current;
     const p = previewRef.current;
@@ -173,171 +175,171 @@ export default function ImageEditor({ item, onClose, onEdited, baseUrl }: Props)
   }
 
   return (
-    <Dialog open onOpenChange={(open)=>{ if(!open) onClose(); }}>
+    <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
       <DialogContent className="bg-neutral-900 border border-neutral-800 rounded-2xl w-full max-w-4xl p-0">
-      <DialogTitle className="sr-only">Edit Image</DialogTitle>
-      <div>
-        <div className="flex items-center justify-between p-3 border-b border-neutral-800">
-          <div className="font-medium">Edit Image</div>
-          <Button variant="outline" size="sm" onClick={onClose}>Close</Button>
-        </div>
-
-        <div className="grid md:grid-cols-2 gap-4 p-4">
-          <div className="relative">
-            <img ref={imgRef} src={`${baseUrl}${item.url}`} alt="" className="w-full rounded-lg border border-neutral-800 select-none pointer-events-none" />
-            <canvas
-              ref={previewRef}
-              className="absolute inset-0 w-full h-full pointer-events-none"
-            />
-            <canvas
-              ref={canvasRef}
-              className="absolute inset-0 w-full h-full cursor-crosshair"
-              // Prevent touch scrolling while drawing
-              style={{ touchAction: 'none' }}
-              onPointerDown={(e) => { setDrawing(true); (e.currentTarget as HTMLCanvasElement).setPointerCapture(e.pointerId); e.preventDefault(); drawFromEvent(e, true); }}
-              onPointerMove={(e) => { if (drawing) { e.preventDefault(); drawFromEvent(e); } }}
-              onPointerUp={(e) => { setDrawing(false); lastPt.current = null; try { (e.currentTarget as HTMLCanvasElement).releasePointerCapture(e.pointerId); } catch {} }}
-              onPointerCancel={(e) => { setDrawing(false); lastPt.current = null; try { (e.currentTarget as HTMLCanvasElement).releasePointerCapture(e.pointerId); } catch {} }}
-            />
+        <DialogTitle className="sr-only">Edit Image</DialogTitle>
+        <div>
+          <div className="flex items-center justify-between p-3 border-b border-neutral-800">
+            <div className="font-medium">Edit Image</div>
+            <Button variant="outline" size="sm" onClick={onClose}>Close</Button>
           </div>
 
-          <div className="space-y-3">
-            <div className="space-y-2">
-              <Label htmlFor="image-edit-prompt">Describe the edit</Label>
-              <Textarea
-                id="image-edit-prompt"
-                className="min-h-[160px] resize-y"
-                placeholder="Describe the edit you want…"
-                value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
-                    e.preventDefault();
-                    runEdit();
-                  }
-                }}
-                maxLength={32000}
-                disabled={busy}
+          <div className="grid md:grid-cols-2 gap-4 p-4">
+            <div className="relative">
+              <img ref={imgRef} src={`${baseUrl}${item.url}`} alt="" className="w-full rounded-lg border border-neutral-800 select-none pointer-events-none" />
+              <canvas
+                ref={previewRef}
+                className="absolute inset-0 w-full h-full pointer-events-none"
+              />
+              <canvas
+                ref={canvasRef}
+                className="absolute inset-0 w-full h-full cursor-crosshair"
+                // Prevent touch scrolling while drawing
+                style={{ touchAction: 'none' }}
+                onPointerDown={(e) => { setDrawing(true); (e.currentTarget as HTMLCanvasElement).setPointerCapture(e.pointerId); e.preventDefault(); drawFromEvent(e, true); }}
+                onPointerMove={(e) => { if (drawing) { e.preventDefault(); drawFromEvent(e); } }}
+                onPointerUp={(e) => { setDrawing(false); lastPt.current = null; try { (e.currentTarget as HTMLCanvasElement).releasePointerCapture(e.pointerId); } catch { } }}
+                onPointerCancel={(e) => { setDrawing(false); lastPt.current = null; try { (e.currentTarget as HTMLCanvasElement).releasePointerCapture(e.pointerId); } catch { } }}
               />
             </div>
-            <div className="grid grid-cols-2 gap-3">
+
+            <div className="space-y-3">
               <div className="space-y-2">
-                <Label htmlFor="brush-size">Brush size ({brush}px)</Label>
-                <Slider
-                  id="brush-size"
-                  min={5}
-                  max={200}
-                  step={1}
-                  value={[brush]}
-                  onValueChange={(v) => setBrush(v[0])}
+                <Label htmlFor="image-edit-prompt">Describe the edit</Label>
+                <Textarea
+                  id="image-edit-prompt"
+                  className="min-h-[160px] resize-y"
+                  placeholder="Describe the edit you want…"
+                  value={prompt}
+                  onChange={(e) => setPrompt(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                      e.preventDefault();
+                      runEdit();
+                    }
+                  }}
+                  maxLength={32000}
+                  disabled={busy}
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="format-select">Format</Label>
-                <Select value={format} onValueChange={(v) => setFormat(v as any)}>
-                  <SelectTrigger id="format-select">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="png">png</SelectItem>
-                    <SelectItem value="jpeg">jpeg</SelectItem>
-                    <SelectItem value="webp">webp</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="size-select">Size</Label>
-                <Select value={size} onValueChange={(v) => setSize(v as any)}>
-                  <SelectTrigger id="size-select">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="auto">auto</SelectItem>
-                    <SelectItem value="1024x1024">1024x1024</SelectItem>
-                    <SelectItem value="1536x1024">1536x1024</SelectItem>
-                    <SelectItem value="1024x1536">1024x1536</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="quality-select">Quality</Label>
-                <Select value={quality} onValueChange={(v) => setQuality(v as any)}>
-                  <SelectTrigger id="quality-select">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="auto">auto</SelectItem>
-                    <SelectItem value="low">low</SelectItem>
-                    <SelectItem value="medium">medium</SelectItem>
-                    <SelectItem value="high">high</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              {(format === 'png' || format === 'webp') && (
-                <div className="space-y-2 col-span-2">
-                  <Label htmlFor="background-select">Background (PNG/WEBP)</Label>
-                  <Select value={background} onValueChange={(v) => setBackground(v as any)}>
-                    <SelectTrigger id="background-select">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label htmlFor="brush-size">Brush size ({brush}px)</Label>
+                  <Slider
+                    id="brush-size"
+                    min={5}
+                    max={200}
+                    step={1}
+                    value={[brush]}
+                    onValueChange={(v) => setBrush(v[0])}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="format-select">Format</Label>
+                  <Select value={format} onValueChange={(v) => setFormat(v as any)}>
+                    <SelectTrigger id="format-select">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="opaque">opaque</SelectItem>
-                      <SelectItem value="transparent">transparent</SelectItem>
-                      <SelectItem value="auto">auto</SelectItem>
+                      <SelectItem value="png">png</SelectItem>
+                      <SelectItem value="jpeg">jpeg</SelectItem>
+                      <SelectItem value="webp">webp</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
-              )}
-              {(format === 'jpeg' || format === 'webp') && (
-                <div className="space-y-2 col-span-2">
-                  <Label htmlFor="compression-slider">Compression ({outputCompression}%)</Label>
-                  <Slider
-                    id="compression-slider"
-                    min={0}
-                    max={100}
-                    step={1}
-                    value={[outputCompression]}
-                    onValueChange={(v) => setOutputCompression(v[0])}
-                  />
+                <div className="space-y-2">
+                  <Label htmlFor="size-select">Size</Label>
+                  <Select value={size} onValueChange={(v) => setSize(v as any)}>
+                    <SelectTrigger id="size-select">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="auto">auto</SelectItem>
+                      <SelectItem value="1024x1024">1024x1024</SelectItem>
+                      <SelectItem value="1536x1024">1536x1024</SelectItem>
+                      <SelectItem value="1024x1536">1024x1536</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
-              )}
-            </div>
-            <div className="flex gap-2">
-              <Button
-                variant="default"
-                disabled={busy}
-                onClick={runEdit}
-              >
-                {busy ? 'Editing…' : 'Apply Edit & Save'}
-              </Button>
-              <Button
-                variant="outline"
-                onClick={()=>{
-                  const c = canvasRef.current; const p = previewRef.current;
-                  if (c) {
-                    const ctx = c.getContext('2d');
-                    if (ctx) {
-                      ctx.globalCompositeOperation = 'source-over';
-                      ctx.clearRect(0,0,c.width,c.height);
-                      ctx.fillStyle = '#ffffff';
-                      ctx.fillRect(0,0,c.width,c.height);
+                <div className="space-y-2">
+                  <Label htmlFor="quality-select">Quality</Label>
+                  <Select value={quality} onValueChange={(v) => setQuality(v as any)}>
+                    <SelectTrigger id="quality-select">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="auto">auto</SelectItem>
+                      <SelectItem value="low">low</SelectItem>
+                      <SelectItem value="medium">medium</SelectItem>
+                      <SelectItem value="high">high</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {(format === 'png' || format === 'webp') && (
+                  <div className="space-y-2 col-span-2">
+                    <Label htmlFor="background-select">Background (PNG/WEBP)</Label>
+                    <Select value={background} onValueChange={(v) => setBackground(v as any)}>
+                      <SelectTrigger id="background-select">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="opaque">opaque</SelectItem>
+                        <SelectItem value="transparent">transparent</SelectItem>
+                        <SelectItem value="auto">auto</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                {(format === 'jpeg' || format === 'webp') && (
+                  <div className="space-y-2 col-span-2">
+                    <Label htmlFor="compression-slider">Compression ({outputCompression}%)</Label>
+                    <Slider
+                      id="compression-slider"
+                      min={0}
+                      max={100}
+                      step={1}
+                      value={[outputCompression]}
+                      onValueChange={(v) => setOutputCompression(v[0])}
+                    />
+                  </div>
+                )}
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="default"
+                  disabled={busy}
+                  onClick={runEdit}
+                >
+                  {busy ? 'Editing…' : 'Apply Edit & Save'}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    const c = canvasRef.current; const p = previewRef.current;
+                    if (c) {
+                      const ctx = c.getContext('2d');
+                      if (ctx) {
+                        ctx.globalCompositeOperation = 'source-over';
+                        ctx.clearRect(0, 0, c.width, c.height);
+                        ctx.fillStyle = '#ffffff';
+                        ctx.fillRect(0, 0, c.width, c.height);
+                      }
                     }
-                  }
-                  if (p) {
-                    const pctx = p.getContext('2d');
-                    if (pctx) pctx.clearRect(0,0,p.width,p.height);
-                  }
-                  setHasMask(false);
-                  lastPt.current = null;
-                }}
-              >
-                Clear Mask
-              </Button>
+                    if (p) {
+                      const pctx = p.getContext('2d');
+                      if (pctx) pctx.clearRect(0, 0, p.width, p.height);
+                    }
+                    setHasMask(false);
+                    lastPt.current = null;
+                  }}
+                >
+                  Clear Mask
+                </Button>
+              </div>
+              <p className="text-xs text-neutral-500">Paint areas to change; red tint shows your mask. Leave prompt empty for a global transform.</p>
             </div>
-            <p className="text-xs text-neutral-500">Paint areas to change; red tint shows your mask. Leave prompt empty for a global transform.</p>
           </div>
         </div>
-      </div>
       </DialogContent>
     </Dialog>
   );

@@ -1,6 +1,27 @@
 [
   {
     "kind": "video",
+    "id": "e05fc3b2-cdd3-4ff2-936e-fab6d3a28080",
+    "filename": "e05fc3b2-cdd3-4ff2-936e-fab6d3a28080.mp4",
+    "url": "/static/videos/e05fc3b2-cdd3-4ff2-936e-fab6d3a28080.mp4",
+    "prompt": "\nn a dark studio space, translucent colored glass panes drift and collide, self-assembling into a four‑tile square. Micro‑particles shimmer in volumetric shafts as a slow push‑in dolly reveals surface caustics and subtle edge bevels. Start macro on a single pane vibrating with inertia, then rack focus to reveal others orbiting, magnetizing into alignment. A gentle air current curls faint smoke wisps; reflections ripple across the floor. After lock‑up, the camera cranes overhead to a symmetrical top view, settling into calm. Notes: 24–60 fps ramping; realistic physics; soft film grain; clean commercial grade.\n\n[Reference images]\nhttp://localhost:8787/static/images/1bb0151f-ff4a-4b89-8b66-1fc6f59d87b2.png",
+    "width": 1080,
+    "height": 1080,
+    "duration": 15,
+    "createdAt": "2025-09-01T02:59:57.620Z"
+  },
+  {
+    "kind": "image",
+    "id": "1bb0151f-ff4a-4b89-8b66-1fc6f59d87b2",
+    "filename": "1bb0151f-ff4a-4b89-8b66-1fc6f59d87b2.png",
+    "url": "/static/images/1bb0151f-ff4a-4b89-8b66-1fc6f59d87b2.png",
+    "prompt": "Clean up the logo edges, remove aliasing and artifacts, smooth curves, preserve exact brand colors. Keep transparent background. Do not change proportions.",
+    "size": "auto",
+    "format": "png",
+    "createdAt": "2025-09-01T02:54:35.429Z"
+  },
+  {
+    "kind": "video",
     "id": "38cca064-ff02-4c9e-94dc-263d243e57bf",
     "filename": "38cca064-ff02-4c9e-94dc-263d243e57bf.mp4",
     "url": "/static/videos/38cca064-ff02-4c9e-94dc-263d243e57bf.mp4",

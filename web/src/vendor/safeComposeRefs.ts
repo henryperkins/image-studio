@@ -65,7 +65,7 @@ export function composeRefs<T>(...refs: Array<React.Ref<T> | undefined>) {
 }
 
 export function useComposedRefs<T>(...refs: Array<React.Ref<T> | undefined>) {
-  // Stable identity unless the actual refs change
-  return React.useCallback(composeRefs<T>(...refs), refs);
+  // Stable identity unless the actual refs change (track each ref individually)
+  return React.useMemo(() => composeRefs<T>(...refs), [refs]);
 }
 

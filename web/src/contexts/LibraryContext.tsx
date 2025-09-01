@@ -12,26 +12,26 @@ interface LibraryContextType {
   library: LibraryItem[];
   loading: boolean;
   error: Error | null;
-  
+
   // Selection state
   selectedIds: string[];
   visibleIds: string[];
-  
+
   // Filter and view state
   searchQuery: string;
   libraryType: LibraryType;
   librarySort: LibrarySort;
   viewMode: LibraryView;
-  
+
   // Pagination
   page: number;
   itemsPerPage: number;
-  
+
   // Computed values
   filteredLibrary: LibraryItem[];
   sortedFilteredLibrary: LibraryItem[];
   selectedItems: LibraryItem[];
-  
+
   // Actions
   refreshLibrary: () => Promise<void>;
   setSelectedIds: React.Dispatch<React.SetStateAction<string[]>>;
@@ -41,7 +41,7 @@ interface LibraryContextType {
   setLibrarySort: (sort: LibrarySort) => void;
   setViewMode: (mode: LibraryView) => void;
   setPage: (page: number) => void;
-  
+
   // Selection helpers
   selectAll: () => void;
   selectNone: () => void;
@@ -58,16 +58,19 @@ const STORAGE_KEYS = {
   TYPE: 'library:type'
 } as const;
 
+// Use a module-level constant so it's not part of callback dependencies
+const ITEMS_PER_PAGE = 12;
+
 export const LibraryProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // Core state
   const [library, setLibrary] = useState<LibraryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
-  
+
   // Selection state
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [visibleIds, setVisibleIds] = useState<string[]>([]);
-  
+
   // Filter and view state with localStorage persistence
   const [searchQuery, setSearchQuery] = useState('');
   const [libraryType, setLibraryType] = useState<LibraryType>(() => {
@@ -78,7 +81,7 @@ export const LibraryProvider: React.FC<{ children: React.ReactNode }> = ({ child
       return 'all';
     }
   });
-  
+
   const [librarySort, setLibrarySort] = useState<LibrarySort>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.SORT);
@@ -87,7 +90,7 @@ export const LibraryProvider: React.FC<{ children: React.ReactNode }> = ({ child
       return 'newest';
     }
   });
-  
+
   const [viewMode, setViewMode] = useState<LibraryView>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.VIEW_MODE);
@@ -96,61 +99,61 @@ export const LibraryProvider: React.FC<{ children: React.ReactNode }> = ({ child
       return 'grid';
     }
   });
-  
+
   // Pagination
   const [page, setPage] = useState(0);
-  const itemsPerPage = 12;
-  
+  const itemsPerPage = ITEMS_PER_PAGE;
+
   const { showToast } = useToast();
   const abortControllerRef = useRef<AbortController | null>(null);
-  
+
   // Persist preferences
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEYS.VIEW_MODE, viewMode);
-    } catch {}
+    } catch { }
   }, [viewMode]);
-  
+
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEYS.SORT, librarySort);
-    } catch {}
+    } catch { }
   }, [librarySort]);
-  
+
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEYS.TYPE, libraryType);
-    } catch {}
+    } catch { }
   }, [libraryType]);
-  
+
   // Refresh library
   const refreshLibrary = useCallback(async () => {
     // Cancel any in-flight request
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
-    
+
     const controller = new AbortController();
     abortControllerRef.current = controller;
-    
+
     setLoading(true);
     setError(null);
-    
+
     try {
       const items = await listLibrary();
-      
+
       // Check if request was aborted
       if (controller.signal.aborted) return;
-      
+
       setLibrary(items);
-      
-      // Reset page if current page is out of bounds
-      if (page * itemsPerPage >= items.length && page > 0) {
-        setPage(0);
-      }
+
+      // Reset page if current page is out of bounds, without capturing `page`
+      setPage(prev =>
+        prev > 0 && prev * ITEMS_PER_PAGE >= items.length ? 0 : prev
+      );
     } catch (err) {
       if (controller.signal.aborted) return;
-      
+
       const error = err as Error;
       setError(error);
       showToast(`Failed to load library: ${error.message}`, 'error');
@@ -159,20 +162,20 @@ export const LibraryProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setLoading(false);
       }
     }
-  }, [page, itemsPerPage, showToast]);
-  
+  }, [showToast]);
+
   // Initial load
   useEffect(() => {
     refreshLibrary();
-    
+
     return () => {
       // Cleanup on unmount
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }
     };
-  }, []);
-  
+  }, [refreshLibrary]);
+
   // Smoother filtering while typing: defer the search input value
   const deferredQuery = useDeferredValue(searchQuery);
 
@@ -191,7 +194,7 @@ export const LibraryProvider: React.FC<{ children: React.ReactNode }> = ({ child
       return searchableText.includes(query);
     });
   }, [library, libraryType, deferredQuery]);
-  
+
   // Sorted and filtered library
   const sortedFilteredLibrary = useMemo(() => {
     return [...filteredLibrary].sort((a, b) => {
@@ -200,7 +203,7 @@ export const LibraryProvider: React.FC<{ children: React.ReactNode }> = ({ child
         const dateB = new Date(b.createdAt).getTime();
         return librarySort === 'newest' ? dateB - dateA : dateA - dateB;
       }
-      
+
       // Name sorting
       const nameA = (a.filename || a.prompt || '').toLowerCase();
       const nameB = (b.filename || b.prompt || '').toLowerCase();
@@ -208,31 +211,31 @@ export const LibraryProvider: React.FC<{ children: React.ReactNode }> = ({ child
       return librarySort === 'name-asc' ? comparison : -comparison;
     });
   }, [filteredLibrary, librarySort]);
-  
+
   // Selected items
   const selectedItems = useMemo(() => {
     return library.filter(item => selectedIds.includes(item.id));
   }, [library, selectedIds]);
-  
+
   // Reset page when filters change
   useEffect(() => {
     setPage(0);
   }, [searchQuery, libraryType, librarySort]);
-  
+
   // Selection helpers
   const selectAll = useCallback(() => {
     setSelectedIds(sortedFilteredLibrary.map(item => item.id));
   }, [sortedFilteredLibrary]);
-  
+
   const selectNone = useCallback(() => {
     setSelectedIds([]);
   }, []);
-  
+
   const selectVisible = useCallback(() => {
     const newIds = visibleIds.filter(id => !selectedIds.includes(id));
     setSelectedIds(prev => [...prev, ...newIds]);
   }, [visibleIds, selectedIds]);
-  
+
   const toggleSelection = useCallback((id: string) => {
     setSelectedIds(prev => {
       const isCurrentlySelected = prev.includes(id);
@@ -243,11 +246,11 @@ export const LibraryProvider: React.FC<{ children: React.ReactNode }> = ({ child
       }
     });
   }, []);
-  
+
   const isSelected = useCallback((id: string) => {
     return selectedIds.includes(id);
   }, [selectedIds]);
-  
+
   const value: LibraryContextType = {
     // State
     library,
@@ -261,12 +264,12 @@ export const LibraryProvider: React.FC<{ children: React.ReactNode }> = ({ child
     viewMode,
     page,
     itemsPerPage,
-    
+
     // Computed
     filteredLibrary,
     sortedFilteredLibrary,
     selectedItems,
-    
+
     // Actions
     refreshLibrary,
     setSelectedIds,
@@ -276,7 +279,7 @@ export const LibraryProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setLibrarySort,
     setViewMode,
     setPage,
-    
+
     // Selection helpers
     selectAll,
     selectNone,
@@ -284,7 +287,7 @@ export const LibraryProvider: React.FC<{ children: React.ReactNode }> = ({ child
     toggleSelection,
     isSelected
   };
-  
+
   return (
     <LibraryContext.Provider value={value}>
       {children}
