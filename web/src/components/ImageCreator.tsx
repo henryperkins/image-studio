@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useToast } from '../contexts/ToastContext';
 import { generateImage } from '../lib/api';
 import { processApiError } from '../lib/errorUtils';
@@ -64,26 +64,25 @@ export default function ImageCreator({ onSaved, promptInputRef, prompt, setPromp
         if (typeof s.outputCompression === 'number') setOutputCompression(s.outputCompression);
         if (s.background) setBackground(s.background);
       }
-    } catch {}
+    } catch { }
   });
   // Save on change
-  useState(() => {
+  useEffect(() => {
     const settings = { size, quality, format, outputCompression, background };
-    try { localStorage.setItem('IMG_CREATOR_SETTINGS', JSON.stringify(settings)); } catch {}
-    return settings;
-  });
+    try { localStorage.setItem('IMG_CREATOR_SETTINGS', JSON.stringify(settings)); } catch { }
+  }, [size, quality, format, outputCompression, background]);
   // Keep background/format coherent for transparent output
   function onBackgroundChange(next: 'transparent' | 'opaque' | 'auto') {
     if (next === 'transparent' && format === 'jpeg') {
       setFormat('png');
-      showToast('Format set to PNG for transparent background', 'info');
+      showToast('Format set to PNG for transparent background', 'success');
     }
     setBackground(next);
   }
   function onFormatChange(next: 'png' | 'jpeg' | 'webp') {
     if (next === 'jpeg' && background === 'transparent') {
       setBackground('opaque');
-      showToast('Background set to opaque for JPEG', 'info');
+      showToast('Background set to opaque for JPEG', 'success');
     }
     setFormat(next);
   }
@@ -99,7 +98,7 @@ export default function ImageCreator({ onSaved, promptInputRef, prompt, setPromp
       setRetryCount(0);
       showToast('Image generated successfully!', 'success');
       if (onSaved) onSaved(data.library_item.id);
-    } catch (e: any) {
+    } catch (e: unknown) {
       const { detailedMessage } = processApiError(e);
       setError(detailedMessage);
       if (isRetry) {
@@ -123,7 +122,7 @@ export default function ImageCreator({ onSaved, promptInputRef, prompt, setPromp
     if (!result) return;
     const a = document.createElement('a');
     a.href = `data:image/${result.format};base64,${result.image_base64}`;
-    a.download = `${(result.model || 'image').replace(/\W+/g,'_')}_${Date.now()}.${result.format}`;
+    a.download = `${(result.model || 'image').replace(/\W+/g, '_')}_${Date.now()}.${result.format}`;
     a.click();
     showToast('Image downloaded!', 'success');
   };
@@ -182,7 +181,7 @@ export default function ImageCreator({ onSaved, promptInputRef, prompt, setPromp
         </div>
         <div className="space-y-2">
           <Label htmlFor="format-select">Format</Label>
-          <Select value={format} onValueChange={(v) => onFormatChange(v as any)}>
+          <Select value={format} onValueChange={(v: 'png' | 'jpeg' | 'webp') => onFormatChange(v)}>
             <SelectTrigger id="format-select">
               <SelectValue />
             </SelectTrigger>
@@ -196,7 +195,7 @@ export default function ImageCreator({ onSaved, promptInputRef, prompt, setPromp
         {(format === 'png' || format === 'webp') && (
           <div className="space-y-2">
             <Label htmlFor="background-select">Background</Label>
-            <Select value={background} onValueChange={(v) => onBackgroundChange(v as any)}>
+            <Select value={background} onValueChange={(v: 'transparent' | 'opaque' | 'auto') => onBackgroundChange(v)}>
               <SelectTrigger id="background-select">
                 <SelectValue />
               </SelectTrigger>

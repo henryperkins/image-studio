@@ -393,6 +393,9 @@ function dataURLtoBuffer(dataUrl: string) {
 }
 
 app.post('/api/images/edit', async (req, reply) => {
+  // Validate Azure configuration up front for clearer errors
+  if (!AZ.endpoint) return reply.status(400).send({ error: 'Azure OpenAI endpoint not configured' });
+  if (!AZ.key && !AZ.token) return reply.status(400).send({ error: 'Azure OpenAI authentication not configured' });
   const body = ImageEditReq.parse(req.body);
   try {
     const items = await readManifest();

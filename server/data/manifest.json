@@ -1,6 +1,27 @@
 [
   {
     "kind": "video",
+    "id": "38cca064-ff02-4c9e-94dc-263d243e57bf",
+    "filename": "38cca064-ff02-4c9e-94dc-263d243e57bf.mp4",
+    "url": "/static/videos/38cca064-ff02-4c9e-94dc-263d243e57bf.mp4",
+    "prompt": "Primary prompt (96 words): A colossal wooden ark heaves through storm-tossed seas at dusk. Camera begins low and tight on frothing wave crests, then dollies up to reveal the ark cutting through rain. Sheets of water rake across frame; spray explodes at the bow. Warm window lights flicker against charcoal clouds as a gap of amber sky opens behind. Use long-lens compression to stack waves, then a slow crane rise circling the starboard side, ending on a wide silhouette. Emphasize physically accurate fluid dynamics, rain streaks, and wet wood sheen.\nTechnical notes: 24 fps, 180° shutter, 50–200mm zoom range, subtle film grain, anamorphic flare.\n\n[Reference images]\nhttp://localhost:8787/static/images/7d20db9e-1b35-4d59-bf7c-7a1c0dfb7ecf.png",
+    "width": 1920,
+    "height": 1080,
+    "duration": 10,
+    "createdAt": "2025-09-01T01:42:09.649Z"
+  },
+  {
+    "kind": "image",
+    "id": "50c02ee7-73f8-4984-9a11-d4b168477fae",
+    "filename": "50c02ee7-73f8-4984-9a11-d4b168477fae.jpg",
+    "url": "/static/images/50c02ee7-73f8-4984-9a11-d4b168477fae.jpg",
+    "prompt": "uploaded image",
+    "size": "auto",
+    "format": "jpeg",
+    "createdAt": "2025-09-01T01:41:20.449Z"
+  },
+  {
+    "kind": "video",
     "id": "7fc497d4-4d89-477c-afd1-322c507148bb",
     "filename": "7fc497d4-4d89-477c-afd1-322c507148bb.mp4",
     "url": "/static/videos/7fc497d4-4d89-477c-afd1-322c507148bb.mp4",

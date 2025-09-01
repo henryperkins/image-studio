@@ -20,17 +20,22 @@ const VirtualizedLibraryGrid = React.memo(function VirtualizedLibraryGrid({ item
   const rowRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(0);
   const [columnGap, setColumnGap] = useState(12); // px; Tailwind gap-3 default
+  const [isSmUp, setIsSmUp] = useState<boolean>(() => {
+    if (typeof window === 'undefined' || !('matchMedia' in window)) return false;
+    return window.matchMedia('(min-width: 640px)').matches;
+  });
 
-  // Columns follow the grid used in App.tsx: 2 on small, 3 on >= sm (640px)
-  const columns = containerWidth >= 640 ? 3 : 2;
+  // Columns follow the CSS: 2 by default, 3 at `sm` (viewport ≥ 640px)
+  const columns = isSmUp ? 3 : 2;
 
   useEffect(() => {
+    // Observe container width but only commit integer pixel changes to avoid churn
     const el = parentRef.current;
     if (!el) return;
     const ro = new ResizeObserver((entries) => {
       for (const entry of entries) {
-        const cr = entry.contentRect;
-        setContainerWidth(cr.width);
+        const next = Math.floor(entry.contentRect.width);
+        setContainerWidth((prev) => (prev !== next ? next : prev));
       }
     });
     ro.observe(el);
@@ -38,12 +43,22 @@ const VirtualizedLibraryGrid = React.memo(function VirtualizedLibraryGrid({ item
   }, []);
 
   useEffect(() => {
+    if (!('matchMedia' in window)) return;
+    const mql = window.matchMedia('(min-width: 640px)');
+    const handler = () => setIsSmUp(mql.matches);
+    handler();
+    mql.addEventListener('change', handler);
+    return () => mql.removeEventListener('change', handler);
+  }, []);
+
+  useEffect(() => {
+    // Measure the column gap once; `gap-3` is static regardless of width
     const el = rowRef.current;
     if (!el) return;
     const style = window.getComputedStyle(el);
     const gap = parseFloat(style.columnGap || '12');
-    if (!Number.isNaN(gap)) setColumnGap(gap);
-  }, [containerWidth]);
+    if (!Number.isNaN(gap)) setColumnGap((prev) => (prev !== gap ? gap : prev));
+  }, []);
 
   const cellWidth = useMemo(() => {
     if (!containerWidth || columns <= 0) return 0;
@@ -58,25 +73,39 @@ const VirtualizedLibraryGrid = React.memo(function VirtualizedLibraryGrid({ item
   const rowCount = Math.ceil(items.length / columns);
 
 
+  const dm = (navigator as unknown as { deviceMemory?: number }).deviceMemory;
+  const lowMem = typeof dm === 'number' ? dm < 4 : false;
+
   const rowVirtualizer = useVirtualizer({
     count: rowCount,
     getScrollElement: () => parentRef.current,
     estimateSize: () => rowHeight,
-    overscan: 4
+    overscan: lowMem ? 2 : 4
   });
 
-  // Notify parent of currently visible item ids
+  // Notify parent of currently visible item ids — only when they actually change.
+  const virtualRows = rowVirtualizer.getVirtualItems();
+  const lastIdsRef = useRef<string[] | null>(null);
   useEffect(() => {
     if (!onVisibleChange) return;
-    const rows = rowVirtualizer.getVirtualItems();
-    const ids: string[] = [];
-    for (const r of rows) {
+    const next: string[] = [];
+    for (const r of virtualRows) {
       const start = r.index * columns;
       const end = Math.min(start + columns, items.length);
-      for (let i = start; i < end; i++) ids.push(items[i].id);
+      for (let i = start; i < end; i++) next.push(items[i].id);
     }
-    onVisibleChange(ids);
-  }, [rowVirtualizer, items, columns, onVisibleChange]);
+    const prev = lastIdsRef.current;
+    let changed = !prev || prev.length !== next.length;
+    if (!changed && prev) {
+      for (let i = 0; i < prev.length; i++) {
+        if (prev[i] !== next[i]) { changed = true; break; }
+      }
+    }
+    if (changed) {
+      lastIdsRef.current = next;
+      onVisibleChange(next);
+    }
+  }, [virtualRows, items, columns, onVisibleChange]);
 
   return (
     <div ref={parentRef} className="max-h-[60vh] overflow-auto overscroll-y-contain">
@@ -100,7 +129,6 @@ const VirtualizedLibraryGrid = React.memo(function VirtualizedLibraryGrid({ item
         </div>
       ) : (
         <div
-          key={`${columns}-${cellWidth}`}
           style={{
             height: Math.max(0, rowVirtualizer.getTotalSize()),
             position: 'relative'

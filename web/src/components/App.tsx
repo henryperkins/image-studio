@@ -1,9 +1,9 @@
-import { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } from 'react';
+import { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 // Route-level code splitting
 const ImagesPage = lazy(() => import('@/pages/ImagesPage'));
 const SoraPage = lazy(() => import('@/pages/SoraPage'));
-import { type LibraryItem, API_BASE_URL, isVideoItem } from '../lib/api';
+import { type ImageItem, type VideoItem, API_BASE_URL, isVideoItem } from '../lib/api';
 const ImageEditor = lazy(() => import('./ImageEditor'));
 const VideoEditor = lazy(() => import('./VideoEditor'));
 const ImageViewerModal = lazy(() => import('./ImageViewerModal'));
@@ -21,7 +21,6 @@ import { Card } from './ui/card';
 import { cn } from '@/lib/utils';
 import VirtualizedLibraryGrid from './VirtualizedLibraryGrid';
 import { ChevronDown } from 'lucide-react';
-import PlaybooksPanel from './PlaybooksPanel';
 import LibraryBottomSheet from '@/modules/library/LibraryBottomSheet';
 import CommandPalette from './CommandPalette';
 import LibrarySelectionBar from '@/modules/library/LibrarySelectionBar';
@@ -33,22 +32,24 @@ import { LibraryProvider, useLibrary } from '@/contexts/LibraryContext';
 function AppContent() {
   const location = useLocation();
   const navigate = useNavigate();
+  const RouteSpinner = () => (
+    <div className="flex items-center justify-center h-24 text-sm text-muted-foreground" role="status" aria-busy="true">
+      Loading…
+    </div>
+  );
+  const ModalSpinner = () => (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div className="bg-popover/80 border border-border rounded-md px-3 py-2 text-sm" role="status" aria-busy="true">
+        Loading module…
+      </div>
+    </div>
+  );
 
   const {
     library,
-    loading: libraryLoading,
     selectedIds: selected,
     setSelectedIds: setSelected,
-    filteredLibrary,
     sortedFilteredLibrary,
-    searchQuery,
-    setSearchQuery,
-    libraryType,
-    setLibraryType,
-    librarySort,
-    setLibrarySort,
-    viewMode,
-    setViewMode,
     refreshLibrary,
     setVisibleIds
   } = useLibrary();
@@ -58,7 +59,7 @@ function AppContent() {
   const [editVideoId, setEditVideoId] = useState<string | null>(null);
   const [viewImageId, setViewImageId] = useState<string | null>(null);
   const [viewVideoId, setViewVideoId] = useState<string | null>(null);
-  const [visibleIds, setVisibleIdsLocal] = useState<string[]>([]);
+  const [visibleIds, setVisibleIds] = useState<string[]>([]);
   // Library filters/search
   // searchQuery lives in LibraryContext; panel consumes directly.
 
@@ -69,7 +70,7 @@ function AppContent() {
   const { showToast } = useToast();
   const { suggestions } = usePromptSuggestions();
   const prevCountRef = useRef<number>(0);
-  const { isMobile } = useMobileDetection();
+  const { isMobile: _isMobile } = useMobileDetection();
 
   // Insert text at caret into prompt textarea
   const handleInsertPrompt = useCallback((textToInsert: string) => {
@@ -110,7 +111,18 @@ function AppContent() {
     });
   }, []);
 
-  useEffect(() => { refreshLibrary().catch(() => {}); }, [refreshLibrary]);
+  useEffect(() => { refreshLibrary().catch(() => { }); }, [refreshLibrary]);
+
+  // Prefetch heavy lazies shortly after first paint
+  useEffect(() => {
+    const id = requestAnimationFrame(() => {
+      import('./ImageEditor');
+      import('./VideoEditor');
+      import('./ImageViewerModal');
+      import('./VideoViewerModal');
+    });
+    return () => cancelAnimationFrame(id);
+  }, []);
 
   // Navigate to Sora after image saved
   const onImagesSaved = async (id: string) => {
@@ -158,8 +170,12 @@ function AppContent() {
     });
   }, [location.pathname]);
 
-  const imgToEdit = editImageId ? (library.find((i) => i.id === editImageId && !isVideoItem(i)) as any) : null;
-  const vidToEdit = editVideoId ? (library.find((i) => i.id === editVideoId && isVideoItem(i)) as any) : null;
+  const imgToEdit = editImageId
+    ? (library.find((i): i is ImageItem => i.id === editImageId && !isVideoItem(i)) ?? null)
+    : null;
+  const vidToEdit = editVideoId
+    ? (library.find((i): i is VideoItem => i.id === editVideoId && isVideoItem(i)) ?? null)
+    : null;
 
   const tabsValue = location.pathname === '/sora' ? '/sora' : '/';
 
@@ -170,12 +186,12 @@ function AppContent() {
     try {
       const saved = localStorage.getItem('THEME_DARK');
       if (saved != null) return saved === '1';
-    } catch {}
+    } catch { }
     return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
   });
   useEffect(() => {
     document.documentElement.classList.toggle('dark', isDark);
-    try { localStorage.setItem('THEME_DARK', isDark ? '1' : '0'); } catch {}
+    try { localStorage.setItem('THEME_DARK', isDark ? '1' : '0'); } catch { }
   }, [isDark]);
 
   // Keyboard shortcuts: '/' focus library search; 's' to Sora; '?' help; Cmd/Ctrl+K command palette
@@ -205,7 +221,7 @@ function AppContent() {
       tab={tabsValue as '/' | '/sora'}
       onTabChange={(v) => navigate(v)}
       isDark={isDark}
-      onToggleTheme={() => setIsDark((v)=>!v)}
+      onToggleTheme={() => setIsDark((v) => !v)}
     >
       <div className="flex flex-col md:grid md:grid-cols-3 gap-4">
         {/* Left column (main content) */}
@@ -216,7 +232,7 @@ function AppContent() {
                 <Route
                   path="/"
                   element={
-                    <Suspense fallback={null}>
+                    <Suspense fallback={<RouteSpinner />}>
                       <ImagesPage
                         prompt={prompt}
                         setPrompt={setPrompt}
@@ -232,7 +248,7 @@ function AppContent() {
                 <Route
                   path="/sora"
                   element={
-                    <Suspense fallback={null}>
+                    <Suspense fallback={<RouteSpinner />}>
                       <SoraPage
                         selectedIds={selected}
                         selectedUrls={library
@@ -259,10 +275,10 @@ function AppContent() {
           aria-expanded={mobileLibraryOpen}
           aria-controls="library-panel"
         >
-            <span className="flex items-center justify-between w-full">
-              <span>Media Library ({library.length})</span>
-              <ChevronDown className={cn('w-5 h-5 transition-transform', mobileLibraryOpen && 'rotate-180')} />
-            </span>
+          <span className="flex items-center justify-between w-full">
+            <span>Media Library ({library.length})</span>
+            <ChevronDown className={cn('w-5 h-5 transition-transform', mobileLibraryOpen && 'rotate-180')} />
+          </span>
         </Button>
 
         {/* Library panel */}
@@ -299,59 +315,59 @@ function AppContent() {
       </footer>
 
       {/* Modals */}
-      <Suspense fallback={null}>
-      {viewImageId && (
-        <ImageViewerModal
-          items={library}
-          currentItemId={viewImageId}
-          onClose={() => setViewImageId(null)}
-          onEdit={(id: string) => {
-            setViewImageId(null);
-            setEditImageId(id);
-          }}
-          onNavigate={(id) => setViewImageId(id)}
-          onRefresh={refreshLibrary}
-          baseUrl={API_BASE_URL}
-        />
-      )}
-      {viewVideoId && (
-        <VideoViewerModal
-          items={library}
-          currentItemId={viewVideoId}
-          onClose={() => setViewVideoId(null)}
-          onEdit={(id: string) => {
-            setViewVideoId(null);
-            setEditVideoId(id);
-          }}
-          onNavigate={(id) => setViewVideoId(id)}
-          onRefresh={refreshLibrary}
-          baseUrl={API_BASE_URL}
-        />
-      )}
-      {imgToEdit && (
-        <ImageEditor
-          item={imgToEdit}
-          onClose={() => setEditImageId(null)}
-          onEdited={async (newId) => {
-            setEditImageId(null);
-            await refreshLibrary();
-            setSelected([newId]);
-            navigate('/sora');
-          }}
-          baseUrl={API_BASE_URL}
-        />
-      )}
-      {vidToEdit && (
-        <VideoEditor
-          item={vidToEdit}
-          onClose={() => setEditVideoId(null)}
-          onEdited={async () => {
-            setEditVideoId(null);
-            await refreshLibrary();
-          }}
-          baseUrl={API_BASE_URL}
-        />
-      )}
+      <Suspense fallback={<ModalSpinner />}>
+        {viewImageId && (
+          <ImageViewerModal
+            items={library}
+            currentItemId={viewImageId}
+            onClose={() => setViewImageId(null)}
+            onEdit={(id: string) => {
+              setViewImageId(null);
+              setEditImageId(id);
+            }}
+            onNavigate={(id) => setViewImageId(id)}
+            onRefresh={refreshLibrary}
+            baseUrl={API_BASE_URL}
+          />
+        )}
+        {viewVideoId && (
+          <VideoViewerModal
+            items={library}
+            currentItemId={viewVideoId}
+            onClose={() => setViewVideoId(null)}
+            onEdit={(id: string) => {
+              setViewVideoId(null);
+              setEditVideoId(id);
+            }}
+            onNavigate={(id) => setViewVideoId(id)}
+            onRefresh={refreshLibrary}
+            baseUrl={API_BASE_URL}
+          />
+        )}
+        {imgToEdit && (
+          <ImageEditor
+            item={imgToEdit}
+            onClose={() => setEditImageId(null)}
+            onEdited={async (newId) => {
+              setEditImageId(null);
+              await refreshLibrary();
+              setSelected([newId]);
+              navigate('/sora');
+            }}
+            baseUrl={API_BASE_URL}
+          />
+        )}
+        {vidToEdit && (
+          <VideoEditor
+            item={vidToEdit}
+            onClose={() => setEditVideoId(null)}
+            onEdited={async () => {
+              setEditVideoId(null);
+              await refreshLibrary();
+            }}
+            baseUrl={API_BASE_URL}
+          />
+        )}
       </Suspense>
 
       {/* Connection status indicator for debugging mobile issues */}
@@ -391,7 +407,7 @@ function AppContent() {
               setSelected(prev => [...prev, ...add]);
             }}
             onClear={() => setSelected([])}
-            onUseInSora={() => { navigate('/sora'); setMobileLibraryOpen(false) }}
+            onUseInSora={() => { navigate('/sora'); setMobileLibraryOpen(false); }}
             onDeleteMany={async (items) => { for (const i of items) await handleAction('delete', i); }}
             onAnalyzeMany={async (items) => { for (const i of items) await handleAction('analyze', i); }}
             onDownloadMany={(items) => { for (const i of items) handleAction('download', i); }}
@@ -401,9 +417,9 @@ function AppContent() {
 
       {/* Command palette */}
       <CommandPalette open={commandOpen} onOpenChange={setCommandOpen} actions={[
-        { id: 'new-image', label: 'New Image (focus prompt)', run: () => { setCommandOpen(false); navigate('/'); setTimeout(()=> promptInputRef.current?.focus(), 50); } },
+        { id: 'new-image', label: 'New Image (focus prompt)', run: () => { setCommandOpen(false); navigate('/'); setTimeout(() => promptInputRef.current?.focus(), 50); } },
         { id: 'goto-sora', label: 'Go to Sora', run: () => { setCommandOpen(false); navigate('/sora'); } },
-        { id: 'toggle-theme', label: 'Toggle Dark/Light Theme', run: () => { setIsDark(v=>!v); setCommandOpen(false); } },
+        { id: 'toggle-theme', label: 'Toggle Dark/Light Theme', run: () => { setIsDark(v => !v); setCommandOpen(false); } },
         { id: 'open-library', label: 'Open Library', run: () => { setMobileLibraryOpen(true); setCommandOpen(false); } },
         { id: 'refresh-library', label: 'Refresh Library', run: () => { refreshLibrary(); setCommandOpen(false); } },
         { id: 'help', label: 'Show Shortcuts Help', run: () => { showToast('Shortcuts: / search • g generate • s Sora • Cmd/Ctrl+K commands • ? help', 'success', 5000); setCommandOpen(false); } }

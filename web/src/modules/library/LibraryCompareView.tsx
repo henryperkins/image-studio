@@ -1,9 +1,9 @@
 import React from 'react';
-import { LibraryItem, isVideoItem, API_BASE_URL } from '@/lib/api';
+import { LibraryItem, isVideoItem } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { X, ArrowLeftRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { formatBytes, formatDuration, formatRelativeDate } from '@/lib/format';
+import { formatDuration, formatRelativeDate } from '@/lib/format';
 
 interface LibraryCompareViewProps {
   itemA: LibraryItem;
@@ -24,7 +24,7 @@ export default function LibraryCompareView({
 }: LibraryCompareViewProps) {
   const isVideoA = isVideoItem(itemA);
   const isVideoB = isVideoItem(itemB);
-  
+
   return (
     <div className={cn('fixed inset-0 z-50 bg-background/95 backdrop-blur', className)}>
       {/* Header */}
@@ -52,7 +52,7 @@ export default function LibraryCompareView({
           </Button>
         </div>
       </div>
-      
+
       {/* Compare grid */}
       <div className="grid md:grid-cols-2 h-[calc(100vh-4rem)]">
         {/* Item A */}
@@ -64,7 +64,7 @@ export default function LibraryCompareView({
             label="A"
           />
         </div>
-        
+
         {/* Item B */}
         <div className="flex flex-col">
           <CompareItem
@@ -86,9 +86,13 @@ interface CompareItemProps {
   label: string;
 }
 
+function hasSize(item: any): item is { size: number | string } {
+  return typeof item === 'object' && item !== null && 'size' in item && (typeof item.size === 'number' || typeof item.size === 'string');
+}
+
 function CompareItem({ item, isVideo, baseUrl, label }: CompareItemProps) {
-  const mediaUrl = `${baseUrl}${item.url}`;
-  
+  const mediaUrl = `${baseUrl.replace(/\/+$/, '')}/${item.url.replace(/^\/+/, '')}`;
+
   return (
     <div className="flex flex-col h-full">
       {/* Label badge */}
@@ -97,7 +101,7 @@ function CompareItem({ item, isVideo, baseUrl, label }: CompareItemProps) {
           {label}
         </span>
       </div>
-      
+
       {/* Media viewer */}
       <div className="flex-1 min-h-0 p-4">
         <div className="h-full flex items-center justify-center bg-muted/20 rounded-lg overflow-hidden">
@@ -117,7 +121,7 @@ function CompareItem({ item, isVideo, baseUrl, label }: CompareItemProps) {
           )}
         </div>
       </div>
-      
+
       {/* Metadata */}
       <div className="p-4 space-y-2 border-t border-border/40">
         <div className="space-y-1">
@@ -127,34 +131,40 @@ function CompareItem({ item, isVideo, baseUrl, label }: CompareItemProps) {
               <span className="font-medium">{item.filename}</span>
             </div>
           )}
-          
+
           {item.prompt && (
             <div className="text-sm">
               <span className="text-muted-foreground">Prompt:</span>{' '}
               <span className="line-clamp-2">{item.prompt}</span>
             </div>
           )}
-          
+
           <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
             <span>
               Created: {formatRelativeDate(item.createdAt)}
             </span>
-            
-            {item.fileSize && (
-              <span>
-                Size: {formatBytes(item.fileSize)}
-              </span>
-            )}
-            
-            {isVideo && item.duration && (
+
+            {isVideoItem(item) && item.duration && (
               <span>
                 Duration: {formatDuration(item.duration)}
               </span>
             )}
-            
-            {!isVideo && item.size && (
+
+            {isVideo && 'width' in item && 'height' in item && (
               <span>
-                Dimensions: {item.size.width}×{item.size.height}
+                Resolution: {item.width}×{item.height}
+              </span>
+            )}
+
+            {!isVideo && hasSize(item) && (
+              <span>
+                Size: {item.size}
+              </span>
+                Format: {typeof item.format === 'string' ? item.format.toUpperCase() : item.format}
+
+            {!isVideo && 'format' in item && (
+              <span>
+                Format: {item.format?.toUpperCase?.()}
               </span>
             )}
           </div>

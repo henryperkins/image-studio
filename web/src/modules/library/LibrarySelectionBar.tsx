@@ -1,6 +1,6 @@
-import React from 'react'
-import { Button } from '@/components/ui/button'
-import type { LibraryItem } from '@/lib/api'
+import React from 'react';
+import { Button } from '@/components/ui/button';
+import type { LibraryItem } from '@/lib/api';
 
 type Props = {
   selectedIds: string[]
@@ -30,9 +30,9 @@ export default function LibrarySelectionBar({
   const selectedItems = React.useMemo(
     () => items.filter(i => selectedIds.includes(i.id)),
     [items, selectedIds]
-  )
+  );
 
-  if (selectedIds.length === 0) return null
+  if (selectedIds.length === 0) return null;
 
   return (
     <div
@@ -63,6 +63,6 @@ export default function LibrarySelectionBar({
         </Button>
       </div>
     </div>
-  )
+  );
 }
 

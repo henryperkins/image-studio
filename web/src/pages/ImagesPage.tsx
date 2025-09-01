@@ -1,6 +1,5 @@
-import { Suspense } from 'react'
-import PlaybooksPanel from '@/components/PlaybooksPanel'
-import ImageCreator from '@/components/ImageCreator'
+import PlaybooksPanel from '@/components/PlaybooksPanel';
+import ImageCreator from '@/components/ImageCreator';
 
 type Props = {
   prompt: string
@@ -22,7 +21,7 @@ export default function ImagesPage({
   onImagesSaved
 }: Props) {
   return (
-    <Suspense fallback={null}>
+    <>
       <PlaybooksPanel
         selectedImageId={selectedImageId || null}
         onSetPrompt={setPrompt}
@@ -35,7 +34,7 @@ export default function ImagesPage({
         prompt={prompt}
         setPrompt={setPrompt}
       />
-    </Suspense>
-  )
+    </>
+  );
 }
 

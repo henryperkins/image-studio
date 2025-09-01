@@ -110,10 +110,28 @@
   }
 
   /* Headings default to solid foreground; use .text-gradient utility where desired */
-  h1, h2, h3, h4, h5, h6 {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
     font-weight: 700;
     letter-spacing: -0.02em;
     color: var(--foreground);
+  }
+}
+
+/* Reduce global glow/background cost on constrained devices */
+@media (max-device-memory: 4),
+(max-width: 768px) {
+  body {
+    background-attachment: scroll;
+  }
+
+  body::before,
+  body::after {
+    display: none !important;
   }
 }
 

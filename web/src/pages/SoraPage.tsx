@@ -1,5 +1,4 @@
-import { Suspense } from 'react'
-import SoraCreator from '@/components/SoraCreator'
+import SoraCreator from '@/components/SoraCreator';
 
 type Props = {
   selectedIds: string[]
@@ -19,7 +18,7 @@ export default function SoraPage({
   promptInputRef
 }: Props) {
   return (
-    <Suspense fallback={null}>
+    <>
       <SoraCreator
         selectedIds={selectedIds}
         selectedUrls={selectedUrls}
@@ -28,7 +27,7 @@ export default function SoraPage({
         setPrompt={setPrompt}
         promptInputRef={promptInputRef}
       />
-    </Suspense>
-  )
+    </>
+  );
 }
 

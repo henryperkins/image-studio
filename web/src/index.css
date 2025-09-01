@@ -8,7 +8,10 @@
 
 /* Respect user motion preferences globally */
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
+
+  *,
+  *::before,
+  *::after {
     animation: none !important;
     transition: none !important;
     scroll-behavior: auto !important;
@@ -42,6 +45,7 @@
 
 /* Modern UI Utilities and Effects */
 @layer utilities {
+
   /* Grid helpers */
   .grid2 {
     @apply grid md:grid-cols-2 gap-4;
@@ -139,7 +143,7 @@
   .btn-glow {
     position: relative;
     overflow: hidden;
-    transition: all 0.3s ease;
+    transition: transform 0.3s ease, box-shadow 0.3s ease, opacity 0.3s ease;
   }
 
   .btn-glow::before {
@@ -220,12 +224,10 @@
 
   /* Loading shimmer effect */
   .shimmer {
-    background: linear-gradient(
-      90deg,
-      var(--color-neutral-800) 0%,
-      var(--color-neutral-700) 50%,
-      var(--color-neutral-800) 100%
-    );
+    background: linear-gradient(90deg,
+        var(--color-neutral-800) 0%,
+        var(--color-neutral-700) 50%,
+        var(--color-neutral-800) 100%);
     background-size: 200% 100%;
     animation: var(--animate-shimmer);
   }
@@ -282,8 +284,25 @@
   }
 }
 
+/* Low-end / reduced-motion fallbacks for heavy visual effects */
+@media (max-device-memory: 4),
+(prefers-reduced-motion: reduce) {
+
+  .glass,
+  .glass-subtle,
+  .surface,
+  .surface-muted,
+  .surface-1 {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    background: color-mix(in oklch, var(--color-neutral-900) 20%, transparent) !important;
+    border-color: color-mix(in oklch, var(--border) 50%, transparent) !important;
+  }
+}
+
 /* Global improvements */
 @layer base {
+
   /* Smoother transitions globally */
   * {
     @apply transition-colors duration-200;
@@ -295,7 +314,8 @@
   }
 
   /* Fix select/dropdown positioning */
-  select, .select-dropdown {
+  select,
+  .select-dropdown {
     @apply relative z-30;
   }
 
@@ -339,6 +359,7 @@
     transition: none !important;
     transform: none !important;
   }
+
   body::before,
   body::after,
   .image-hover,

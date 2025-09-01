@@ -1,7 +1,7 @@
-import React from 'react'
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Moon, Sun } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import React from 'react';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Moon, Sun } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 type Props = {
   tab: '/' | '/sora'
@@ -43,6 +43,6 @@ export default function StudioLayout({ tab, onTabChange, isDark, onToggleTheme, 
       </header>
       {children}
     </div>
-  )
+  );
 }
 

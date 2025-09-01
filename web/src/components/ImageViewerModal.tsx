@@ -33,7 +33,7 @@ export default function ImageViewerModal({
   const item = images[currentIndex];
 
   const [showControls, setShowControls] = useState(false);
-  const { containerRef: zoomRef, style: zoomStyle, scale, reset: resetZoom } = useZoomPan()
+  const { containerRef: zoomRef, style: zoomStyle, scale, reset: resetZoom } = useZoomPan();
   const [imageError, setImageError] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
@@ -294,7 +294,7 @@ export default function ImageViewerModal({
                 <Button variant="secondary" onClick={() => setShowControls(false)}>Cancel</Button>
               </div>
               <div className="mt-3 text-xs text-neutral-400 max-w-xs">
-                Click "Open Editor" to edit this image with mask painting and AI-powered inpainting
+                Click &quot;Open Editor&quot; to edit this image with mask painting and AI-powered inpainting
               </div>
             </div>
           )}

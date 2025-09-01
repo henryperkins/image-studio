@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react'
-import { listPlaybooks, type Playbook } from '@/lib/api'
-import { Button } from './ui/button'
-import { Card } from './ui/card'
-import { Label } from './ui/label'
-import { Textarea } from './ui/textarea'
+import { useEffect, useState } from 'react';
+import { listPlaybooks, type Playbook } from '@/lib/api';
+import { Button } from './ui/button';
+import { Card } from './ui/card';
+import { Label } from './ui/label';
+import { Textarea } from './ui/textarea';
 
 type Props = {
   selectedImageId?: string | null
@@ -13,12 +13,12 @@ type Props = {
 }
 
 export default function PlaybooksPanel({ selectedImageId, onSetPrompt, onOpenEditor, onGoToSora }: Props) {
-  const [playbooks, setPlaybooks] = useState<Playbook[]>([])
-  const [active, setActive] = useState<string | null>(null)
+  const [playbooks, setPlaybooks] = useState<Playbook[]>([]);
+  const [active, setActive] = useState<string | null>(null);
 
-  useEffect(() => { listPlaybooks().then(setPlaybooks).catch(()=>{}) }, [])
+  useEffect(() => { listPlaybooks().then(setPlaybooks).catch(()=>{}); }, []);
 
-  const pb = playbooks.find(p => p.id === active) || playbooks[0]
+  const pb = playbooks.find(p => p.id === active) || playbooks[0];
 
   function apply(pb: Playbook) {
     if (pb.target === 'image-generate') {
@@ -30,25 +30,25 @@ export default function PlaybooksPanel({ selectedImageId, onSetPrompt, onOpenEdi
           format: pb.recommended.format || 'png',
           background: pb.recommended.background || 'auto',
           outputCompression: 100
-        }))
+        }));
       } catch {}
-      onSetPrompt(pb.recommended.prompt)
+      onSetPrompt(pb.recommended.prompt);
     } else if (pb.target === 'image-edit') {
       if (!selectedImageId) {
-        alert('Select an image from the library, then click "Open Editor" on it. The playbook defaults will be applied automatically.')
+        alert('Select an image from the library, then click "Open Editor" on it. The playbook defaults will be applied automatically.');
         // Stash editor preset for next open
-        try { localStorage.setItem('IMAGE_EDITOR_PRESET', JSON.stringify(pb.recommended)) } catch {}
-        return
+        try { localStorage.setItem('IMAGE_EDITOR_PRESET', JSON.stringify(pb.recommended)); } catch {}
+        return;
       }
-      try { localStorage.setItem('IMAGE_EDITOR_PRESET', JSON.stringify(pb.recommended)) } catch {}
-      onOpenEditor(selectedImageId)
+      try { localStorage.setItem('IMAGE_EDITOR_PRESET', JSON.stringify(pb.recommended)); } catch {}
+      onOpenEditor(selectedImageId);
     } else if (pb.target === 'video-sora') {
-      onSetPrompt(pb.recommended.prompt)
-      onGoToSora()
+      onSetPrompt(pb.recommended.prompt);
+      onGoToSora();
     }
   }
 
-  if (!pb) return null
+  if (!pb) return null;
 
   return (
     <Card className="p-4 mb-4 surface-1">
@@ -76,5 +76,5 @@ export default function PlaybooksPanel({ selectedImageId, onSetPrompt, onOpenEdi
         </div>
       </div>
     </Card>
-  )
+  );
 }

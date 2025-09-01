@@ -35,7 +35,7 @@ const DropdownMenuItem = React.forwardRef<
     if ('ontouchstart' in window) triggerHaptic('light');
     onClick?.(e as any);
   };
-  const handleSelect: React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Item>["onSelect"] = (e) => {
+  const handleSelect: React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Item>['onSelect'] = (e) => {
     if ('ontouchstart' in window) triggerHaptic('light');
     onSelect?.(e);
   };

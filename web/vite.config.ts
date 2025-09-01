@@ -14,6 +14,7 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       injectRegister: 'auto',
+      devOptions: { enabled: false },
       includeAssets: ['favicon.ico'],
       manifest: {
         name: 'AI Media Studio',
@@ -81,8 +82,8 @@ export default defineConfig({
       }
     }
   },
-  server: { 
-    port: 5174, 
+  server: {
+    port: 5174,
     host: true,
     headers: {
       'Content-Security-Policy': [
@@ -98,13 +99,14 @@ export default defineConfig({
         "base-uri 'self'",
         "form-action 'self'",
         "frame-ancestors 'none'",
-        "upgrade-insecure-requests"
+  'upgrade-insecure-requests'
       ].join('; ')
     }
   },
   resolve: {
     alias: {
-      '@': resolve(__dirname, './src')
+      '@': resolve(__dirname, './src'),
+      '@radix-ui/react-compose-refs': resolve(__dirname, './src/vendor/safeComposeRefs')
     }
   },
   test: {

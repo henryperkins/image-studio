@@ -1,8 +1,9 @@
 // Dynamically determine API URL based on current host
+const meta = import.meta as unknown as { env?: { DEV?: boolean; VITE_API_BASE_URL?: string } };
 // This allows mobile devices to connect to the dev server
 function getApiBaseUrl() {
   // 1) Build-time override via env
-  const envUrl = (import.meta as unknown as { env?: { VITE_API_BASE_URL?: string } }).env?.VITE_API_BASE_URL;
+  const envUrl = meta.env?.VITE_API_BASE_URL;
   if (envUrl) {
     console.warn(`📍 Using env-configured API URL: ${envUrl}`);
     return envUrl;
@@ -32,29 +33,30 @@ function getApiBaseUrl() {
   const host = window.location.hostname;
 
   // In production builds, prefer same-origin API to work on public URLs
-  const meta = import.meta as unknown as { env?: { DEV?: boolean } };
   if (meta.env && meta.env.DEV === false) {
     const sameOrigin = window.location.origin;
-    console.warn(`🌐 Using same-origin API (prod): ${sameOrigin}`);
+    if (!meta.env?.DEV) console.warn(`🌐 Using same-origin API (prod): ${sameOrigin}`);
     return sameOrigin;
   }
 
   // In dev, default to localhost or LAN host:8787
   if (host === 'localhost' || host === '127.0.0.1') {
-    console.warn('🏠 Using localhost API URL');
+    if (meta.env?.DEV) console.warn('🏠 Using localhost API URL');
     return 'http://localhost:8787';
   }
   const apiUrl = `http://${host}:8787`;
-  console.warn(`📱 Using network API URL for mobile/remote access: ${apiUrl}`);
+  if (meta.env?.DEV) console.warn(`📱 Using network API URL for mobile/remote access: ${apiUrl}`);
   return apiUrl;
 }
 
 export const API_BASE_URL = getApiBaseUrl();
 
-// Enhanced debugging info for mobile connections
-console.warn(`🔗 API Base URL: ${API_BASE_URL}`);
-console.warn(`📱 User Agent: ${navigator.userAgent}`);
-console.warn(`🌐 Current host: ${window.location.hostname}:${window.location.port || '(default)'}`);
+// Enhanced debugging info for mobile connections — dev only
+if (meta.env?.DEV) {
+  console.warn(`🔗 API Base URL: ${API_BASE_URL}`);
+  console.warn(`📱 User Agent: ${navigator.userAgent}`);
+  console.warn(`🌐 Current host: ${window.location.hostname}:${window.location.port || '(default)'}`);
+}
 
 function withTimeout(ms: number) {
   const controller = new AbortController();
@@ -66,8 +68,8 @@ async function fetchJson(input: RequestInfo, init: RequestInit & { timeoutMs?: n
   const { timeoutMs = 300000, ...rest } = init;
   const { signal, cancel } = withTimeout(timeoutMs);
 
-  // Log API calls for debugging (especially mobile)
-  if (typeof input === 'string') {
+  // Log API calls for debugging (especially mobile) — dev only
+  if (typeof input === 'string' && meta.env?.DEV) {
     console.warn(`🔄 API Request: ${input}`);
   }
 
@@ -79,8 +81,8 @@ async function fetchJson(input: RequestInfo, init: RequestInit & { timeoutMs?: n
       throw new Error(text || `HTTP ${r.status}`);
     }
     const ct = r.headers.get('content-type') || '';
-    const result = ct.includes('application/json') ? await r.json() : await r.text();
-    console.warn('✅ API Response received');
+  const result = ct.includes('application/json') ? await r.json() : await r.text();
+  if (meta.env?.DEV) console.warn('✅ API Response received');
     return result;
   } catch (error: unknown) {
     const err = error as Error;
@@ -425,7 +427,7 @@ export async function generateVideoWithProgress(
   reference_image_urls: string[],
   options: { n_variants?: number; quality?: 'high' | 'low' } = {},
   onDownloadProgress?: (loadedBytes: number, totalBytes: number) => void
-): Promise<{ data: any; bytesRead: number; total?: number }> {
+): Promise<{ data: unknown; bytesRead: number; total?: number }> {
   const url = `${API_BASE_URL}/api/videos/sora/generate`;
   const res = await fetch(url, {
     method: 'POST',
@@ -437,12 +439,13 @@ export async function generateVideoWithProgress(
   const total = Number(res.headers.get('Content-Length') || 0);
 
   // If streaming is not available, fall back to standard json() (no progress)
-  if (!res.body || typeof (res.body as any).getReader !== 'function') {
+  const body: ReadableStream<Uint8Array> | null = (res as any).body ?? null;
+  if (!body || typeof (body as ReadableStream<Uint8Array>).getReader !== 'function') {
     const data = await res.json();
     return { data, bytesRead: 0, total };
   }
 
-  const reader = (res.body as ReadableStream<Uint8Array>).getReader();
+  const reader = (body as ReadableStream<Uint8Array>).getReader();
   let received = 0;
   const chunks: Uint8Array[] = [];
 
@@ -488,12 +491,12 @@ export async function listSoraJobs(params: { limit?: number; before?: string; af
   if (params.after) p.set('after', params.after);
   if (params.statuses) p.set('statuses', params.statuses);
   const r = await fetchJson(`${API_BASE_URL}/api/videos/sora/jobs?${p.toString()}`, { headers: { 'Accept':'application/json' } });
-  return r as { data?: SoraJob[]; jobs?: SoraJob[]; [k: string]: any };
+  return r as { data?: SoraJob[]; jobs?: SoraJob[]; [k: string]: unknown };
 }
 
 export async function getSoraJob(jobId: string) {
   const r = await fetchJson(`${API_BASE_URL}/api/videos/sora/jobs/${encodeURIComponent(jobId)}`, { headers: { 'Accept':'application/json' } });
-  return r as { id: string; status: string; generations?: Array<{ id: string }>; [k: string]: any };
+  return r as { id: string; status: string; generations?: Array<{ id: string }>; [k: string]: unknown };
 }
 
 export async function deleteSoraJob(jobId: string) {

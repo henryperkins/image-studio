@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { editImage, type LibraryItem } from '../lib/api';
 import { useToast } from '../contexts/ToastContext';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
@@ -13,6 +13,8 @@ import {
   SelectTrigger,
   SelectValue
 } from '@/components/ui/select';
+
+const FALLBACK_IMAGE_SIZE = '1024x1024';
 
 type Props = {
   item: LibraryItem & { kind: 'image' };
@@ -46,15 +48,15 @@ export default function ImageEditor({ item, onClose, onEdited, baseUrl }: Props)
     try {
       const raw = localStorage.getItem('IMAGE_EDITOR_PRESET');
       if (raw) {
-        const p = JSON.parse(raw) as Partial<{ prompt: string; size: any; format: any; background: any; quality: any; brush: number; outputCompression: number }>
-        if (p.prompt && !prompt) setPrompt(p.prompt)
-        if (p.size) setSize(p.size as any)
-        if (p.format) setFormat(p.format as any)
-        if (p.background) setBackground(p.background as any)
-        if (p.quality) setQuality(p.quality as any)
-        if (typeof p.outputCompression === 'number') setOutputCompression(p.outputCompression)
-        if (typeof p.brush === 'number') setBrush(p.brush)
-        localStorage.removeItem('IMAGE_EDITOR_PRESET')
+        const p = JSON.parse(raw) as Partial<{ prompt: string; size: any; format: any; background: any; quality: any; brush: number; outputCompression: number }>;
+        if (p.prompt && !prompt) setPrompt(p.prompt);
+        if (p.size) setSize(p.size as any);
+        if (p.format) setFormat(p.format as any);
+        if (p.background) setBackground(p.background as any);
+        if (p.quality) setQuality(p.quality as any);
+        if (typeof p.outputCompression === 'number') setOutputCompression(p.outputCompression);
+        if (typeof p.brush === 'number') setBrush(p.brush);
+        localStorage.removeItem('IMAGE_EDITOR_PRESET');
       }
     } catch {}
     // In Dialog portal, canvases may not be mounted on the very first effect tick
@@ -156,7 +158,9 @@ export default function ImageEditor({ item, onClose, onEdited, baseUrl }: Props)
     try {
       // Only send a mask if the user has painted; otherwise request a global transform by omitting mask
       const maskPng = hasMask ? canvasRef.current!.toDataURL('image/png') : undefined;
-      const res = await editImage(item.id, prompt || 'Apply the painted mask changes', maskPng, size, format, {
+      // Normalize unsupported 'auto' size to a concrete value for edits
+      const normalizedSize = size === 'auto' ? FALLBACK_IMAGE_SIZE : size;
+      const res = await editImage(item.id, prompt || 'Apply the painted mask changes', maskPng, normalizedSize, format, {
         quality,
         background: (format === 'png' || format === 'webp') ? background : undefined,
         output_compression: (format === 'jpeg' || format === 'webp') ? outputCompression : undefined
@@ -171,6 +175,7 @@ export default function ImageEditor({ item, onClose, onEdited, baseUrl }: Props)
   return (
     <Dialog open onOpenChange={(open)=>{ if(!open) onClose(); }}>
       <DialogContent className="bg-neutral-900 border border-neutral-800 rounded-2xl w-full max-w-4xl p-0">
+      <DialogTitle className="sr-only">Edit Image</DialogTitle>
       <div>
         <div className="flex items-center justify-between p-3 border-b border-neutral-800">
           <div className="font-medium">Edit Image</div>

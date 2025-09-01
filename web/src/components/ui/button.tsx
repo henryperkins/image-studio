@@ -3,6 +3,7 @@ import { Slot } from '@radix-ui/react-slot';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { triggerHaptic } from '@/hooks/useMobileDetection';
 import { cn } from '@/lib/utils';
+import { setRef } from '@/lib/composeRefs';
 
 const buttonVariants = cva(
   'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0',
@@ -44,7 +45,45 @@ export interface ButtonProps
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant, size, asChild = false, onClick, ...props }, ref) => {
     const Comp = asChild ? Slot : 'button';
-    
+    // Attach an internal object ref to the DOM element and propagate to the
+    // public ref in a microtask to avoid commit-phase updates.
+    const domRef = React.useRef<HTMLButtonElement | null>(null);
+    const lastRef = React.useRef<typeof ref>(undefined);
+    const lastNode = React.useRef<HTMLButtonElement | null>(null);
+    const scheduled = React.useRef(false);
+
+    const flushRefSync = React.useCallback(() => {
+      scheduled.current = false;
+      const node = domRef.current;
+      // If the consumer ref changed, detach the previous one
+      if (lastRef.current && lastRef.current !== ref) {
+        setRef(lastRef.current as any, null);
+      }
+      // Attach current ref if identity or target changed
+      if (ref && (lastRef.current !== ref || lastNode.current !== node)) {
+        setRef(ref as any, node);
+      }
+      lastRef.current = ref;
+      lastNode.current = node;
+    }, [ref]);
+
+    const scheduleFlush = React.useCallback(() => {
+      if (scheduled.current) return;
+      scheduled.current = true;
+      // microtask (after commit)
+      Promise.resolve().then(flushRefSync);
+    }, [flushRefSync]);
+
+    const assignDom = React.useCallback((node: HTMLButtonElement | null) => {
+      domRef.current = node;
+      scheduleFlush();
+    }, [scheduleFlush]);
+
+    // If only the ref identity changes without the node changing, ensure we sync.
+    React.useLayoutEffect(() => {
+      scheduleFlush();
+    }, [scheduleFlush]);
+
     const handleClick = React.useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
       // Trigger haptic feedback on mobile devices
       if ('ontouchstart' in window) {
@@ -52,11 +91,11 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       }
       onClick?.(e);
     }, [onClick]);
-    
+
     return (
       <Comp
         className={cn(buttonVariants({ variant, size, className }))}
-        ref={ref}
+        ref={assignDom}
         onClick={handleClick}
         {...props}
       />

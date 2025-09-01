@@ -5,6 +5,8 @@ import { ToastProvider } from './contexts/ToastContext';
 import './index.css';
 import './styles/motion.css';
 import { registerSW } from 'virtual:pwa-register';
+type ImportMetaEnvSafe = { PROD?: boolean };
+const ENV: ImportMetaEnvSafe = (import.meta as unknown as { env?: ImportMetaEnvSafe }).env || {};
 
 createRoot(document.getElementById('root')!).render(
   <ToastProvider>
@@ -15,8 +17,12 @@ createRoot(document.getElementById('root')!).render(
 );
 
 // Register service worker for offline capability and asset caching
-try {
-  registerSW({ immediate: true, onRegistered: () => console.log('PWA registered') });
-} catch (e) {
-  console.warn('SW registration failed or unsupported:', e);
+if (ENV.PROD) {
+  try {
+    registerSW({ immediate: true, onRegistered: () => console.warn('PWA registered') });
+  } catch (e) {
+    console.warn('SW registration failed or unsupported:', e);
+  }
+} else if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.getRegistrations().then((regs) => regs.forEach((r) => r.unregister()));
 }

@@ -1,20 +1,20 @@
-import React, { useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { Card } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { cn } from '@/lib/utils'
-import { Image as ImageIcon } from 'lucide-react'
-import { API_BASE_URL, isVideoItem, type LibraryItem } from '@/lib/api'
-import { useLibrary } from '@/contexts/LibraryContext'
-import VirtualizedLibraryGrid from '@/components/VirtualizedLibraryGrid'
-import LibraryListView from '@/modules/library/LibraryListView'
-import UploadButtons from '@/components/UploadButtons'
-import LibrarySelectionBar from '@/modules/library/LibrarySelectionBar'
-import LibraryControls from '@/modules/library/LibraryControls'
-import PullToRefreshIndicator from '@/components/PullToRefreshIndicator'
-import { usePullToRefresh } from '@/hooks/usePullToRefresh'
+import React, { useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
+import { Image as ImageIcon } from 'lucide-react';
+import { API_BASE_URL, isVideoItem, type LibraryItem } from '@/lib/api';
+import { useLibrary } from '@/contexts/LibraryContext';
+import VirtualizedLibraryGrid from '@/components/VirtualizedLibraryGrid';
+import LibraryListView from '@/modules/library/LibraryListView';
+import UploadButtons from '@/components/UploadButtons';
+import LibrarySelectionBar from '@/modules/library/LibrarySelectionBar';
+import LibraryControls from '@/modules/library/LibraryControls';
+import PullToRefreshIndicator from '@/components/PullToRefreshIndicator';
+import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 
-import type { MediaAction } from '@/hooks/useMediaActions'
+import type { MediaAction } from '@/hooks/useMediaActions';
 
 type Props = {
   handleAction: (action: MediaAction, item: LibraryItem) => Promise<void> | void
@@ -23,8 +23,8 @@ type Props = {
 }
 
 export default function LibraryPanel({ handleAction, onOpenEditor, promptInputRef }: Props) {
-  const navigate = useNavigate()
-  const panelRef = useRef<HTMLDivElement>(null)
+  const navigate = useNavigate();
+  const panelRef = useRef<HTMLDivElement>(null);
 
   const {
     library,
@@ -44,13 +44,13 @@ export default function LibraryPanel({ handleAction, onOpenEditor, promptInputRe
     refreshLibrary,
     setVisibleIds,
     visibleIds
-  } = useLibrary()
+  } = useLibrary();
 
   // Pull to refresh (mobile-friendly though panel is desktop-visible)
   const { pullDistance, isRefreshing, pullProgress } = usePullToRefresh(panelRef, {
     onRefresh: refreshLibrary,
     disabled: false
-  })
+  });
 
   return (
     <Card
@@ -105,8 +105,8 @@ export default function LibraryPanel({ handleAction, onOpenEditor, promptInputRe
           <Button
             className="mx-auto"
             onClick={() => {
-              navigate('/')
-              setTimeout(() => promptInputRef?.current?.focus(), 100)
+              navigate('/');
+              setTimeout(() => promptInputRef?.current?.focus(), 100);
             }}
           >
             Create your first image
@@ -119,17 +119,17 @@ export default function LibraryPanel({ handleAction, onOpenEditor, promptInputRe
               items={sortedFilteredLibrary}
               selectedIds={selected}
               onSelect={(id, isSelected) => {
-                const item = library.find(i => i.id === id)
+                const item = library.find(i => i.id === id);
                 if (item && !isVideoItem(item)) {
-                  setSelected(prev => (isSelected ? [...prev, id] : prev.filter(x => x !== id)))
+                  setSelected(prev => (isSelected ? [...prev, id] : prev.filter(x => x !== id)));
                 }
               }}
               onAction={handleAction}
               onView={(item) => {
-                if (isVideoItem(item)) return
+                if (isVideoItem(item)) return;
                 // Images open viewer; videos open in viewer modal handled by parent via onAction('view') if wired there
                 // For consistency, trigger view via action
-                handleAction('view', item)
+                handleAction('view', item);
               }}
               baseUrl={API_BASE_URL}
               onVisibleChange={(ids)=> setVisibleIds(ids)}
@@ -139,9 +139,9 @@ export default function LibraryPanel({ handleAction, onOpenEditor, promptInputRe
               items={sortedFilteredLibrary}
               selectedIds={selected}
               onSelect={(id, isSelected) => {
-                const item = library.find(i => i.id === id)
+                const item = library.find(i => i.id === id);
                 if (item && !isVideoItem(item)) {
-                  setSelected(prev => (isSelected ? [...prev, id] : prev.filter(x => x !== id)))
+                  setSelected(prev => (isSelected ? [...prev, id] : prev.filter(x => x !== id)));
                 }
               }}
               onAction={handleAction}
@@ -155,8 +155,8 @@ export default function LibraryPanel({ handleAction, onOpenEditor, promptInputRe
       <div className="flex gap-2 mt-3">
         <UploadButtons
           onUploaded={async (items)=>{
-            await refreshLibrary()
-            setSelected(items.map(i=>i.id))
+            await refreshLibrary();
+            setSelected(items.map(i=>i.id));
           }}
           onOpenEditor={onOpenEditor}
         />
@@ -168,16 +168,16 @@ export default function LibraryPanel({ handleAction, onOpenEditor, promptInputRe
         visibleCount={visibleIds.length}
         items={library}
         onSelectVisible={() => {
-          const add = visibleIds.filter(id => !selected.includes(id))
-          setSelected(prev => [...prev, ...add])
+          const add = visibleIds.filter(id => !selected.includes(id));
+          setSelected(prev => [...prev, ...add]);
         }}
         onClear={() => setSelected([])}
-        onUseInSora={() => { navigate('/sora') }}
-        onDeleteMany={async (items) => { for (const i of items) await handleAction('delete', i) }}
-        onAnalyzeMany={async (items) => { for (const i of items) await handleAction('analyze', i) }}
-        onDownloadMany={(items) => { for (const i of items) handleAction('download', i) }}
+        onUseInSora={() => { navigate('/sora'); }}
+        onDeleteMany={async (items) => { for (const i of items) await handleAction('delete', i); }}
+        onAnalyzeMany={async (items) => { for (const i of items) await handleAction('analyze', i); }}
+        onDownloadMany={(items) => { for (const i of items) handleAction('download', i); }}
       />
     </Card>
-  )
+  );
 }
 

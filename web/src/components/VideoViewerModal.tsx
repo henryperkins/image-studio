@@ -43,17 +43,17 @@ export default function VideoViewerModal({
 
   const { handleDelete, handleDownload, handleCopyPrompt, deletingIds } = useMediaActions({
     onRefresh,
-    onViewImage: () => {},
-    onEditImage: () => {},
+    onViewImage: () => { },
+    onEditImage: () => { },
     onEditVideo: onEdit,
-    onUseInSora: () => {},
+    onUseInSora: () => { },
     baseUrl
   });
 
   const isDeleting = item ? deletingIds.has(item.id) : false;
 
   // Swipe gesture handlers for mobile navigation (parity with ImageViewer)
-  useSwipeGesture(videoContainerRef, {
+  useSwipeGesture(videoContainerRef as unknown as React.RefObject<HTMLElement>, {
     onSwipeLeft: () => {
       if (currentIndex < videos.length - 1) {
         triggerHaptic('light');
@@ -89,20 +89,29 @@ export default function VideoViewerModal({
     }
   }, [isPlaying]);
 
-  // Handle mouse movement
+  // Handle mouse movement (scoped + throttled)
   useEffect(() => {
-    const handleMouseMove = () => {
-      resetControlsTimeout();
+    const el = videoContainerRef.current;
+    if (!el) return;
+
+    let raf = 0;
+    const onMove = () => {
+      if (!isPlaying) return;
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        setShowControls((prev) => (prev ? prev : true));
+        resetControlsTimeout();
+        raf = 0;
+      });
     };
 
-    window.addEventListener('mousemove', handleMouseMove);
+    el.addEventListener('mousemove', onMove, { passive: true });
     return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      if (controlsTimeoutRef.current) {
-        clearTimeout(controlsTimeoutRef.current);
-      }
+      el.removeEventListener('mousemove', onMove);
+      if (raf) cancelAnimationFrame(raf);
+      if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
     };
-  }, [resetControlsTimeout]);
+  }, [resetControlsTimeout, isPlaying]);
 
   // Delete handler with confirmation
   const handleDeleteWithConfirm = useCallback(async () => {
@@ -165,7 +174,7 @@ export default function VideoViewerModal({
   // Auto-play when video loads
   useEffect(() => {
     if (videoRef.current && !videoError) {
-      videoRef.current.play().catch(() => {});
+      videoRef.current.play().catch(() => { });
     }
   }, [currentItemId, videoError]);
 

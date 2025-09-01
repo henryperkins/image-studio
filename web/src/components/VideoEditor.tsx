@@ -4,7 +4,7 @@ import {
   trimVideo, cropVideo, resizeVideo, speedVideo, muteVideo, volumeVideo,
   overlayImageOnVideo, concatVideos, listLibrary
 } from '../lib/api';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -90,6 +90,7 @@ export default function VideoEditor({ item, onClose, onEdited, baseUrl }: Props)
   return (
     <Dialog open onOpenChange={(open)=>{ if(!open) onClose(); }}>
       <DialogContent className="bg-neutral-900 border border-neutral-800 rounded-2xl w-full max-w-5xl max-h-[90vh] overflow-y-auto p-0">
+      <DialogTitle className="sr-only">Edit Video</DialogTitle>
       <div>
         <div className="flex items-center justify-between p-3 border-b border-neutral-800">
           <div className="font-medium">Edit Video</div>
