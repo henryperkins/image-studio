@@ -57,14 +57,17 @@ export default function ImageEditor({ item, onClose, onEdited, baseUrl }: Props)
         localStorage.removeItem('IMAGE_EDITOR_PRESET')
       }
     } catch {}
-    const c = canvasRef.current!;
-    const ctx = c.getContext('2d')!;
+    // In Dialog portal, canvases may not be mounted on the very first effect tick
+    const c = canvasRef.current;
+    const p = previewRef.current;
+    if (!c || !p) return;
+    const ctx = c.getContext('2d');
+    const pctx = p.getContext('2d');
+    if (!ctx || !pctx) return;
     ctx.globalCompositeOperation = 'source-over';
     ctx.clearRect(0, 0, c.width, c.height);
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, c.width, c.height);
-    const p = previewRef.current!;
-    const pctx = p.getContext('2d')!;
     pctx.clearRect(0, 0, p.width, p.height);
     setHasMask(false);
     lastPt.current = null;
@@ -72,25 +75,28 @@ export default function ImageEditor({ item, onClose, onEdited, baseUrl }: Props)
 
   // Sync canvas size to image; after sizing, reinitialize to opaque
   useEffect(() => {
-    const img = imgRef.current!;
-    const c = canvasRef.current!;
-    const p = previewRef.current!;
+    const img = imgRef.current;
+    const c = canvasRef.current;
+    const p = previewRef.current;
+    if (!img || !c || !p) return; // wait until refs are mounted
     const sync = () => {
       c.width = img.naturalWidth;
       c.height = img.naturalHeight;
       p.width = img.naturalWidth;
       p.height = img.naturalHeight;
-      const ctx = c.getContext('2d')!;
+      const ctx = c.getContext('2d');
+      const pctx = p.getContext('2d');
+      if (!ctx || !pctx) return;
       ctx.globalCompositeOperation = 'source-over';
       ctx.clearRect(0, 0, c.width, c.height);
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(0, 0, c.width, c.height);
-      const pctx = p.getContext('2d')!;
       pctx.clearRect(0, 0, p.width, p.height);
       setHasMask(false);
       lastPt.current = null;
     };
     if (img.complete) sync(); else img.onload = sync;
+    return () => { (img as HTMLImageElement).onload = null; };
   }, []);
 
   // Compute canvas-space coordinates from a pointer event
@@ -302,13 +308,20 @@ export default function ImageEditor({ item, onClose, onEdited, baseUrl }: Props)
               <Button
                 variant="outline"
                 onClick={()=>{
-                  const c = canvasRef.current!; const ctx = c.getContext('2d')!;
-                  ctx.globalCompositeOperation = 'source-over';
-                  ctx.clearRect(0,0,c.width,c.height);
-                  ctx.fillStyle = '#ffffff';
-                  ctx.fillRect(0,0,c.width,c.height);
-                  const p = previewRef.current!; const pctx = p.getContext('2d')!;
-                  pctx.clearRect(0,0,p.width,p.height);
+                  const c = canvasRef.current; const p = previewRef.current;
+                  if (c) {
+                    const ctx = c.getContext('2d');
+                    if (ctx) {
+                      ctx.globalCompositeOperation = 'source-over';
+                      ctx.clearRect(0,0,c.width,c.height);
+                      ctx.fillStyle = '#ffffff';
+                      ctx.fillRect(0,0,c.width,c.height);
+                    }
+                  }
+                  if (p) {
+                    const pctx = p.getContext('2d');
+                    if (pctx) pctx.clearRect(0,0,p.width,p.height);
+                  }
                   setHasMask(false);
                   lastPt.current = null;
                 }}

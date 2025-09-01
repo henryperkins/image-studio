@@ -388,7 +388,8 @@
   --default-transition-timing-function: cubic-bezier(.4, 0, .2, 1);
 
   /* Surfaces */
-  --surface-1: rgb(var(--card) / 0.6);
+  /* Use color-mix to ensure valid mixing regardless of --card representation */
+  --surface-1: color-mix(in oklch, var(--card) 60%, transparent);
   --surface-1-border: color-mix(in oklch, var(--color-neutral-200) 60%, transparent);
 }
 
@@ -441,7 +442,7 @@
   --shadow-glow-lg: 0 0 50px -10px color-mix(in oklch, var(--color-brand-500) 55%, transparent);
 
   /* Surfaces */
-  --surface-1: color-mix(in oklch, var(--color-neutral-900) 60%, transparent);
+  --surface-1: color-mix(in oklch, var(--card) 60%, transparent);
   --surface-1-border: color-mix(in oklch, var(--color-neutral-800) 60%, transparent);
 }
 

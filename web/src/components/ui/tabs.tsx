@@ -23,6 +23,7 @@ const TabsList = React.forwardRef<HTMLDivElement, React.ComponentPropsWithoutRef
   ({ className, ...props }, ref) => (
     <div
       ref={ref}
+      role="tablist"
       className={cn('inline-flex h-10 items-center justify-center rounded-lg bg-muted p-1 text-muted-foreground', className)}
       {...props}
     />
@@ -37,9 +38,15 @@ type TabsTriggerProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
 const TabsTrigger = React.forwardRef<HTMLButtonElement, TabsTriggerProps>(({ className, value, onClick, ...props }, ref) => {
   const ctx = React.useContext(TabsContext);
   const active = ctx?.value === value;
+  const triggerId = `tab-trigger-${value}`;
+  const panelId = `tab-panel-${value}`;
   return (
     <button
       ref={ref}
+      role="tab"
+      id={triggerId}
+      aria-controls={panelId}
+      aria-selected={active}
       data-state={active ? 'active' : 'inactive'}
       className={cn(
         'inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium',
@@ -60,9 +67,13 @@ TabsTrigger.displayName = 'TabsTrigger';
 
 // Kept for compatibility; currently unused in the app
 const TabsContent = React.forwardRef<HTMLDivElement, React.ComponentPropsWithoutRef<'div'>>(
-  ({ className, ...props }, ref) => (
-    <div ref={ref} className={cn('mt-2', className)} {...props} />
-  )
+  ({ className, id, ...props }, ref) => {
+    // If an id wasn’t supplied, try to derive it from data-value when used
+    const derivedId = id || (typeof (props as any)['data-value'] === 'string' ? `tab-panel-${(props as any)['data-value']}` : undefined);
+    return (
+      <div ref={ref} role="tabpanel" id={derivedId} className={cn('mt-2', className)} {...props} />
+    );
+  }
 );
 TabsContent.displayName = 'TabsContent';
 

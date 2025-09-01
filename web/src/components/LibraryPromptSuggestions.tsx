@@ -182,9 +182,11 @@ export default function LibraryPromptSuggestions({
               <div className="relative rounded overflow-hidden" style={{ aspectRatio: ratio }}>
                 <img
                   src={`${API_BASE_URL}${item.url}`}
+                  sizes="(min-width: 640px) 10vw, 20vw"
                   alt={item.prompt || 'Library image'}
                   className="absolute inset-0 w-full h-full object-cover"
                   loading="lazy"
+                  decoding="async"
                 />
               </div>
               {selectedForAnalysis.has(item.id) && (

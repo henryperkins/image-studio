@@ -30,6 +30,8 @@ interface LibraryItemCardProps {
   onAction: (action: MediaAction, item: LibraryItem) => void;
   onView?: (item: LibraryItem) => void;
   baseUrl?: string;
+  imgWidth?: number;
+  imgHeight?: number;
 }
 
 const LibraryItemCard = memo(({
@@ -39,7 +41,9 @@ const LibraryItemCard = memo(({
   onSelect,
   onAction,
   onView,
-  baseUrl = API_BASE_URL
+  baseUrl = API_BASE_URL,
+  imgWidth,
+  imgHeight
 }: LibraryItemCardProps) => {
   const [_showContextMenu, setShowContextMenu] = useState(false); // kept for hover/tooltip gating
   const [isHovered, setIsHovered] = useState(false);
@@ -286,6 +290,8 @@ const LibraryItemCard = memo(({
           ) : (
             <ResilientImage
               src={`${baseUrl}${item.url}`}
+              // Provide responsive hints to improve LCP/CLS
+              sizes="(min-width: 640px) 33vw, 50vw"
               alt={item.prompt || `Generated image ${index + 1}`}
               className={`absolute inset-0 rounded-lg transition-all duration-200 w-full h-full object-cover ${
                 selected ? 'ring-2 ring-purple-500' : 'hover:shadow-lg hover:shadow-purple-500/20'
@@ -294,6 +300,9 @@ const LibraryItemCard = memo(({
               prompt={item.prompt}
               retryAttempts={3}
               retryDelay={1000}
+              decoding="async"
+              width={imgWidth}
+              height={imgHeight}
               onLoad={() => setIsLoading(false)}
               onError={() => {
                 setIsLoading(false);

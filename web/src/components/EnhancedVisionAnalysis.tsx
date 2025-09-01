@@ -220,7 +220,7 @@ export default function EnhancedVisionAnalysis({
 
   if (!selectedIds.length) {
     return (
-      <div className="text-center text-neutral-400 py-8">
+      <div className="text-center text-muted-foreground py-8">
         <ImageIcon className="w-12 h-12 mx-auto mb-4 opacity-50" />
         <p>Select images to analyze with enhanced vision AI</p>
       </div>
@@ -246,13 +246,13 @@ export default function EnhancedVisionAnalysis({
         </div>
       </div>
       {mode === 'sora' && (
-        <p className="text-xs text-neutral-400 -mt-2">Creates a concise, Sora-ready prompt from the selected images.</p>
+        <p className="text-xs text-muted-foreground -mt-2">Creates a concise, Sora-ready prompt from the selected images.</p>
       )}
 
       {/* Basic Controls */}
-      <div className="border border-neutral-700 rounded-lg">
+      <div className="border border-border rounded-lg">
         <button
-          className="w-full flex items-center justify-between p-3 hover:bg-neutral-800/50 rounded-t-lg"
+          className="w-full flex items-center justify-between p-3 hover:bg-muted/50 rounded-t-lg"
           onClick={() => toggleSection('basic')}
           aria-expanded={expandedSections.basic}
           aria-controls="basic-settings-panel"
@@ -262,7 +262,7 @@ export default function EnhancedVisionAnalysis({
         </button>
 
         {expandedSections.basic && (
-          <div id="basic-settings-panel" className="p-3 border-t border-neutral-700 space-y-4">
+          <div id="basic-settings-panel" className="p-3 border-t border-border space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {mode !== 'sora' && (
                 <div>
@@ -342,9 +342,9 @@ export default function EnhancedVisionAnalysis({
       </div>
 
       {/* Advanced Controls */}
-      <div className="border border-neutral-700 rounded-lg">
+      <div className="border border-border rounded-lg">
         <button
-          className="w-full flex items-center justify-between p-3 hover:bg-neutral-800/50 rounded-t-lg"
+          className="w-full flex items-center justify-between p-3 hover:bg-muted/50 rounded-t-lg"
           onClick={() => toggleSection('advanced')}
           aria-expanded={expandedSections.advanced}
           aria-controls="advanced-settings-panel"
@@ -361,7 +361,7 @@ export default function EnhancedVisionAnalysis({
         </button>
 
         {expandedSections.advanced && (
-          <div id="advanced-settings-panel" className="p-3 border-t border-neutral-700 space-y-4">
+          <div id="advanced-settings-panel" className="p-3 border-t border-border space-y-4">
             <div>
               <label className="block text-sm font-medium mb-2">Focus Areas</label>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
@@ -511,9 +511,9 @@ export default function EnhancedVisionAnalysis({
 
           {/* Results Display */}
           {(result || accessibilityResult) && (
-            <div className="border border-neutral-700 rounded-lg">
+            <div className="border border-border rounded-lg">
               {/* Display Mode Tabs */}
-              <div className="flex border-b border-neutral-700">
+              <div className="flex border-b border-border">
                 {result && (
                   <button
                     className={cn('px-4 py-2 text-sm font-medium transition-colors',
@@ -561,7 +561,7 @@ function StructuredResultDisplay({ result, onInsert }: { result: StructuredVisio
       {/* Metadata */}
       <div>
         <h4 className="font-medium mb-2">Analysis Metadata</h4>
-        <div className="bg-neutral-800/50 rounded-lg p-3 text-sm space-y-1">
+        <div className="bg-muted/40 rounded-lg p-3 text-sm space-y-1">
           <div className="flex justify-between">
             <span>Confidence:</span>
             <span
@@ -590,7 +590,7 @@ function StructuredResultDisplay({ result, onInsert }: { result: StructuredVisio
       {/* Scene Description */}
       <div>
         <h4 className="font-medium mb-2">Scene Description</h4>
-        <div className="bg-neutral-800/50 rounded-lg p-3">
+        <div className="bg-muted/40 rounded-lg p-3">
           <p className="text-sm">{result.content.scene_description}</p>
         </div>
       </div>
@@ -612,7 +612,7 @@ function StructuredResultDisplay({ result, onInsert }: { result: StructuredVisio
       {/* Visual Elements */}
       <div>
         <h4 className="font-medium mb-2">Visual Elements</h4>
-        <div className="bg-neutral-800/50 rounded-lg p-3 space-y-2 text-sm">
+        <div className="bg-muted/40 rounded-lg p-3 space-y-2 text-sm">
           <div>
             <strong>Composition:</strong> {result.content.visual_elements.composition}
           </div>

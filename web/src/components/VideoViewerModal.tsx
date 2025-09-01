@@ -1,9 +1,12 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { type LibraryItem, API_BASE_URL, isVideoItem } from '../lib/api';
 import { useMediaActions } from '../hooks/useMediaActions';
+import { useSwipeGesture } from '../hooks/useSwipeGesture';
+import { useMobileDetection, triggerHaptic } from '../hooks/useMobileDetection';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight, X, AlertCircle, Scissors, Trash2, Download as DownloadIcon, Clipboard } from 'lucide-react';
 import { createPortal } from 'react-dom';
+import { cn } from '@/lib/utils';
 
 type Props = {
   items: LibraryItem[];
@@ -34,7 +37,9 @@ export default function VideoViewerModal({
   const [isPlaying, setIsPlaying] = useState(false);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const videoContainerRef = useRef<HTMLDivElement>(null);
   const controlsTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
+  const { isMobile } = useMobileDetection();
 
   const { handleDelete, handleDownload, handleCopyPrompt, deletingIds } = useMediaActions({
     onRefresh,
@@ -46,6 +51,30 @@ export default function VideoViewerModal({
   });
 
   const isDeleting = item ? deletingIds.has(item.id) : false;
+
+  // Swipe gesture handlers for mobile navigation (parity with ImageViewer)
+  useSwipeGesture(videoContainerRef, {
+    onSwipeLeft: () => {
+      if (currentIndex < videos.length - 1) {
+        triggerHaptic('light');
+        onNavigate(videos[currentIndex + 1].id);
+      }
+    },
+    onSwipeRight: () => {
+      if (currentIndex > 0) {
+        triggerHaptic('light');
+        onNavigate(videos[currentIndex - 1].id);
+      }
+    },
+    onSwipeDown: () => {
+      if (isMobile) {
+        triggerHaptic('light');
+        onClose();
+      }
+    },
+    threshold: 50,
+    preventScroll: true
+  });
 
   // Auto-hide controls after 3 seconds of no mouse movement
   const resetControlsTimeout = useCallback(() => {
@@ -147,7 +176,7 @@ export default function VideoViewerModal({
     <>
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-black/95 backdrop-blur-sm z-50"
+        className="fixed inset-0 bg-background/95 backdrop-blur-sm z-50"
         onClick={onClose}
         aria-hidden="true"
       />
@@ -161,13 +190,14 @@ export default function VideoViewerModal({
         }}
         onMouseMove={resetControlsTimeout}
       >
-        {/* Navigation and close buttons */}
+        {/* Navigation and close buttons - hide nav arrows on mobile (use swipe) */}
         <div className={`absolute top-4 left-4 right-4 z-50 flex justify-between transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
-          <div className="flex gap-2">
+          <div className={cn('flex gap-2', isMobile && 'hidden')}>
             {currentIndex > 0 && (
               <Button
                 size="icon"
-                className="rounded-full w-10 h-10 bg-black/70 hover:bg-black/90 text-white border border-white/10"
+                variant="overlay"
+                className="rounded-full w-10 h-10"
                 onClick={() => onNavigate(videos[currentIndex - 1].id)}
                 aria-label="Previous video"
               >
@@ -177,7 +207,8 @@ export default function VideoViewerModal({
             {currentIndex < videos.length - 1 && (
               <Button
                 size="icon"
-                className="rounded-full w-10 h-10 bg-black/70 hover:bg-black/90 text-white border border-white/10"
+                variant="overlay"
+                className="rounded-full w-10 h-10"
                 onClick={() => onNavigate(videos[currentIndex + 1].id)}
                 aria-label="Next video"
               >
@@ -187,13 +218,14 @@ export default function VideoViewerModal({
           </div>
 
           <div className="flex gap-2">
-            <span className="bg-black/70 text-white rounded-full px-3 py-2 flex items-center text-sm">
+            <span className="bg-popover/70 text-popover-foreground rounded-full px-3 py-2 flex items-center text-sm border border-border/40">
               {currentIndex + 1} / {videos.length}
             </span>
             <Button
               ref={closeButtonRef}
               size="icon"
-              className="rounded-full w-10 h-10 bg-black/70 hover:bg-black/90 text-white border border-white/10"
+              variant="overlay"
+              className="rounded-full w-10 h-10"
               onClick={onClose}
               aria-label="Close viewer"
             >
@@ -202,8 +234,8 @@ export default function VideoViewerModal({
           </div>
         </div>
 
-        {/* Main video */}
-        <div className="absolute inset-0 flex items-center justify-center p-4" onClick={(e) => e.stopPropagation()}>
+        {/* Main video with swipe support */}
+        <div ref={videoContainerRef} className="absolute inset-0 flex items-center justify-center p-4" onClick={(e) => e.stopPropagation()}>
           {videoError ? (
             <div className="text-center text-neutral-400">
               <AlertCircle className="w-16 h-16 mx-auto mb-4" />
@@ -221,20 +253,30 @@ export default function VideoViewerModal({
               onError={() => setVideoError(true)}
             />
           )}
+
+          {/* Mobile swipe indicator */}
+          {isMobile && (
+            <div className="absolute bottom-20 left-1/2 transform -translate-x-1/2 text-muted-foreground text-xs flex items-center gap-2 animate-pulse">
+              <ChevronLeft className="w-4 h-4" />
+              <span>Swipe to navigate</span>
+              <ChevronRight className="w-4 h-4" />
+            </div>
+          )}
         </div>
 
         {/* Controls area */}
         <div className={`absolute bottom-4 left-1/2 transform -translate-x-1/2 z-50 transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
           <div className="flex gap-2">
             <Button
-              className="bg-black/70 hover:bg-black/90 text-white rounded-lg border border-white/10"
+              variant="overlay"
+              className="rounded-lg"
               onClick={() => onEdit(item.id)}
             >
               <Scissors className="w-4 h-4 mr-1" /> Trim
             </Button>
             <Button
               variant="destructive"
-              className={`${confirmDelete ? '' : 'bg-black/70 hover:bg-black/90 text-white border border-white/10'}`}
+              className={`${confirmDelete ? '' : 'border border-border/40 bg-popover/70 text-popover-foreground hover:bg-popover/90 rounded-lg'}`}
               onClick={handleDeleteWithConfirm}
               disabled={isDeleting}
             >
@@ -245,13 +287,15 @@ export default function VideoViewerModal({
               )}
             </Button>
             <Button
-              className="bg-black/70 hover:bg-black/90 text-white rounded-lg border border-white/10"
+              variant="overlay"
+              className="rounded-lg"
               onClick={() => item && handleDownload(item)}
             >
               <DownloadIcon className="w-4 h-4 mr-1" /> Download
             </Button>
             <Button
-              className="bg-black/70 hover:bg-black/90 text-white rounded-lg border border-white/10"
+              variant="overlay"
+              className="rounded-lg"
               onClick={() => item && handleCopyPrompt(item)}
             >
               <Clipboard className="w-4 h-4 mr-1" /> Copy Prompt

@@ -12,7 +12,7 @@ interface PromptSuggestionsProps {
   onReplace: (text: string) => void;
 }
 
-export default function PromptSuggestions({ onInsert, onReplace }: PromptSuggestionsProps) {
+const PromptSuggestions = React.memo(function PromptSuggestions({ onInsert, onReplace }: PromptSuggestionsProps) {
   const {
     suggestions,
     deleteSuggestion,
@@ -111,7 +111,7 @@ export default function PromptSuggestions({ onInsert, onReplace }: PromptSuggest
     <div
       id="suggestions-panel"
       ref={panelRef}
-      className="mt-4 pt-4 border-t border-neutral-800 outline-none"
+      className="mt-4 pt-4 border-t border-border outline-none"
       role="region"
       aria-label="Prompt Suggestions"
       tabIndex={-1}
@@ -144,10 +144,10 @@ export default function PromptSuggestions({ onInsert, onReplace }: PromptSuggest
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search suggestions…"
           aria-label="Search suggestions"
-          className="flex-1 rounded-md border border-neutral-800 bg-neutral-950 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500/30"
+          className="flex-1 rounded-md border border-input bg-card px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring/30 text-card-foreground"
         />
       </div>
-      <p className="text-xs text-neutral-500 mb-2">Tip: Enter to insert • Shift+Enter to replace • Space to select • Drag into the prompt box</p>
+      <p className="text-xs text-muted-foreground mb-2">Tip: Enter to insert • Shift+Enter to replace • Space to select • Drag into the prompt box</p>
 
       {showPrefs && (
         <Card id="suggestions-settings" className="mb-2 p-3 space-y-2">
@@ -182,7 +182,7 @@ export default function PromptSuggestions({ onInsert, onReplace }: PromptSuggest
               key={s.id}
               role="option"
               aria-selected={selectedIds.has(s.id)}
-              className="bg-neutral-800/50 rounded-lg group hover:bg-neutral-800 focus-within:ring-2 focus-within:ring-blue-500/30"
+              className="bg-muted/40 rounded-lg group hover:bg-muted/60 focus-within:ring-2 focus-within:ring-ring/30"
               style={{ minHeight: 44 }}
             >
               <div
@@ -206,7 +206,7 @@ export default function PromptSuggestions({ onInsert, onReplace }: PromptSuggest
                 >
                   <span className="text-sm truncate">{s.text}</span>
                   <div className="flex items-center gap-2 mt-1">
-                    <span className="text-xs text-neutral-500 flex-shrink-0">
+                    <span className="text-xs text-muted-foreground flex-shrink-0">
                       {new Date(s.createdAt).toLocaleTimeString()} • {s.sourceModel}
                       {frequencyByKey[s.dedupeKey] ? ` • ${frequencyByKey[s.dedupeKey]}×` : ''}
                     </span>
@@ -247,4 +247,6 @@ export default function PromptSuggestions({ onInsert, onReplace }: PromptSuggest
       )}
     </div>
   );
-}
+});
+
+export default PromptSuggestions;

@@ -1,10 +1,13 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { type LibraryItem, API_BASE_URL, isVideoItem } from '../lib/api';
 import { useMediaActions } from '../hooks/useMediaActions';
+import { useSwipeGesture } from '../hooks/useSwipeGesture';
+import { useMobileDetection, triggerHaptic } from '../hooks/useMobileDetection';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight, X, AlertCircle, Pencil, Search, Trash2, Download as DownloadIcon, Clipboard, Loader2 } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { cn } from '@/lib/utils';
+import { useZoomPan } from '@/hooks/useZoomPan';
 
 type Props = {
   items: LibraryItem[];
@@ -16,64 +19,64 @@ type Props = {
   baseUrl?: string;
 };
 
-export default function ImageViewerModal({ 
-  items, 
-  currentItemId, 
-  onClose, 
-  onEdit, 
+export default function ImageViewerModal({
+  items,
+  currentItemId,
+  onClose,
+  onEdit,
   onNavigate,
   onRefresh,
-  baseUrl = API_BASE_URL 
+  baseUrl = API_BASE_URL
 }: Props) {
   const images = items.filter(i => !isVideoItem(i));
   const currentIndex = images.findIndex(i => i.id === currentItemId);
   const item = images[currentIndex];
-  
+
   const [showControls, setShowControls] = useState(false);
+  const { containerRef: zoomRef, style: zoomStyle, scale, reset: resetZoom } = useZoomPan()
   const [imageError, setImageError] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
-  
+  const imageContainerRef = useRef<HTMLDivElement>(null);
+
+  const { isMobile } = useMobileDetection();
+
   const { handleDelete, handleAnalyze, handleCopyPrompt, handleDownload, analyzingIds, deletingIds } = useMediaActions({
     onRefresh,
-    onViewImage: () => {},
+    onViewImage: () => { },
     onEditImage: onEdit,
-    onEditVideo: () => {},
-    onUseInSora: () => {},
+    onEditVideo: () => { },
+    onUseInSora: () => { },
     baseUrl
   });
-  
+
   const isDeleting = item ? deletingIds.has(item.id) : false;
   const isAnalyzing = item ? analyzingIds.has(item.id) : false;
-  
-  // Keyboard navigation and focus management
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        onClose();
-      } else if (e.key === 'ArrowLeft' && currentIndex > 0) {
-        onNavigate(images[currentIndex - 1].id);
-      } else if (e.key === 'ArrowRight' && currentIndex < images.length - 1) {
+
+  // Swipe gesture handlers for mobile navigation
+  useSwipeGesture(imageContainerRef as unknown as React.RefObject<HTMLElement>, {
+    onSwipeLeft: () => {
+      if (currentIndex < images.length - 1) {
+        triggerHaptic('light');
         onNavigate(images[currentIndex + 1].id);
-      } else if ((e.key === 'Delete' || e.key === 'Backspace') && item) {
-        handleDeleteWithConfirm();
       }
-    };
-    
-    window.addEventListener('keydown', handleKeyDown);
-    
-    // Focus management and body scroll lock
-    const previousActiveElement = document.activeElement as HTMLElement;
-    document.body.style.overflow = 'hidden';
-    closeButtonRef.current?.focus();
-    
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      document.body.style.overflow = '';
-      previousActiveElement?.focus();
-    };
-  }, [currentIndex, images, onClose, onNavigate, item, handleDeleteWithConfirm]);
-  
+    },
+    onSwipeRight: () => {
+      if (currentIndex > 0) {
+        triggerHaptic('light');
+        onNavigate(images[currentIndex - 1].id);
+      }
+    },
+    onSwipeDown: () => {
+      if (isMobile) {
+        triggerHaptic('light');
+        onClose();
+      }
+    },
+    threshold: 50,
+    preventScroll: true
+  });
+
   const handleDeleteWithConfirm = useCallback(async () => {
     if (!item) return;
     if (!confirmDelete) {
@@ -81,7 +84,7 @@ export default function ImageViewerModal({
       setTimeout(() => setConfirmDelete(false), 3000);
       return;
     }
-    
+
     const success = await handleDelete(item);
     if (success) {
       // Navigate to next/prev image or close
@@ -95,35 +98,67 @@ export default function ImageViewerModal({
       }
     }
   }, [confirmDelete, item, handleDelete, images, currentIndex, onNavigate, onClose]);
-  
+
+  // Keyboard navigation and focus management
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      } else if (e.key === 'ArrowLeft' && currentIndex > 0) {
+        onNavigate(images[currentIndex - 1].id);
+      } else if (e.key === 'ArrowRight' && currentIndex < images.length - 1) {
+        onNavigate(images[currentIndex + 1].id);
+      } else if ((e.key === 'Delete' || e.key === 'Backspace') && item) {
+        handleDeleteWithConfirm();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+
+    // Focus management and body scroll lock
+    const previousActiveElement = document.activeElement as HTMLElement;
+    document.body.style.overflow = 'hidden';
+    closeButtonRef.current?.focus();
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = '';
+      previousActiveElement?.focus();
+    };
+  }, [currentIndex, images, onClose, onNavigate, item, handleDeleteWithConfirm]);
+
   if (!item) return null;
- 
+
   // Use portal to render outside of any parent constraints
   return createPortal(
     <>
       {/* Backdrop */}
-      <div 
-        className="fixed inset-0 bg-black/95 backdrop-blur-sm z-50"
+      <div
+        className="fixed inset-0 bg-background/95 backdrop-blur-sm z-50"
         onClick={onClose}
         aria-hidden="true"
       />
-      
+
       {/* Modal Content */}
-      <div 
+      <div
         className="fixed inset-0 z-50 overflow-hidden"
         onClick={(e) => {
           // Only close if clicking the background, not content
           if (e.target === e.currentTarget) onClose();
         }}
       >
-        {/* Navigation and close buttons */}
+        {/* Navigation and close buttons - hide nav buttons on mobile (using swipe instead) */}
         <div className="absolute top-4 left-4 right-4 z-50 flex justify-between">
-          <div className="flex gap-2">
+          <div className={cn('flex gap-2', isMobile && 'hidden')}>
             {currentIndex > 0 && (
               <Button
                 size="icon"
-                className="rounded-full w-10 h-10 bg-black/70 hover:bg-black/90 text-white border border-white/10"
-                onClick={() => onNavigate(images[currentIndex - 1].id)}
+                variant="overlay"
+                className="rounded-full w-10 h-10 md:w-10 md:h-10 min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0"
+                onClick={() => {
+                  triggerHaptic('light');
+                  onNavigate(images[currentIndex - 1].id);
+                }}
                 aria-label="Previous image"
               >
                 <ChevronLeft className="w-6 h-6" />
@@ -132,23 +167,28 @@ export default function ImageViewerModal({
             {currentIndex < images.length - 1 && (
               <Button
                 size="icon"
-                className="rounded-full w-10 h-10 bg-black/70 hover:bg-black/90 text-white border border-white/10"
-                onClick={() => onNavigate(images[currentIndex + 1].id)}
+                variant="overlay"
+                className="rounded-full w-10 h-10 md:w-10 md:h-10 min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0"
+                onClick={() => {
+                  triggerHaptic('light');
+                  onNavigate(images[currentIndex + 1].id);
+                }}
                 aria-label="Next image"
               >
                 <ChevronRight className="w-6 h-6" />
               </Button>
             )}
           </div>
-          
+
           <div className="flex gap-2">
-            <span className="bg-black/70 text-white rounded-full px-3 py-2 flex items-center text-sm">
+            <span className="bg-popover/70 text-popover-foreground rounded-full px-3 py-2 flex items-center text-sm border border-border/40">
               {currentIndex + 1} / {images.length}
             </span>
             <Button
               ref={closeButtonRef}
               size="icon"
-              className="rounded-full w-10 h-10 bg-black/70 hover:bg-black/90 text-white border border-white/10"
+              variant="overlay"
+              className="rounded-full w-10 h-10"
               onClick={onClose}
               aria-label="Close viewer"
             >
@@ -157,22 +197,38 @@ export default function ImageViewerModal({
           </div>
         </div>
 
-        {/* Main image */}
-        <div className="absolute inset-0 flex items-center justify-center p-4" onClick={(e) => e.stopPropagation()}>
+        {/* Main image with swipe support */}
+        <div
+          ref={imageContainerRef}
+          className="absolute inset-0 flex items-center justify-center p-4 overflow-hidden"
+          onClick={(e) => e.stopPropagation()}
+        >
           {imageError ? (
             <div className="text-center text-neutral-400">
               <AlertCircle className="w-16 h-16 mx-auto mb-4" />
               <p>Failed to load image</p>
             </div>
           ) : (
-            <img
-              src={`${baseUrl}${item.url}`}
-              alt={item.prompt || 'Generated image'}
-              className="max-w-full max-h-full object-contain rounded-lg"
-              loading="lazy"
-              decoding="async"
-              onError={() => setImageError(true)}
-            />
+            <div ref={zoomRef} style={zoomStyle} className="touch-pan-y touch-pan-x">
+              <img
+                src={`${baseUrl}${item.url}`}
+                alt={item.prompt || 'Generated image'}
+                className="max-w-full max-h-[80vh] object-contain rounded-lg select-none"
+                loading="lazy"
+                decoding="async"
+                onError={() => setImageError(true)}
+                draggable={false}
+              />
+            </div>
+          )}
+
+          {/* Mobile swipe indicator */}
+          {isMobile && (
+            <div className="absolute bottom-20 left-1/2 transform -translate-x-1/2 text-muted-foreground text-xs flex items-center gap-2 animate-pulse">
+              <ChevronLeft className="w-4 h-4" />
+              <span>Swipe to navigate</span>
+              <ChevronRight className="w-4 h-4" />
+            </div>
           )}
         </div>
 
@@ -181,13 +237,20 @@ export default function ImageViewerModal({
           {!showControls ? (
             <div className="flex gap-2">
               <Button
-                className="bg-black/70 hover:bg-black/90 text-white rounded-lg border border-white/10"
+                variant="overlay"
+                className="rounded-lg"
                 onClick={() => setShowControls(true)}
               >
                 <Pencil className="w-4 h-4 mr-1" /> Edit
               </Button>
+              {scale !== 1 ? (
+                <Button variant="overlay" className="rounded-lg" onClick={resetZoom}>
+                  Reset Zoom
+                </Button>
+              ) : null}
               <Button
-                className="bg-black/70 hover:bg-black/90 text-white rounded-lg border border-white/10"
+                variant="overlay"
+                className="rounded-lg"
                 onClick={() => item && handleAnalyze(item)}
                 disabled={isAnalyzing}
               >
@@ -199,7 +262,7 @@ export default function ImageViewerModal({
               </Button>
               <Button
                 variant="destructive"
-                className={cn(!confirmDelete && 'bg-black/70 hover:bg-black/90 text-white border border-white/10')}
+                className={cn(!confirmDelete && 'border border-border/40 bg-popover/70 text-popover-foreground hover:bg-popover/90 rounded-lg')}
                 onClick={handleDeleteWithConfirm}
                 disabled={isDeleting}
               >
@@ -210,13 +273,15 @@ export default function ImageViewerModal({
                 )}
               </Button>
               <Button
-                className="bg-black/70 hover:bg-black/90 text-white rounded-lg border border-white/10"
+                variant="overlay"
+                className="rounded-lg"
                 onClick={() => item && handleDownload(item)}
               >
                 <DownloadIcon className="w-4 h-4 mr-1" /> Download
               </Button>
               <Button
-                className="bg-black/70 hover:bg-black/90 text-white rounded-lg border border-white/10"
+                variant="overlay"
+                className="rounded-lg"
                 onClick={() => item && handleCopyPrompt(item)}
               >
                 <Clipboard className="w-4 h-4 mr-1" /> Copy Prompt
@@ -229,7 +294,7 @@ export default function ImageViewerModal({
                 <Button variant="secondary" onClick={() => setShowControls(false)}>Cancel</Button>
               </div>
               <div className="mt-3 text-xs text-neutral-400 max-w-xs">
-                Click &quot;Open Editor&quot; to edit this image with mask painting and AI-powered inpainting
+                Click "Open Editor" to edit this image with mask painting and AI-powered inpainting
               </div>
             </div>
           )}
@@ -237,11 +302,11 @@ export default function ImageViewerModal({
 
         {/* Image metadata */}
         {item.prompt && (
-          <div className="absolute top-20 left-4 max-w-md bg-black/70 backdrop-blur-sm rounded-lg p-3 text-white text-sm">
+          <div className="absolute top-20 left-4 max-w-md bg-popover/70 backdrop-blur-sm rounded-lg p-3 text-popover-foreground text-sm border border-border/40">
             <div className="font-medium mb-1">Prompt:</div>
-            <div className="text-neutral-300">{item.prompt}</div>
+            <div className="text-muted-foreground">{item.prompt}</div>
             {item.size && (
-              <div className="text-xs text-neutral-400 mt-2">
+              <div className="text-xs text-muted-foreground mt-2">
                 {item.size} • {item.format?.toUpperCase()}
               </div>
             )}

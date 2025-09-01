@@ -15,7 +15,7 @@ type Props = {
   onVisibleChange?: (ids: string[]) => void
 };
 
-export default function VirtualizedLibraryGrid({ items, selectedIds, onSelect, onAction, onView, baseUrl, onVisibleChange }: Props) {
+const VirtualizedLibraryGrid = React.memo(function VirtualizedLibraryGrid({ items, selectedIds, onSelect, onAction, onView, baseUrl, onVisibleChange }: Props) {
   const parentRef = useRef<HTMLDivElement>(null);
   const rowRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(0);
@@ -51,8 +51,12 @@ export default function VirtualizedLibraryGrid({ items, selectedIds, onSelect, o
     return Math.max(80, Math.floor((containerWidth - totalGap) / columns));
   }, [containerWidth, columns, columnGap]);
 
-  const rowHeight = cellWidth + columnGap; // square tiles + gap
+  // Row height must match actual rendered card height to avoid overlap.
+  // Include a bit of extra space for card padding/border so rows don't collapse/stack.
+  const EXTRA_VERTICAL = 10; // px: approx padding+border inside each card
+  const rowHeight = Math.max(1, Math.ceil(cellWidth + EXTRA_VERTICAL + columnGap)); // square tiles + gap + extra
   const rowCount = Math.ceil(items.length / columns);
+
 
   const rowVirtualizer = useVirtualizer({
     count: rowCount,
@@ -75,47 +79,70 @@ export default function VirtualizedLibraryGrid({ items, selectedIds, onSelect, o
   }, [rowVirtualizer, items, columns, onVisibleChange]);
 
   return (
-    <div ref={parentRef} className="max-h-[60vh] overflow-auto">
+    <div ref={parentRef} className="max-h-[60vh] overflow-auto overscroll-y-contain">
       {/* Measure gap using a dummy grid row that mirrors production layout */}
       <div ref={rowRef} className="grid grid-cols-2 sm:grid-cols-3 gap-3 absolute -top-[9999px] opacity-0 pointer-events-none" aria-hidden />
 
-      <div
-        style={{
-          height: Math.max(0, rowVirtualizer.getTotalSize()),
-          position: 'relative'
-        }}
-      >
-        {rowVirtualizer.getVirtualItems().map((virtualRow) => {
-          const start = virtualRow.index * columns;
-          const end = Math.min(start + columns, items.length);
-          const rowItems = items.slice(start, end);
-          return (
-            <div
-              key={virtualRow.key}
-              className="grid grid-cols-2 sm:grid-cols-3 gap-3 absolute left-0 right-0"
-              style={{
-                transform: `translateY(${virtualRow.start}px)`
-              }}
-            >
-              {rowItems.map((item, colIndex) => {
-                const i = start + colIndex;
-                return (
-                  <LibraryItemCard
-                    key={item.id}
-                    item={item}
-                    index={i}
-                    selected={selectedIds.includes(item.id)}
-                    onSelect={onSelect}
-                    onAction={onAction}
-                    onView={onView}
-                    baseUrl={baseUrl}
-                  />
-                );
-              })}
-            </div>
-          );
-        })}
-      </div>
+      {cellWidth === 0 ? (
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          {items.map((item, i) => (
+            <LibraryItemCard
+              key={item.id}
+              item={item}
+              index={i}
+              selected={selectedIds.includes(item.id)}
+              onSelect={onSelect}
+              onAction={onAction}
+              onView={onView}
+              baseUrl={baseUrl}
+            />
+          ))}
+        </div>
+      ) : (
+        <div
+          key={`${columns}-${cellWidth}`}
+          style={{
+            height: Math.max(0, rowVirtualizer.getTotalSize()),
+            position: 'relative'
+          }}
+        >
+          {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+            const start = virtualRow.index * columns;
+            const end = Math.min(start + columns, items.length);
+            const rowItems = items.slice(start, end);
+            return (
+              <div
+                key={virtualRow.key}
+                className="grid grid-cols-2 sm:grid-cols-3 gap-3 absolute left-0 right-0 transform-gpu"
+                style={{
+                  transform: `translateY(${virtualRow.start}px)`,
+                  willChange: 'transform'
+                }}
+              >
+                {rowItems.map((item, colIndex) => {
+                  const i = start + colIndex;
+                  return (
+                    <LibraryItemCard
+                      key={item.id}
+                      item={item}
+                      index={i}
+                      selected={selectedIds.includes(item.id)}
+                      onSelect={onSelect}
+                      onAction={onAction}
+                      onView={onView}
+                      baseUrl={baseUrl}
+                      imgWidth={Math.round(cellWidth)}
+                      imgHeight={Math.round(cellWidth)}
+                    />
+                  );
+                })}
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
-}
+});
+
+export default VirtualizedLibraryGrid;

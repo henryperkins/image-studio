@@ -67,7 +67,7 @@ export default function SoraPromptDisplay({
   }, [data.style_notes, data.style_keywords]);
 
   return (
-    <Card className={`bg-neutral-950 border-neutral-800 ${className}`}>
+  <Card className={`bg-card border-border ${className}`}>
       <CardHeader className="pb-3">
         <CardTitle className="text-sm font-medium flex items-center gap-2">
           <Film className="w-4 h-4" />
@@ -79,7 +79,7 @@ export default function SoraPromptDisplay({
         {data.suggested_prompt && (
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-xs text-neutral-400 uppercase tracking-wide">Generated Prompt</span>
+            <span className="text-xs text-muted-foreground uppercase tracking-wide">Generated Prompt</span>
               <div className="flex gap-1">
                 <button
                   onClick={() => handleCopy(data.suggested_prompt!)}
@@ -101,10 +101,10 @@ export default function SoraPromptDisplay({
                 )}
               </div>
             </div>
-            <div className="bg-neutral-900 rounded-lg p-3 text-sm leading-relaxed">
+            <div className="bg-card rounded-lg p-3 text-sm leading-relaxed text-card-foreground border border-border/60">
               {data.suggested_prompt}
             </div>
-            <div className="text-xs text-neutral-500">
+            <div className="text-xs text-muted-foreground">
               {data.suggested_prompt.split(' ').length} words • {data.suggested_prompt.length} characters
             </div>
           </div>
@@ -113,7 +113,7 @@ export default function SoraPromptDisplay({
         {/* Motion Elements */}
         {data.motion_elements && data.motion_elements.length > 0 && (
           <div className="space-y-2">
-            <div className="flex items-center gap-2 text-xs text-neutral-400 uppercase tracking-wide">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground uppercase tracking-wide">
               <Sparkles className="w-3 h-3" />
               Key Motion Elements
             </div>
@@ -122,7 +122,7 @@ export default function SoraPromptDisplay({
                 <Badge 
                   key={i} 
                   variant="secondary" 
-                  className="bg-neutral-900 text-neutral-300 border-neutral-700"
+                  className="bg-card text-card-foreground border-border"
                 >
                   {element}
                 </Badge>
@@ -134,11 +134,11 @@ export default function SoraPromptDisplay({
         {/* Camera Technique */}
         {data.camera_technique && (
           <div className="space-y-2">
-            <div className="flex items-center gap-2 text-xs text-neutral-400 uppercase tracking-wide">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground uppercase tracking-wide">
               <Camera className="w-3 h-3" />
               Camera Movement
             </div>
-            <div className="bg-neutral-900 rounded-lg p-2 px-3 text-sm">
+            <div className="bg-card rounded-lg p-2 px-3 text-sm text-card-foreground border border-border/60">
               {data.camera_technique}
             </div>
           </div>
@@ -147,7 +147,7 @@ export default function SoraPromptDisplay({
         {/* Style Notes */}
         {styleItems.length > 0 && (
           <div className="space-y-2">
-            <div className="flex items-center gap-2 text-xs text-neutral-400 uppercase tracking-wide">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground uppercase tracking-wide">
               <Info className="w-3 h-3" />
               Style Keywords
             </div>
@@ -155,7 +155,7 @@ export default function SoraPromptDisplay({
               {styleItems.map((style, i) => (
                 <span 
                   key={i}
-                  className="px-2 py-1 bg-neutral-900 rounded text-xs text-neutral-300"
+                  className="px-2 py-1 bg-card rounded text-xs text-card-foreground border border-border/60"
                 >
                   {style}
                 </span>
@@ -166,17 +166,17 @@ export default function SoraPromptDisplay({
 
         {/* Duration Recommendation */}
         {data.duration_recommendation && (
-          <div className="flex items-center gap-2 pt-2 border-t border-neutral-800">
-            <Clock className="w-3 h-3 text-neutral-400" />
-            <span className="text-xs text-neutral-400">
-              Recommended duration: <span className="text-neutral-200">{data.duration_recommendation}</span>
+          <div className="flex items-center gap-2 pt-2 border-t border-border">
+            <Clock className="w-3 h-3 text-muted-foreground" />
+            <span className="text-xs text-muted-foreground">
+              Recommended duration: <span className="text-foreground">{data.duration_recommendation}</span>
             </span>
           </div>
         )}
 
         {/* Fallback for scene description (legacy) */}
         {!data.suggested_prompt && data.scene_description && (
-          <div className="bg-neutral-900 rounded-lg p-3 text-sm">
+          <div className="bg-card rounded-lg p-3 text-sm text-card-foreground border border-border/60">
             {data.scene_description}
           </div>
         )}

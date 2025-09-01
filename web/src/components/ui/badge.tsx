@@ -9,7 +9,7 @@ export const Badge = React.forwardRef<HTMLSpanElement, BadgeProps>(
   ({ className, variant = 'default', ...props }, ref) => {
     const variants: Record<string, string> = {
       default: 'bg-primary/15 text-primary ring-1 ring-primary/30',
-      secondary: 'bg-neutral-800 text-neutral-200 ring-1 ring-neutral-700',
+      secondary: 'bg-muted text-muted-foreground ring-1 ring-border',
       destructive: 'bg-red-500/10 text-red-400 ring-1 ring-red-400/30',
       outline: 'bg-transparent text-current ring-1 ring-border'
     };
@@ -27,4 +27,3 @@ export const Badge = React.forwardRef<HTMLSpanElement, BadgeProps>(
   }
 );
 Badge.displayName = 'Badge';
-

@@ -1,5 +1,6 @@
 import * as React from 'react';
 import * as ContextMenuPrimitive from '@radix-ui/react-context-menu';
+import { triggerHaptic } from '@/hooks/useMobileDetection';
 
 import { cn } from '@/lib/utils';
 
@@ -28,18 +29,30 @@ ContextMenuContent.displayName = ContextMenuPrimitive.Content.displayName;
 const ContextMenuItem = React.forwardRef<
   React.ElementRef<typeof ContextMenuPrimitive.Item>,
   React.ComponentPropsWithoutRef<typeof ContextMenuPrimitive.Item>
->(({ className, ...props }, ref) => (
-  <ContextMenuPrimitive.Item
-    ref={ref}
-    className={cn(
-      'relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none',
-      'data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
-      'data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground',
-      className
-    )}
-    {...props}
-  />
-));
+>(({ className, onClick, onSelect, ...props }, ref) => {
+  const handleClick: React.MouseEventHandler<HTMLDivElement> = (e) => {
+    if ('ontouchstart' in window) triggerHaptic('light');
+    onClick?.(e as any);
+  };
+  const handleSelect: React.ComponentPropsWithoutRef<typeof ContextMenuPrimitive.Item>["onSelect"] = (e) => {
+    if ('ontouchstart' in window) triggerHaptic('light');
+    onSelect?.(e);
+  };
+  return (
+    <ContextMenuPrimitive.Item
+      ref={ref}
+      className={cn(
+        'relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none',
+        'data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
+        'data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground',
+        className
+      )}
+      onClick={handleClick}
+      onSelect={handleSelect}
+      {...props}
+    />
+  );
+});
 ContextMenuItem.displayName = ContextMenuPrimitive.Item.displayName;
 
 const ContextMenuSeparator = React.forwardRef<

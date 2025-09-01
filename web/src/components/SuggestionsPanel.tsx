@@ -12,7 +12,7 @@ type Props = {
   onSelectLibraryItem: (id: string) => void
 };
 
-export default function SuggestionsPanel({ library, onInsert, onReplace, onSelectLibraryItem }: Props) {
+const SuggestionsPanel = React.memo(function SuggestionsPanel({ library, onInsert, onReplace, onSelectLibraryItem }: Props) {
   const [tab, setTab] = React.useState(() => localStorage.getItem('SUG_TAB') || 'general');
   const onValueChange = (v: string) => {
     setTab(v);
@@ -37,4 +37,6 @@ export default function SuggestionsPanel({ library, onInsert, onReplace, onSelec
       )}
     </Card>
   );
-}
+});
+
+export default SuggestionsPanel;

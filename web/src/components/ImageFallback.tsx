@@ -20,6 +20,11 @@ export interface ResilientImageProps {
   prompt?: string;
   retryAttempts?: number;
   retryDelay?: number;
+  sizes?: string;
+  srcSet?: string;
+  width?: number;
+  height?: number;
+  decoding?: 'sync' | 'async' | 'auto';
 }
 
 // ---------- ImageFallback ----------
@@ -104,7 +109,7 @@ export const ImageFallback = memo(({
 ImageFallback.displayName = 'ImageFallback';
 
 // ---------- ResilientImage ----------
-export const ResilientImage = memo(({
+export const ResilientImage = memo(({ 
   src,
   alt,
   className = '',
@@ -113,7 +118,12 @@ export const ResilientImage = memo(({
   fallbackType = 'image',
   prompt = '',
   retryAttempts = 3,
-  retryDelay = 1000
+  retryDelay = 1000,
+  sizes,
+  srcSet,
+  width,
+  height,
+  decoding
 }: ResilientImageProps) => {
   const [loadState, setLoadState] = useState<'loading' | 'loaded' | 'error'>('loading');
   const [currentSrc, setCurrentSrc] = useState(src);
@@ -171,11 +181,16 @@ export const ResilientImage = memo(({
       <img
         ref={imgRef}
         src={currentSrc}
+        sizes={sizes}
+        srcSet={srcSet}
+        width={width}
+        height={height}
         alt={alt}
         className={cn(className, loadState === 'loading' ? 'opacity-0' : 'opacity-100', 'transition-opacity duration-300')}
         onLoad={handleLoad}
         onError={handleError}
         loading="lazy"
+        decoding={decoding}
       />
     </div>
   );

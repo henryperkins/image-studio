@@ -1,5 +1,6 @@
 import * as React from 'react';
 import * as DropdownMenuPrimitive from '@radix-ui/react-dropdown-menu';
+import { triggerHaptic } from '@/hooks/useMobileDetection';
 
 import { cn } from '@/lib/utils';
 
@@ -29,18 +30,30 @@ DropdownMenuContent.displayName = DropdownMenuPrimitive.Content.displayName;
 const DropdownMenuItem = React.forwardRef<
   React.ElementRef<typeof DropdownMenuPrimitive.Item>,
   React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Item>
->(({ className, ...props }, ref) => (
-  <DropdownMenuPrimitive.Item
-    ref={ref}
-    className={cn(
-      'relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none',
-      'data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
-      'data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground',
-      className
-    )}
-    {...props}
-  />
-));
+>(({ className, onClick, onSelect, ...props }, ref) => {
+  const handleClick: React.MouseEventHandler<HTMLDivElement> = (e) => {
+    if ('ontouchstart' in window) triggerHaptic('light');
+    onClick?.(e as any);
+  };
+  const handleSelect: React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Item>["onSelect"] = (e) => {
+    if ('ontouchstart' in window) triggerHaptic('light');
+    onSelect?.(e);
+  };
+  return (
+    <DropdownMenuPrimitive.Item
+      ref={ref}
+      className={cn(
+        'relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none',
+        'data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
+        'data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground',
+        className
+      )}
+      onClick={handleClick}
+      onSelect={handleSelect}
+      {...props}
+    />
+  );
+});
 DropdownMenuItem.displayName = DropdownMenuPrimitive.Item.displayName;
 
 const DropdownMenuLabel = React.forwardRef<

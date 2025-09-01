@@ -1,0 +1,84 @@
+/* Motion-safe animations */
+@media (prefers-reduced-motion: no-preference) {
+  .animate-pulse {
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+  
+  .animate-spin {
+    animation: spin 1s linear infinite;
+  }
+  
+  .animate-bounce {
+    animation: bounce 1s infinite;
+  }
+  
+  .transition-all {
+    transition-property: all;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 200ms;
+  }
+  
+  .transition-transform {
+    transition-property: transform;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 200ms;
+  }
+  
+  .transition-opacity {
+    transition-property: opacity;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 200ms;
+  }
+}
+
+/* Reduced motion - instant transitions */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  
+  .animate-pulse,
+  .animate-spin,
+  .animate-bounce {
+    animation: none !important;
+  }
+}
+
+/* Performance optimizations for mobile */
+@media (max-width: 768px) {
+  /* Use transform instead of position for better performance */
+  .mobile-optimized {
+    will-change: transform;
+    transform: translateZ(0);
+    backface-visibility: hidden;
+  }
+  
+  /* Disable complex animations on mobile */
+  .backdrop-blur {
+    backdrop-filter: blur(12px);
+  }
+  
+  @supports not (backdrop-filter: blur(12px)) {
+    .backdrop-blur {
+      background-color: rgba(10, 10, 10, 0.95) !important;
+    }
+  }
+}
+
+/* Low-end device detection via media query */
+@media (max-device-memory: 4) {
+  /* Disable heavy effects for low-memory devices */
+  .backdrop-blur {
+    backdrop-filter: none !important;
+    background-color: rgba(10, 10, 10, 0.95) !important;
+  }
+  
+  .shadow-2xl {
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1) !important;
+  }
+}

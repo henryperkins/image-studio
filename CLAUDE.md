@@ -68,6 +68,14 @@ Web (`/web`):
   - `VideoEditor.tsx` - Video trimming controls
 - **API communication**: Configurable via `VITE_API_BASE_URL` env var (defaults to `http://localhost:8787`)
 
+#### Frontend Patterns (Aug 31, 2025)
+- Code splitting: Route components are lazy (`ImagesPage`, `SoraPage`) and heavy modals/editors are lazy. Keep new pages/modals code‑split by default.
+- Vendor chunking: Vite `manualChunks` separates `react`, `react-router-dom` (`router`), `radix`, `@tanstack/react-virtual` and `lucide-react` for long‑term caching.
+- Mobile: Use `modules/library/LibraryBottomSheet` for library on small screens; ensure touch targets ≥44×44px.
+- Commands: `CommandPalette` (Cmd/Ctrl+K) centralizes quick actions. Prefer adding new actions there rather than bespoke shortcuts.
+- PWA: `vite-plugin-pwa` is configured; `virtual:pwa-register` is called in `src/main.tsx`. If you add new static assets, ensure they’re picked up by Workbox caching rules.
+- Images: Prefer `ResilientImage` with `sizes/srcSet` and `loading=lazy` to minimize CLS and bandwidth.
+
 ### Data Flow
 1. Images and videos generated via Azure OpenAI are saved to `server/data/`
 2. Unified metadata stored in `data/manifest.json` with `kind: "image" | "video"`

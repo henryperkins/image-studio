@@ -6,6 +6,15 @@
 @import "./styles/typography.css";
 @import "./styles/animate-compat.css";
 
+/* Respect user motion preferences globally */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 /* Variable fonts (consider self-hosting for prod) */
 @font-face {
   font-family: "InterVariable";
@@ -58,6 +67,12 @@
     -webkit-backdrop-filter: blur(12px);
     border: 1px solid rgba(255, 255, 255, 0.12);
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  }
+
+  /* Themed surface using tokens */
+  .surface-1 {
+    background-color: var(--surface-1);
+    border-color: var(--surface-1-border);
   }
 
   .glass-subtle {

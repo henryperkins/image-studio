@@ -72,6 +72,32 @@ await app.register(cors, {
 });
 await app.register(multipart);
 
+// Production security headers (CSP and related). In dev, Vite sets headers.
+app.addHook('onSend', async (req, reply, payload) => {
+  try {
+    const csp = [
+      "default-src 'self'",
+      "script-src 'self'",
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+      "font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net",
+      "img-src 'self' data: blob:",
+      "media-src 'self' blob: data:",
+      "connect-src 'self'",
+      "object-src 'none'",
+      "frame-src 'none'",
+      "base-uri 'self'",
+      "form-action 'self'",
+      "frame-ancestors 'none'",
+      'upgrade-insecure-requests'
+    ].join('; ');
+    reply.header('Content-Security-Policy', csp);
+    reply.header('Cross-Origin-Opener-Policy', 'same-origin');
+    // Consider enabling COEP if you adopt heavy WASM or SharedArrayBuffer:
+    // reply.header('Cross-Origin-Embedder-Policy', 'require-corp');
+  } catch {}
+  return payload;
+});
+
 const AZ = {
   endpoint: (process.env.AZURE_OPENAI_ENDPOINT || '').replace(/\/+$/, ''),
   key: process.env.AZURE_OPENAI_API_KEY || '',
@@ -466,9 +492,27 @@ app.post('/api/images/edit', async (req, reply) => {
 
 // ----------------- LIBRARY: list/delete -----------------
 app.get('/api/library/media', async (_req, reply) => {
+  // Filter out manifest entries whose files are missing on disk to avoid 404s in the UI
   const items = await readManifest();
-  items.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
-  return reply.send({ items });
+  const existing: LibraryItem[] = [];
+
+  for (const it of items) {
+    const dir = it.kind === 'video' ? VID_DIR : IMG_DIR;
+    try {
+      await fs.access(path.join(dir, it.filename));
+      existing.push(it);
+    } catch {
+      // File is missing; skip it
+    }
+  }
+
+  // Persist cleanup so subsequent calls are fast and consistent
+  if (existing.length !== items.length) {
+    await writeManifest(existing);
+  }
+
+  existing.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+  return reply.send({ items: existing });
 });
 
 app.delete('/api/library/media/:id', async (req, reply) => {
