@@ -1,0 +1,61 @@
+# API Server Dockerfile
+FROM node:20-alpine AS builder
+
+# Install pnpm
+RUN corepack enable && corepack prepare pnpm@latest --activate
+
+WORKDIR /app
+
+# Copy package files
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
+COPY server/package.json ./server/
+COPY shared/package.json ./shared/
+
+# Install dependencies
+RUN pnpm install --frozen-lockfile
+
+# Copy shared and server source
+COPY shared ./shared
+COPY server ./server
+
+# Build shared first, then server
+RUN cd shared && pnpm build
+
+# Build server
+RUN cd server && pnpm build
+
+# Production stage
+FROM node:20-alpine
+
+# Install ffmpeg for video processing
+RUN apk add --no-cache ffmpeg
+
+# Install pnpm
+RUN corepack enable && corepack prepare pnpm@latest --activate
+
+WORKDIR /app
+
+# Copy package files
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
+COPY server/package.json ./server/
+COPY shared/package.json ./shared/
+
+# Install production dependencies only
+RUN cd server && pnpm install --prod --no-frozen-lockfile
+
+# Copy built shared and server
+COPY --from=builder /app/shared/dist ./shared/dist
+COPY --from=builder /app/server/dist ./server/dist
+
+# Create data directories
+RUN mkdir -p /app/server/data/images /app/server/data/videos
+
+# Set environment
+ENV NODE_ENV=production
+ENV PORT=8787
+
+WORKDIR /app/server
+
+EXPOSE 8787
+
+CMD ["node", "dist/index.js"]

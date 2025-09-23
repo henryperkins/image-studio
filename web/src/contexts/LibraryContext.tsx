@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback, useEffect, useMemo, useRef, useDeferredValue } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, useMemo, useRef, useDeferredValue, useTransition } from 'react';
 import { listLibrary, type LibraryItem, isVideoItem } from '../lib/api';
 import { useToast } from './ToastContext';
 
@@ -62,6 +62,7 @@ const STORAGE_KEYS = {
 const ITEMS_PER_PAGE = 12;
 
 export const LibraryProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [isPending, startTransition] = useTransition();
   // Core state
   const [library, setLibrary] = useState<LibraryItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -126,7 +127,7 @@ export const LibraryProvider: React.FC<{ children: React.ReactNode }> = ({ child
     } catch { }
   }, [libraryType]);
 
-  // Refresh library
+  // Refresh library with debouncing and caching
   const refreshLibrary = useCallback(async () => {
     // Cancel any in-flight request
     if (abortControllerRef.current) {
@@ -140,17 +141,19 @@ export const LibraryProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setError(null);
 
     try {
-      const items = await listLibrary();
+      const items = await listLibrary({ signal: controller.signal, timeoutMs: 15000 });
 
       // Check if request was aborted
       if (controller.signal.aborted) return;
 
-      setLibrary(items);
+      startTransition(() => {
+        setLibrary(items);
 
-      // Reset page if current page is out of bounds, without capturing `page`
-      setPage(prev =>
-        prev > 0 && prev * ITEMS_PER_PAGE >= items.length ? 0 : prev
-      );
+        // Reset page if current page is out of bounds, without capturing `page`
+        setPage(prev =>
+          prev > 0 && prev * ITEMS_PER_PAGE >= items.length ? 0 : prev
+        );
+      });
     } catch (err) {
       if (controller.signal.aborted) return;
 
@@ -164,11 +167,14 @@ export const LibraryProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   }, [showToast]);
 
-  // Initial load
+  // Initial load with delay to prevent blocking
   useEffect(() => {
-    refreshLibrary();
+    const timer = setTimeout(() => {
+      refreshLibrary();
+    }, 100); // Small delay to allow initial render
 
     return () => {
+      clearTimeout(timer);
       // Cleanup on unmount
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
@@ -179,8 +185,11 @@ export const LibraryProvider: React.FC<{ children: React.ReactNode }> = ({ child
   // Smoother filtering while typing: defer the search input value
   const deferredQuery = useDeferredValue(searchQuery);
 
-  // Filtered library (by type and search query)
+  // Filtered library (by type and search query) - optimized with memoization
   const filteredLibrary = useMemo(() => {
+    // Early return if empty library
+    if (!library.length) return [];
+
     return library.filter((item) => {
       // Filter by type
       if (libraryType === 'images' && isVideoItem(item)) return false;
@@ -217,9 +226,11 @@ export const LibraryProvider: React.FC<{ children: React.ReactNode }> = ({ child
     return library.filter(item => selectedIds.includes(item.id));
   }, [library, selectedIds]);
 
-  // Reset page when filters change
+  // Reset page when filters change - use transition for smoother UI
   useEffect(() => {
-    setPage(0);
+    startTransition(() => {
+      setPage(0);
+    });
   }, [searchQuery, libraryType, librarySort]);
 
   // Selection helpers
@@ -251,7 +262,8 @@ export const LibraryProvider: React.FC<{ children: React.ReactNode }> = ({ child
     return selectedIds.includes(id);
   }, [selectedIds]);
 
-  const value: LibraryContextType = {
+  // Memoize the entire context value to prevent unnecessary re-renders
+  const value: LibraryContextType = useMemo(() => ({
     // State
     library,
     loading,
@@ -286,7 +298,7 @@ export const LibraryProvider: React.FC<{ children: React.ReactNode }> = ({ child
     selectVisible,
     toggleSelection,
     isSelected
-  };
+  }), [library, loading, error, selectedIds, visibleIds, searchQuery, libraryType, librarySort, viewMode, page, itemsPerPage, filteredLibrary, sortedFilteredLibrary, selectedItems, refreshLibrary, setSelectedIds, setVisibleIds, setSearchQuery, setLibraryType, setLibrarySort, setViewMode, setPage, selectAll, selectNone, selectVisible, toggleSelection, isSelected]);
 
   return (
     <LibraryContext.Provider value={value}>

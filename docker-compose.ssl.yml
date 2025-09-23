@@ -1,0 +1,14 @@
+# SSL/HTTPS override for Cloudflare Full or Full(strict) mode
+# Usage: docker-compose -f docker-compose.yml -f docker-compose.ssl.yml up -d
+
+services:
+  nginx:
+    volumes:
+      # Mount SSL certificates
+      - ./ssl/cert.pem:/etc/nginx/ssl/cert.pem:ro
+      - ./ssl/key.pem:/etc/nginx/ssl/key.pem:ro
+      # Use SSL nginx configuration
+      - ./nginx/nginx-ssl.conf:/etc/nginx/conf.d/default.conf:ro
+    ports:
+      - "80:80"
+      - "443:443"

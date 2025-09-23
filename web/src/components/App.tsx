@@ -111,8 +111,7 @@ function AppContent() {
     });
   }, []);
 
-  useEffect(() => { refreshLibrary().catch(() => { }); }, [refreshLibrary]);
-
+  
   // Prefetch heavy lazies shortly after first paint
   useEffect(() => {
     const id = requestAnimationFrame(() => {

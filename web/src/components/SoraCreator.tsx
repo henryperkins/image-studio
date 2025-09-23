@@ -1,5 +1,6 @@
 import { useMemo, useState, useRef, useEffect } from 'react';
 import { analyzeImages, generateVideoWithProgress, getSoraVideoContent } from '../lib/api';
+import { base64ToBlob } from '@/lib/base64';
 import { X } from 'lucide-react';
 import SoraJobsPanel from './SoraJobsPanel';
 import { processApiError } from '../lib/errorUtils';
@@ -204,14 +205,8 @@ export default function SoraCreator({
         }
       });
 
-      // Create a blob from the base64 data to avoid issues with large data URLs
-      const byteCharacters = atob(data.video_base64);
-      const byteNumbers = new Array(byteCharacters.length);
-      for (let i = 0; i < byteCharacters.length; i++) {
-        byteNumbers[i] = byteCharacters.charCodeAt(i);
-      }
-      const byteArray = new Uint8Array(byteNumbers);
-      const blob = new Blob([byteArray], { type: 'video/mp4' });
+      // Convert large base64 payload to Blob without blocking the main thread
+      const blob = await base64ToBlob(data.video_base64, 'video/mp4');
       const blobUrl = URL.createObjectURL(blob);
       
       setStage('finalizing');
@@ -248,10 +243,7 @@ export default function SoraCreator({
   async function openGeneration(generationId: string) {
     try {
       const r = await getSoraVideoContent(generationId, 'high');
-      const bytes = atob(r.video_base64);
-      const arr = new Uint8Array(bytes.length);
-      for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
-      const blob = new Blob([arr], { type: r.content_type || 'video/mp4' });
+      const blob = await base64ToBlob(r.video_base64, r.content_type || 'video/mp4');
       const url = URL.createObjectURL(blob);
       if (videoDataRef.current) URL.revokeObjectURL(videoDataRef.current);
       videoDataRef.current = url;
@@ -597,10 +589,7 @@ export default function SoraCreator({
                     setFetchingQuality(true);
                     try {
                       const r = await getSoraVideoContent(generationId, 'high');
-                      const bytes = atob(r.video_base64);
-                      const arr = new Uint8Array(bytes.length);
-                      for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
-                      const blob = new Blob([arr], { type: r.content_type || 'video/mp4' });
+                      const blob = await base64ToBlob(r.video_base64, r.content_type || 'video/mp4');
                       const url = URL.createObjectURL(blob);
                       if (videoDataRef.current) URL.revokeObjectURL(videoDataRef.current);
                       videoDataRef.current = url;
@@ -625,10 +614,7 @@ export default function SoraCreator({
                     setFetchingQuality(true);
                     try {
                       const r = await getSoraVideoContent(generationId, 'low');
-                      const bytes = atob(r.video_base64);
-                      const arr = new Uint8Array(bytes.length);
-                      for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
-                      const blob = new Blob([arr], { type: r.content_type || 'video/mp4' });
+                      const blob = await base64ToBlob(r.video_base64, r.content_type || 'video/mp4');
                       const url = URL.createObjectURL(blob);
                       if (videoDataRef.current) URL.revokeObjectURL(videoDataRef.current);
                       videoDataRef.current = url;

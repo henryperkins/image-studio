@@ -106,3 +106,9 @@ images/temp/
 *.db
 *.sqlite
 *.sqlite3
+
+# SSL certificates (NEVER commit these)
+ssl/
+*.pem
+*.key
+*.crt

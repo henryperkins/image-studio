@@ -20,7 +20,7 @@ export type EditParams = {
 }
 
 export async function editImage(p: EditParams) {
-  const apiVersion = p.apiVersion || 'preview';
+  const apiVersion = (p.apiVersion || 'v1').trim();
   const base = p.endpoint.replace(/\/+$/, '');
 
   const form = new FormData();
@@ -59,4 +59,3 @@ export async function editImage(p: EditParams) {
   await fs.writeFile(out, Buffer.from(b64, 'base64'));
   return { outPath: out, contentType: ext === 'jpg' ? 'image/jpeg' : `image/${ext}`, size: p.size || 'auto' };
 }
-

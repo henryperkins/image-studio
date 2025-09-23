@@ -20,7 +20,7 @@ function shouldUseResponsesAPI(deployment: string, _apiVersion: string): boolean
   }
 
   // Use Responses API for GPT-5 models
-  // Note: When using Responses API, we'll use api-version=preview regardless of config
+  // Note: When using Responses API, we'll prefer AZURE_OPENAI_API_VERSION (default v1)
   const isGPT5 = deployment.toLowerCase().includes('gpt-5') || deployment.toLowerCase().includes('gpt5');
   return isGPT5;
 }
@@ -135,7 +135,9 @@ export async function callVisionAPI(
   // Try Responses API for GPT-5 models, with fallback to Chat Completions
   if (shouldUseResponsesAPI(config.deployment, config.apiVersion)) {
     try {
-      return await callVisionAPIWithResponses(messages, schema, config);
+      // Use v1 (or AZURE_OPENAI_API_VERSION override) for Responses API regardless of chat API version
+      const responsesApiVersion = (process.env.AZURE_OPENAI_API_VERSION || 'v1').trim();
+      return await callVisionAPIWithResponses(messages, schema, { ...config, apiVersion: responsesApiVersion });
     } catch (error: unknown) {
       // If Responses API returns 404, fall back to Chat Completions API
       // This handles cases where deployment is named "gpt-5" but doesn't support Responses API

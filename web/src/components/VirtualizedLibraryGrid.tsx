@@ -28,18 +28,26 @@ const VirtualizedLibraryGrid = React.memo(function VirtualizedLibraryGrid({ item
   // Columns follow the CSS: 2 by default, 3 at `sm` (viewport ≥ 640px)
   const columns = isSmUp ? 3 : 2;
 
+  // Debounced resize observer to prevent layout thrashing
   useEffect(() => {
-    // Observe container width but only commit integer pixel changes to avoid churn
     const el = parentRef.current;
     if (!el) return;
+
+    let rafId: number;
     const ro = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        const next = Math.floor(entry.contentRect.width);
-        setContainerWidth((prev) => (prev !== next ? next : prev));
-      }
+      if (rafId) cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        for (const entry of entries) {
+          const next = Math.floor(entry.contentRect.width);
+          setContainerWidth((prev) => (prev !== next ? next : prev));
+        }
+      });
     });
     ro.observe(el);
-    return () => ro.disconnect();
+    return () => {
+      if (rafId) cancelAnimationFrame(rafId);
+      ro.disconnect();
+    };
   }, []);
 
   useEffect(() => {
@@ -57,7 +65,7 @@ const VirtualizedLibraryGrid = React.memo(function VirtualizedLibraryGrid({ item
     if (!el) return;
     const style = window.getComputedStyle(el);
     const gap = parseFloat(style.columnGap || '12');
-    if (!Number.isNaN(gap)) setColumnGap((prev) => (prev !== gap ? gap : prev));
+    if (!Number.isNaN(gap)) setColumnGap(gap);
   }, []);
 
   const cellWidth = useMemo(() => {

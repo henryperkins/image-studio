@@ -183,67 +183,66 @@ check_web_health() {
 # Function to start servers
 start_servers() {
     print_info "Starting servers..."
-    
-    # Automatically kill processes on required ports
-    if is_port_in_use $SERVER_PORT; then
-        print_warning "Port $SERVER_PORT is already in use - killing existing process"
-        kill_port $SERVER_PORT
-        sleep 1
-    fi
-    
-    # Kill processes on web port and common Vite fallback ports
-    for port in $WEB_PORT 5174 5175 5176 5177; do
-        if is_port_in_use $port; then
-            print_warning "Port $port is already in use - killing existing process"
-            kill_port $port
-            sleep 0.5
-        fi
-    done
-    
-    # Start the development servers
+
+    # Clean up any existing processes first
+    cleanup_ports
+
+    # Start the development servers in background
     print_info "Starting development servers..."
-    
+
     # Start both servers using pnpm dev (which uses concurrently)
     VITE_DEV_PORT=$WEB_PORT pnpm dev > "$LOG_DIR/dev.log" 2>&1 &
     local main_pid=$!
     echo $main_pid > $PID_FILE
-    
+
     print_info "Started development servers (PID: $main_pid)"
     print_info "Logs are being written to $LOG_DIR/dev.log"
-    
-    # Wait a bit for servers to start
-    sleep 3
-    
+
+    # Wait for servers to start
+    sleep 5
+
     # Check health
-    check_server_health
-    check_web_health
-    
-    print_success "All servers are running!"
-    print_info "Server: http://localhost:$SERVER_PORT"
-    print_info "Web: http://localhost:$WEB_PORT"
+    if check_server_health && check_web_health; then
+        print_success "All servers are running!"
+        print_info "Server: http://localhost:$SERVER_PORT"
+        print_info "Web: http://localhost:$WEB_PORT"
+    else
+        print_error "Servers failed to start properly"
+        print_info "Check logs at: $LOG_DIR/dev.log"
+        return 1
+    fi
 }
 
 # Function to stop servers
 stop_servers() {
     print_info "Stopping servers..."
-    
-    # Try to stop using the PID file first
+
+    # First, kill all node processes on our ports
+    cleanup_ports
+
+    # Try to stop using the PID file if it exists
     if [ -f $PID_FILE ]; then
         local main_pid=$(cat $PID_FILE)
         if kill -0 $main_pid 2>/dev/null; then
-            print_info "Stopping process group $main_pid..."
-            # Kill the entire process group
-            kill -TERM -$main_pid 2>/dev/null || kill -TERM $main_pid 2>/dev/null
+            print_info "Stopping main process (PID: $main_pid)..."
+            # Kill the process and its children
+            pkill -P $main_pid 2>/dev/null || true
+            kill -TERM $main_pid 2>/dev/null || true
             sleep 2
             # Force kill if still running
-            kill -9 -$main_pid 2>/dev/null || kill -9 $main_pid 2>/dev/null
-            rm -f $PID_FILE
+            kill -9 $main_pid 2>/dev/null || true
         fi
+        rm -f $PID_FILE
     fi
-    
-    # Clean up any remaining processes on the ports
+
+    # Clean up any remaining processes
+    pkill -f "tsx.*src/index.ts" 2>/dev/null || true
+    pkill -f "vite" 2>/dev/null || true
+    pkill -f "concurrently.*dev" 2>/dev/null || true
+
+    # Final cleanup of ports
     cleanup_ports
-    
+
     print_success "All servers stopped"
 }
 
@@ -251,7 +250,7 @@ stop_servers() {
 restart_servers() {
     print_info "Restarting servers..."
     stop_servers
-    sleep 2
+    sleep 3
     start_servers
 }
 
@@ -397,6 +396,11 @@ show_help() {
     echo "  clean       Clean up all server processes on ports $SERVER_PORT and $WEB_PORT"
     echo "  install     Install all dependencies"
     echo "  logs        Tail the development logs"
+    echo "  docker:build Build Docker images for production"
+    echo "  docker:up    Start Docker containers (production)"
+    echo "  docker:down  Stop Docker containers"
+    echo "  docker:logs  View Docker container logs"
+    echo "  docker:push  Push images to registry (requires login)"
     echo "  help        Show this help message"
     echo ""
     echo "Examples:"
@@ -406,6 +410,125 @@ show_help() {
     echo "  $0 stop     # Stop all servers"
     echo "  $0 restart  # Restart development servers"
     echo "  $0 status   # Check server status"
+    echo ""
+    echo "Docker Examples:"
+    echo "  $0 docker:build    # Build Docker images"
+    echo "  $0 docker:up       # Start with docker-compose"
+    echo "  $0 docker:down     # Stop containers"
+}
+
+# Function to load environment variables from server/.env
+load_env() {
+    if [ -f "$SERVER_DIR/.env" ]; then
+        print_info "Loading environment variables from server/.env"
+        set -a
+        source "$SERVER_DIR/.env"
+        set +a
+    else
+        print_warning "No .env file found at $SERVER_DIR/.env"
+        print_info "Docker containers will use default environment variables"
+    fi
+}
+
+# Function to build Docker images
+docker_build() {
+    print_info "Building Docker images..."
+
+    # Load environment variables
+    load_env
+
+    # Build images
+    docker compose build
+
+    if [ $? -eq 0 ]; then
+        print_success "Docker images built successfully"
+    else
+        print_error "Docker build failed"
+        return 1
+    fi
+}
+
+# Function to start Docker containers
+docker_up() {
+    print_info "Starting Docker containers..."
+
+    # Load environment variables
+    load_env
+
+    # Check if production compose file exists
+    if [ -f "docker-compose.prod.yml" ]; then
+        print_info "Using production configuration"
+        docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+    else
+        docker compose up -d
+    fi
+
+    if [ $? -eq 0 ]; then
+        print_success "Docker containers started"
+        print_info "Application available at: https://studio.lakefrontdigital.io"
+        print_info "Run '$0 docker:logs' to view container logs"
+    else
+        print_error "Failed to start Docker containers"
+        return 1
+    fi
+}
+
+# Function to stop Docker containers
+docker_down() {
+    print_info "Stopping Docker containers..."
+
+    if [ -f "docker-compose.prod.yml" ]; then
+        docker compose -f docker-compose.yml -f docker-compose.prod.yml down
+    else
+        docker compose down
+    fi
+
+    if [ $? -eq 0 ]; then
+        print_success "Docker containers stopped"
+    else
+        print_error "Failed to stop Docker containers"
+        return 1
+    fi
+}
+
+# Function to view Docker logs
+docker_logs() {
+    print_info "Viewing Docker container logs (Ctrl+C to exit)..."
+
+    if [ -n "$2" ]; then
+        docker compose logs -f "$2"
+    else
+        docker compose logs -f
+    fi
+}
+
+# Function to push Docker images to registry
+docker_push() {
+    print_info "Pushing Docker images to registry..."
+
+    # You can customize the registry and tags here
+    REGISTRY="${DOCKER_REGISTRY:-docker.io}"
+    IMAGE_PREFIX="${DOCKER_IMAGE_PREFIX:-lakefrontdigital}"
+    VERSION="${VERSION:-latest}"
+
+    print_info "Registry: $REGISTRY"
+    print_info "Image prefix: $IMAGE_PREFIX"
+    print_info "Version: $VERSION"
+
+    # Tag images
+    docker tag image-studio-nginx:latest "$REGISTRY/$IMAGE_PREFIX/image-studio-nginx:$VERSION"
+    docker tag image-studio-api:latest "$REGISTRY/$IMAGE_PREFIX/image-studio-api:$VERSION"
+
+    # Push images
+    docker push "$REGISTRY/$IMAGE_PREFIX/image-studio-nginx:$VERSION"
+    docker push "$REGISTRY/$IMAGE_PREFIX/image-studio-api:$VERSION"
+
+    if [ $? -eq 0 ]; then
+        print_success "Images pushed successfully"
+    else
+        print_error "Failed to push images"
+        return 1
+    fi
 }
 
 # Main script logic
@@ -441,6 +564,21 @@ case "$1" in
         ;;
     logs)
         tail_logs
+        ;;
+    docker:build)
+        docker_build
+        ;;
+    docker:up)
+        docker_up
+        ;;
+    docker:down)
+        docker_down
+        ;;
+    docker:logs)
+        docker_logs "$@"
+        ;;
+    docker:push)
+        docker_push
         ;;
     help|--help|-h)
         show_help

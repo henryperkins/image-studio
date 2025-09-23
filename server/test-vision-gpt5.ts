@@ -16,6 +16,7 @@ async function testVisionWithGPT5() {
   const apiKey = process.env.AZURE_OPENAI_API_KEY;
   const deployment = process.env.AZURE_OPENAI_VISION_DEPLOYMENT || 'gpt-5';
   const chatApiVersion = process.env.AZURE_OPENAI_CHAT_API_VERSION || '2025-04-01-preview';
+  // NOTE: For Responses API we use AZURE_OPENAI_API_VERSION (default v1)
 
   if (!endpoint || !apiKey) {
     console.error('❌ Missing required environment variables');

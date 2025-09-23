@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, memo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -22,13 +22,14 @@ type Props = {
   promptInputRef?: React.RefObject<HTMLTextAreaElement | null>
 }
 
-export default function LibraryPanel({ handleAction, onOpenEditor, promptInputRef }: Props) {
+const LibraryPanelComponent = function LibraryPanel({ handleAction, onOpenEditor, promptInputRef }: Props) {
   const navigate = useNavigate();
   const panelRef = useRef<HTMLDivElement>(null);
 
   const {
     library,
     loading: libraryLoading,
+    error: libraryError,
     selectedIds: selected,
     setSelectedIds: setSelected,
     filteredLibrary,
@@ -95,6 +96,14 @@ export default function LibraryPanel({ handleAction, onOpenEditor, promptInputRe
             <div key={i} className="aspect-square rounded-lg bg-neutral-800 animate-pulse" />
           ))}
         </div>
+      ) : libraryError ? (
+        <div className="py-8 text-center space-y-3">
+          <p className="text-sm text-red-400">Failed to load media library</p>
+          <p className="text-xs text-muted-foreground">{libraryError.message || 'Network error'}</p>
+          <div className="flex items-center justify-center gap-2">
+            <Button variant="outline" size="sm" onClick={refreshLibrary}>Retry</Button>
+          </div>
+        </div>
       ) : library.length === 0 ? (
         <div className="py-12 text-center space-y-3">
           <div className="text-muted-foreground">
@@ -118,34 +127,32 @@ export default function LibraryPanel({ handleAction, onOpenEditor, promptInputRe
             <VirtualizedLibraryGrid
               items={sortedFilteredLibrary}
               selectedIds={selected}
-              onSelect={(id, isSelected) => {
+              onSelect={useCallback((id: string, isSelected: boolean) => {
                 const item = library.find(i => i.id === id);
                 if (item && !isVideoItem(item)) {
                   setSelected(prev => (isSelected ? [...prev, id] : prev.filter(x => x !== id)));
                 }
-              }}
+              }, [library, setSelected])}
               onAction={handleAction}
-              onView={(item) => {
+              onView={useCallback((item: LibraryItem) => {
                 if (isVideoItem(item)) return;
-                // Images open viewer; videos open in viewer modal handled by parent via onAction('view') if wired there
-                // For consistency, trigger view via action
                 handleAction('view', item);
-              }}
+              }, [handleAction])}
               baseUrl={API_BASE_URL}
-              onVisibleChange={(ids)=> setVisibleIds(ids)}
+              onVisibleChange={setVisibleIds}
             />
           ) : (
             <LibraryListView
               items={sortedFilteredLibrary}
               selectedIds={selected}
-              onSelect={(id, isSelected) => {
+              onSelect={useCallback((id: string, isSelected: boolean) => {
                 const item = library.find(i => i.id === id);
                 if (item && !isVideoItem(item)) {
                   setSelected(prev => (isSelected ? [...prev, id] : prev.filter(x => x !== id)));
                 }
-              }}
+              }, [library, setSelected])}
               onAction={handleAction}
-              onView={(item)=> handleAction('view', item)}
+              onView={useCallback((item: LibraryItem) => handleAction('view', item), [handleAction])}
               baseUrl={API_BASE_URL}
             />
           )}
@@ -179,5 +186,6 @@ export default function LibraryPanel({ handleAction, onOpenEditor, promptInputRe
       />
     </Card>
   );
-}
+};
 
+export default memo(LibraryPanelComponent);

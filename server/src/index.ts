@@ -104,8 +104,8 @@ const AZ = {
   endpoint: (process.env.AZURE_OPENAI_ENDPOINT || '').replace(/\/+$/, ''),
   key: process.env.AZURE_OPENAI_API_KEY || '',
   token: process.env.AZURE_OPENAI_AUTH_TOKEN || '',
-  // Sora preview
-  apiVersion: process.env.AZURE_OPENAI_API_VERSION || 'preview',
+  // v1 Foundry Models API (use preview only if set explicitly)
+  apiVersion: process.env.AZURE_OPENAI_API_VERSION || 'v1',
   // Images gen
   imageDeployment: process.env.AZURE_OPENAI_IMAGE_DEPLOYMENT || 'gpt-image-1',
   // Optional: explicitly declare the base image model family (gpt-image-1 | dall-e-3 | dall-e-2)
@@ -156,6 +156,12 @@ function authHeaders(): Record<string, string> {
     h['Authorization'] = `Bearer ${AZ.token}`;
   } else if (AZ.key) {
     h['api-key'] = AZ.key;
+  }
+  // Correlate requests with Azure APIM diagnostics
+  try {
+    h['x-ms-client-request-id'] = crypto.randomUUID();
+  } catch {
+    // ignore
   }
   return h;
 }
@@ -312,6 +318,7 @@ app.post('/api/images/generate', async (req, reply) => {
         status: r.status,
         error: errorText,
         url: url,
+        apim_request_id: r.headers.get('apim-request-id') || undefined,
         deployment: AZ.imageDeployment
       });
 

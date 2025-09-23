@@ -81,7 +81,7 @@ export async function createResponse(
   params: ResponsesCreateParams,
   config: ResponsesAPIConfig
 ): Promise<ResponsesAPIResponse> {
-  // Azure OpenAI Responses API uses /openai/v1/responses with api-version=preview
+  // Azure OpenAI Responses API uses /openai/v1/responses
   // IMPORTANT: Handle both endpoint formats:
   // - If endpoint already includes /openai/v1, use it as-is
   // - Otherwise, append /openai/v1
@@ -92,7 +92,8 @@ export async function createResponse(
     baseUrl = `${baseUrl}/openai/v1`;
   }
   
-  const url = `${baseUrl}/responses?api-version=preview`;
+  const apiVersion = (config.apiVersion || 'v1').trim();
+  const url = `${baseUrl}/responses?api-version=${apiVersion}`;
 
   const requestBody = {
     model: config.deployment, // Use deployment name for model

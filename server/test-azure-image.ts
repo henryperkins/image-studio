@@ -10,7 +10,7 @@ const AZ = {
   endpoint: (process.env.AZURE_OPENAI_ENDPOINT || "").replace(/\/+$/, ""),
   key: process.env.AZURE_OPENAI_API_KEY || "",
   token: process.env.AZURE_OPENAI_AUTH_TOKEN || "",
-  apiVersion: process.env.AZURE_OPENAI_API_VERSION || "preview",
+  apiVersion: process.env.AZURE_OPENAI_API_VERSION || "v1",
   imageDeployment: process.env.AZURE_OPENAI_IMAGE_DEPLOYMENT || "gpt-image-1"
 };
 
@@ -110,7 +110,7 @@ async function testImageGeneration() {
 
         console.log("\n2. Verify path and API version:");
         console.log(`   ✓ Path should be: /openai/v1/images/generations`);
-        console.log(`   ✓ API version should be: preview`);
+        console.log(`   ✓ API version should be: v1 (or your override)`);
         console.log(`   ✓ Full URL: ${url}`);
 
         console.log("\n3. Verify Azure resource configuration:");

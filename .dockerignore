@@ -1,0 +1,74 @@
+# Git
+.git
+.gitignore
+
+# Documentation
+README.md
+CLAUDE.md
+DEPLOYMENT.md
+
+# Development files
+.env
+.env.local
+.env.*.local
+dev.sh
+
+# Dependencies
+node_modules
+**/node_modules
+
+# Build outputs (will be built fresh in Docker)
+dist
+**/dist
+build
+**/build
+
+# Logs
+logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# Test coverage
+coverage
+.nyc_output
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*.swn
+*.bak
+.DS_Store
+
+# Docker files
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# Temporary files
+tmp
+temp
+*.tmp
+
+# Data files (will be mounted as volumes)
+server/data/images/*
+server/data/videos/*
+!server/data/.gitkeep
+
+# CI/CD
+.github
+.gitlab-ci.yml
+.circleci
+
+# Development tools
+.eslintrc*
+.prettierrc*
+tsconfig*.json
+vite.config.ts
+postcss.config.js
+tailwind.config.js

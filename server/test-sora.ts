@@ -8,7 +8,7 @@ const AZ = {
   endpoint: (process.env.AZURE_OPENAI_ENDPOINT || '').replace(/\/+$/, ''),
   key: process.env.AZURE_OPENAI_API_KEY || '',
   token: process.env.AZURE_OPENAI_AUTH_TOKEN || '',
-  apiVersion: process.env.AZURE_OPENAI_API_VERSION || 'preview',
+  apiVersion: process.env.AZURE_OPENAI_API_VERSION || 'v1',
   videoDeployment: process.env.AZURE_OPENAI_VIDEO_DEPLOYMENT || 'sora'
 };
 
@@ -49,4 +49,3 @@ async function main() {
 }
 
 main().catch((e) => { console.error(e); process.exit(1); });
-

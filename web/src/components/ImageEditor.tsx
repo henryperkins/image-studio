@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { editImage, type LibraryItem } from '../lib/api';
+import { blobToDataURL } from '@/lib/base64';
 import { useToast } from '../contexts/ToastContext';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -159,7 +160,14 @@ export default function ImageEditor({ item, onClose, onEdited, baseUrl }: Props)
     setBusy(true);
     try {
       // Only send a mask if the user has painted; otherwise request a global transform by omitting mask
-      const maskPng = hasMask ? canvasRef.current!.toDataURL('image/png') : undefined;
+      // Use toBlob (async, off-main-thread) rather than toDataURL (sync, can freeze)
+      let maskPng: string | undefined = undefined;
+      if (hasMask) {
+        const blob: Blob | null = await new Promise(resolve => canvasRef.current!.toBlob(resolve, 'image/png'))
+        if (blob) {
+          maskPng = await blobToDataURL(blob)
+        }
+      }
       // Normalize unsupported 'auto' size to a concrete value for edits
       const normalizedSize = size === 'auto' ? FALLBACK_IMAGE_SIZE : size;
       const res = await editImage(item.id, prompt || 'Apply the painted mask changes', maskPng, normalizedSize, format, {

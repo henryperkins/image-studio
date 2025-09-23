@@ -1,0 +1,26 @@
+version: '3.8'
+
+# Attach the app's nginx to a shared external network so an existing
+# reverse-proxy (the "fourhosts" container) can route to it by name.
+#
+# Usage:
+#   docker network create fourhosts    # run once (or use your existing external net)
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.edge.yml up -d
+#
+# In your shared reverse-proxy, proxy_pass to http://image-studio-nginx:80
+# and attach that proxy container to the same external network name: fourhosts
+
+services:
+  nginx:
+    networks:
+      shared-edge:
+        aliases:
+          - image-studio-nginx
+    # In shared-proxy mode, you normally don't need to publish port 80 here.
+    # Keep 8080 mapping from base compose for local debug only.
+
+networks:
+  shared-edge:
+    external: true
+    name: fourhosts
+

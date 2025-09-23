@@ -58,15 +58,34 @@ if (meta.env?.DEV) {
   console.warn(`🌐 Current host: ${window.location.hostname}:${window.location.port || '(default)'}`);
 }
 
-function withTimeout(ms: number) {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), ms);
-  return { signal: controller.signal, cancel: () => clearTimeout(timeout) };
+// Abort helper that supports both a timeout and an external signal
+function withTimeout(ms: number, externalSignal?: AbortSignal) {
+  const controller = new AbortController()
+  const onExternalAbort = () => controller.abort()
+  const timeout = setTimeout(() => controller.abort(), ms)
+
+  if (externalSignal) {
+    if (externalSignal.aborted) {
+      controller.abort()
+    } else {
+      externalSignal.addEventListener('abort', onExternalAbort)
+    }
+  }
+
+  return {
+    signal: controller.signal,
+    cancel: () => {
+      clearTimeout(timeout)
+      if (externalSignal) externalSignal.removeEventListener('abort', onExternalAbort)
+    }
+  }
 }
 
-async function fetchJson(input: RequestInfo, init: RequestInit & { timeoutMs?: number } = {}) {
-  const { timeoutMs = 300000, ...rest } = init;
-  const { signal, cancel } = withTimeout(timeoutMs);
+type RequestInitWithTimeout = RequestInit & { timeoutMs?: number }
+
+async function fetchJson(input: RequestInfo, init: RequestInitWithTimeout = {}) {
+  const { timeoutMs = 300000, signal: externalSignal, ...rest } = init
+  const { signal, cancel } = withTimeout(timeoutMs, externalSignal)
 
   // Log API calls for debugging (especially mobile) — dev only
   if (typeof input === 'string' && meta.env?.DEV) {
@@ -74,16 +93,16 @@ async function fetchJson(input: RequestInfo, init: RequestInit & { timeoutMs?: n
   }
 
   try {
-    const r = await fetch(input, { ...rest, signal });
+    const r = await fetch(input, { ...rest, signal })
     if (!r.ok) {
       const text = await r.text().catch(() => r.statusText);
       console.error(`❌ API Error (${r.status}): ${text}`);
       throw new Error(text || `HTTP ${r.status}`);
     }
-    const ct = r.headers.get('content-type') || '';
-  const result = ct.includes('application/json') ? await r.json() : await r.text();
-  if (meta.env?.DEV) console.warn('✅ API Response received');
-    return result;
+    const ct = r.headers.get('content-type') || ''
+    const result = ct.includes('application/json') ? await r.json() : await r.text()
+    if (meta.env?.DEV) console.warn('✅ API Response received')
+    return result
   } catch (error: unknown) {
     const err = error as Error;
     if (err.name === 'AbortError') {
@@ -93,7 +112,7 @@ async function fetchJson(input: RequestInfo, init: RequestInit & { timeoutMs?: n
     console.error('🔌 Network error:', err);
     throw error;
   } finally {
-    cancel();
+    cancel()
   }
 }
 
@@ -157,15 +176,35 @@ export async function savePromptSuggestion(suggestion: Omit<PromptSuggestion, 'i
 // hashText moved to web/src/lib/hash.ts with secure-context fallback
 
 
-export async function listLibrary(): Promise<LibraryItem[]> {
-  const r = await fetch(`${API_BASE_URL}/api/library/media`);
-  if (!r.ok) throw new Error(await r.text());
-  return (await r.json()).items as LibraryItem[];
+import { apiCache } from './apiCache';
+
+export async function listLibrary(opts: { signal?: AbortSignal; timeoutMs?: number } = {}): Promise<LibraryItem[]> {
+  const cacheKey = 'library:items';
+
+  // Check cache first
+  const cached = apiCache.get<LibraryItem[]>(cacheKey);
+  if (cached) {
+    return cached;
+  }
+
+  const data = (await fetchJson(
+    `${API_BASE_URL}/api/library/media`,
+    { method: 'GET', timeoutMs: opts.timeoutMs ?? 15000, signal: opts.signal }
+  ) as any).items as LibraryItem[]
+
+  // Cache the result
+  apiCache.set(cacheKey, data);
+
+  return data;
 }
 
 export async function deleteLibraryItem(id: string) {
   const r = await fetch(`${API_BASE_URL}/api/library/media/${id}`, { method: 'DELETE' });
   if (!r.ok) throw new Error(await r.text());
+
+  // Clear cache when items are modified
+  apiCache.delete('library:items');
+
   return true;
 }
 
@@ -175,6 +214,10 @@ export async function uploadLibraryImages(files: File[]): Promise<LibraryItem[]>
   const r = await fetch(`${API_BASE_URL}/api/library/upload`, { method: 'POST', body: form });
   if (!r.ok) throw new Error(await r.text());
   const j = await r.json();
+
+  // Clear cache when new items are uploaded
+  apiCache.delete('library:items');
+
   return (j.items || []) as LibraryItem[];
 }
 
@@ -203,6 +246,10 @@ export async function generateImage(
 
     const result = await r.json();
     console.warn('✅ Image generated successfully');
+
+    // Clear cache when new items are generated
+    apiCache.delete('library:items');
+
     return result;
   } catch (error: unknown) {
     const err = error as Error;
@@ -461,7 +508,28 @@ export async function generateVideoWithProgress(
 
   const decoder = new TextDecoder();
   const text = chunks.map(c => decoder.decode(c, { stream: true })).join('') + decoder.decode();
-  const data = JSON.parse(text);
+  // Avoid JSON.parse on very large payloads (video_base64) which can block the UI.
+  // Try to extract the minimal fields we need via regex. Fallback to JSON.parse if extraction fails.
+  let data: unknown;
+  try {
+    const b64Match = text.match(/"video_base64"\s*:\s*"([A-Za-z0-9+/=]+)"/);
+    const idMatch = text.match(/"generation_id"\s*:\s*"([^"]+)"/);
+    const ctMatch = text.match(/"content_type"\s*:\s*"([^"]+)"/);
+    if (b64Match) {
+      data = {
+        video_base64: b64Match[1],
+        generation_id: idMatch ? idMatch[1] : undefined,
+        content_type: ctMatch ? ctMatch[1] : 'video/mp4'
+      } as any;
+    } else {
+      // Briefly yield before heavy parse to keep the main thread responsive
+      await new Promise<void>(requestAnimationFrame);
+      data = JSON.parse(text);
+    }
+  } catch {
+    // As a last resort, parse normally
+    data = JSON.parse(text);
+  }
   return { data, bytesRead: received, total };
 }
 /**

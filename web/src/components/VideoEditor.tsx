@@ -72,7 +72,7 @@ export default function VideoEditor({ item, onClose, onEdited, baseUrl }: Props)
   const [targetW, setTargetW] = useState<number|undefined>(undefined);
   const [targetH, setTargetH] = useState<number|undefined>(undefined);
 
-  useEffect(() => { listLibrary().then(setLibrary).catch(()=>{}); }, []);
+  useEffect(() => { listLibrary({ timeoutMs: 15000 }).then(setLibrary).catch(()=>{}); }, []);
 
   async function run<T>(fn:()=>Promise<T>) {
     setBusy(true); 

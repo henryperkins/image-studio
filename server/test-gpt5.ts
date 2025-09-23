@@ -53,7 +53,7 @@ async function testGPT5() {
   console.log('  Endpoint:', endpoint);
   console.log('  Deployment:', deployment);
   console.log('  API Path: /openai/v1/responses');
-  console.log('  API Version: preview\n');
+  console.log(`  API Version: ${process.env.AZURE_OPENAI_API_VERSION || 'v1'}\n`);
 
   // Test 1: Simple text-only request
   console.log('Test 1: Text-only request');
@@ -69,7 +69,7 @@ async function testGPT5() {
     }, {
       endpoint,
       deployment,
-      apiVersion: 'preview',
+      apiVersion: process.env.AZURE_OPENAI_API_VERSION || 'v1',
       authHeaders: { 'api-key': apiKey }
     });
 
@@ -118,7 +118,7 @@ async function testGPT5() {
     }, {
       endpoint,
       deployment,
-      apiVersion: 'preview',
+      apiVersion: process.env.AZURE_OPENAI_API_VERSION || 'v1',
       authHeaders: { 'api-key': apiKey }
     });
 
@@ -142,7 +142,7 @@ async function testGPT5() {
   if (!baseUrl.includes('/openai/v1')) {
     baseUrl = `${baseUrl}/openai/v1`;
   }
-  const testUrl = `${baseUrl}/responses?api-version=preview`;
+  const testUrl = `${baseUrl}/responses?api-version=${process.env.AZURE_OPENAI_API_VERSION || 'v1'}`;
   console.log('URL:', testUrl);
   
   try {

@@ -1,0 +1,8 @@
+# Alternative ports configuration when 80/443 are in use
+# Usage: docker-compose -f docker-compose.yml -f docker-compose.alt-ports.yml up -d
+
+services:
+  nginx:
+    ports:
+      - "8080:80"
+      - "8443:443"
