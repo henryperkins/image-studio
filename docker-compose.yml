@@ -5,8 +5,8 @@ services:
       dockerfile: Dockerfile.api
     container_name: image-studio-api
     restart: unless-stopped
-    ports:
-      - "8787:8787"  # Expose API directly for debugging (optional)
+    # API port removed from base config - access via nginx proxy only
+    # For debugging, use docker-compose logs -f api or expose in override file
     env_file:
       - .env
     environment:

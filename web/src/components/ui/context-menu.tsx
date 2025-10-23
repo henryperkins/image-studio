@@ -32,7 +32,7 @@ const ContextMenuItem = React.forwardRef<
 >(({ className, onClick, onSelect, ...props }, ref) => {
   const handleClick: React.MouseEventHandler<HTMLDivElement> = (e) => {
     if ('ontouchstart' in window) triggerHaptic('light');
-    onClick?.(e as any);
+    onClick?.(e);
   };
   const handleSelect: React.ComponentPropsWithoutRef<typeof ContextMenuPrimitive.Item>['onSelect'] = (e) => {
     if ('ontouchstart' in window) triggerHaptic('light');

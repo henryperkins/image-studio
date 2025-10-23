@@ -42,8 +42,17 @@ RUN echo "OK" > /usr/share/nginx/html/health
 RUN chown -R nginx:nginx /usr/share/nginx/html && \
     chmod -R 755 /usr/share/nginx/html
 
-EXPOSE 80
+# Create nginx cache directories with proper permissions for nginx worker processes
+RUN mkdir -p /var/cache/nginx/client_temp \
+             /var/cache/nginx/proxy_temp \
+             /var/cache/nginx/fastcgi_temp \
+             /var/cache/nginx/uwsgi_temp \
+             /var/cache/nginx/scgi_temp && \
+    chown -R nginx:nginx /var/cache/nginx && \
+    chmod -R 755 /var/cache/nginx
 
+# Note: nginx master process runs as root (standard practice for nginx containers)
+# Worker processes run as 'nginx' user as configured in nginx.conf
 EXPOSE 80
 
 CMD ["nginx", "-g", "daemon off;"]

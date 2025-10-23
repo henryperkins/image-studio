@@ -65,11 +65,14 @@ const TabsTrigger = React.forwardRef<HTMLButtonElement, TabsTriggerProps>(({ cla
 });
 TabsTrigger.displayName = 'TabsTrigger';
 
+type TabsContentProps = React.ComponentPropsWithoutRef<'div'> & {
+  'data-value'?: string;
+};
+
 // Kept for compatibility; currently unused in the app
-const TabsContent = React.forwardRef<HTMLDivElement, React.ComponentPropsWithoutRef<'div'>>(
-  ({ className, id, ...props }, ref) => {
-    // If an id wasn’t supplied, try to derive it from data-value when used
-    const derivedId = id || (typeof (props as any)['data-value'] === 'string' ? `tab-panel-${(props as any)['data-value']}` : undefined);
+const TabsContent = React.forwardRef<HTMLDivElement, TabsContentProps>(
+  ({ className, id, 'data-value': dataValue, ...props }, ref) => {
+    const derivedId = id || (typeof dataValue === 'string' ? `tab-panel-${dataValue}` : undefined);
     return (
       <div ref={ref} role="tabpanel" id={derivedId} className={cn('mt-2', className)} {...props} />
     );

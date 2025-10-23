@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { LibraryItem, isVideoItem, analyzeImages, API_BASE_URL } from '../lib/api';
+import { LibraryItem, isVideoItem, analyzeImages, API_BASE_URL, type PromptSuggestion, type StructuredVisionResult } from '../lib/api';
 import { usePromptSuggestions } from '../contexts/PromptSuggestionsContext';
 import { useToast } from '../contexts/ToastContext';
 import { Button } from './ui/button';
@@ -14,6 +14,36 @@ interface LibraryPromptSuggestionsProps {
   onSelectItem: (id: string) => void;
 }
 
+type PromptVariation = string | { text?: unknown };
+
+const isPromptVariationObject = (value: unknown): value is { text: string } => {
+  if (!value || typeof value !== 'object') return false;
+  if (!('text' in value)) return false;
+  const text = (value as { text?: unknown }).text;
+  return typeof text === 'string';
+};
+
+const extractPromptVariations = (result: StructuredVisionResult): string[] => {
+  const guidance = result.generation_guidance as StructuredVisionResult['generation_guidance'] & { variations?: PromptVariation[] };
+  const variationsCandidate = guidance.variations;
+  if (!Array.isArray(variationsCandidate)) return [];
+
+  return variationsCandidate.reduce<string[]>((acc, variation) => {
+    if (typeof variation === 'string') {
+      acc.push(variation);
+    } else if (isPromptVariationObject(variation)) {
+      acc.push(variation.text);
+    }
+    return acc;
+  }, []);
+};
+
+const getErrorMessage = (error: unknown): string => {
+  if (error instanceof Error) return error.message;
+  if (typeof error === 'string') return error;
+  return 'Analysis failed';
+};
+
 export default function LibraryPromptSuggestions({ 
   library, 
   onInsert,
@@ -25,12 +55,12 @@ export default function LibraryPromptSuggestions({
   const { showToast } = useToast();
 
   // Group suggestions by source image
-  const suggestionsByImage = suggestions.reduce((acc, s) => {
-    const sourceId = s.videoId || 'general';
+  const suggestionsByImage = suggestions.reduce<Record<string, PromptSuggestion[]>>((acc, suggestion) => {
+    const sourceId = suggestion.videoId || 'general';
     if (!acc[sourceId]) acc[sourceId] = [];
-    acc[sourceId].push(s);
+    acc[sourceId].push(suggestion);
     return acc;
-  }, {} as Record<string, typeof suggestions>);
+  }, {});
 
   const handleAnalyzeSelected = useCallback(async () => {
     if (selectedForAnalysis.size === 0) {
@@ -58,36 +88,23 @@ export default function LibraryPromptSuggestions({
         });
       }
 
-      // Add variations if available (not part of typed schema; access via narrowed any)
-      {
-        const raw = (result as any)?.generation_guidance?.variations as unknown;
-        const rawVariations = Array.isArray(raw) ? (raw as any[]) : [];
-        for (const v of rawVariations) {
-          const text =
-            typeof v === 'string'
-              ? v
-              : (v && typeof v === 'object' && 'text' in v ? (v as any).text : '');
-          if (!text) continue;
-          await addSuggestion({
-            text,
-            sourceModel: 'gpt-4.1',
-            origin: 'remix',
-            tags: result.content?.primary_subjects || [],
-            videoId: imageIds[0]
-          });
-        }
+      const variations = extractPromptVariations(result);
+      for (const variationText of variations) {
+        await addSuggestion({
+          text: variationText,
+          sourceModel: 'gpt-4.1',
+          origin: 'remix',
+          tags: result.content?.primary_subjects || [],
+          videoId: imageIds[0]
+        });
       }
 
-      {
-        const raw = (result as any)?.generation_guidance?.variations as unknown;
-        const variationCount = Array.isArray(raw) ? (raw as any[]).length : 0;
-        const mainCount = result.generation_guidance?.suggested_prompt ? 1 : 0;
-        const count = Math.max(mainCount + variationCount, 1);
-        showToast(`Generated ${count} suggestions`, 'success');
-      }
+      const mainCount = result.generation_guidance?.suggested_prompt ? 1 : 0;
+      const count = Math.max(mainCount + variations.length, 1);
+      showToast(`Generated ${count} suggestions`, 'success');
       setSelectedForAnalysis(new Set());
-    } catch {
-      showToast('Analysis failed', 'error');
+    } catch (error: unknown) {
+      showToast(getErrorMessage(error), 'error');
     } finally {
       setAnalyzing(false);
     }
@@ -97,7 +114,7 @@ export default function LibraryPromptSuggestions({
     const selectedPrompts = library
       .filter(item => selectedForAnalysis.has(item.id))
       .map(item => item.prompt)
-      .filter(Boolean);
+      .filter((prompt): prompt is string => Boolean(prompt));
 
     if (selectedPrompts.length < 2) {
       showToast('Select at least 2 items to remix', 'error');

@@ -57,11 +57,11 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       const node = domRef.current;
       // If the consumer ref changed, detach the previous one
       if (lastRef.current && lastRef.current !== ref) {
-        setRef(lastRef.current as any, null);
+        setRef(lastRef.current, null);
       }
       // Attach current ref if identity or target changed
       if (ref && (lastRef.current !== ref || lastNode.current !== node)) {
-        setRef(ref as any, node);
+        setRef(ref, node);
       }
       lastRef.current = ref;
       lastNode.current = node;

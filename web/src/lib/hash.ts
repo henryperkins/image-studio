@@ -12,10 +12,13 @@ export async function hashText(text: string): Promise<string> {
   const data = te.encode(text);
 
   try {
-    if (typeof globalThis !== 'undefined' && (globalThis as any).crypto?.subtle?.digest) {
-      const buf = await (globalThis as any).crypto.subtle.digest('SHA-256', data);
-      const arr = Array.from(new Uint8Array(buf));
-      return arr.map(b => b.toString(16).padStart(2, '0')).join('');
+    if (typeof globalThis !== 'undefined') {
+      const cryptoObj = (globalThis as { crypto?: Crypto }).crypto;
+      if (cryptoObj?.subtle?.digest) {
+        const buf = await cryptoObj.subtle.digest('SHA-256', data);
+        const arr = Array.from(new Uint8Array(buf));
+        return arr.map(b => b.toString(16).padStart(2, '0')).join('');
+      }
     }
   } catch {
     // fall through to non-crypto path
@@ -30,8 +33,11 @@ export async function hashText(text: string): Promise<string> {
  */
 export function safeRandomUUID(): string {
   try {
-    if (typeof globalThis !== 'undefined' && (globalThis as any).crypto?.randomUUID) {
-      return (globalThis as any).crypto.randomUUID();
+    if (typeof globalThis !== 'undefined') {
+      const cryptoObj = (globalThis as { crypto?: Crypto }).crypto;
+      if (cryptoObj?.randomUUID) {
+        return cryptoObj.randomUUID();
+      }
     }
   } catch {
     // ignore
@@ -61,4 +67,3 @@ function nonCryptoHash64Hex(input: string): string {
   const hi = (h2 >>> 0).toString(16).padStart(8, '0');
   return hi + lo;
 }
-

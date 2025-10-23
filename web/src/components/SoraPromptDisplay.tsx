@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/contexts/ToastContext';
 
-interface SoraPromptData {
+export interface SoraPromptData {
   suggested_prompt?: string;
   motion_elements?: string[];
   camera_technique?: string;

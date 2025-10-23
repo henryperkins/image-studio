@@ -51,11 +51,10 @@ const LibraryItemCard = memo(({
   const [hasError, setHasError] = useState(false);
   const isTouchDevice = useMemo(() => {
     try {
-      // Prefer coarse pointer or maxTouchPoints for better accuracy on hybrids
-      if (navigator && typeof (navigator as any).maxTouchPoints === 'number') {
-        return (navigator as any).maxTouchPoints > 0;
+      if ('maxTouchPoints' in navigator && navigator.maxTouchPoints > 0) {
+        return true;
       }
-      if (window && 'matchMedia' in window) {
+      if ('matchMedia' in window) {
         return window.matchMedia('(pointer: coarse)').matches;
       }
     } catch {}
@@ -65,6 +64,7 @@ const LibraryItemCard = memo(({
   const videoRef = useRef<HTMLVideoElement>(null);
   const cardRef = useRef<HTMLDivElement>(null);
   const isVideo = isVideoItem(item);
+  const videoDuration = isVideo ? item.duration : undefined;
 
   // Compute a stable aspect ratio for consistent grid heights
   // Use a uniform square aspect ratio for consistent grid rows
@@ -152,7 +152,11 @@ const LibraryItemCard = memo(({
         onKeyDown={(e) => {
           if (e.key === 'Enter') {
             e.preventDefault();
-            handleClick(e as any);
+            if (onView) {
+              onView(item);
+            } else {
+              onSelect(item.id, !selected);
+            }
           } else if (e.key === ' ') {
             e.preventDefault();
             if (!isVideo) {
@@ -226,7 +230,7 @@ const LibraryItemCard = memo(({
         {isVideo && (
           <div className="absolute bottom-1 left-1 md:bottom-2 md:left-2 z-20 bg-neutral-800/90 backdrop-blur-sm rounded px-1 py-0.5 flex items-center gap-1 pointer-events-none">
             <Film className="w-4 h-4 text-white" />
-            <span className="text-xs text-white font-medium">{(item as any).duration}s</span>
+            <span className="text-xs text-white font-medium">{videoDuration}s</span>
           </div>
         )}
 
@@ -320,7 +324,7 @@ const LibraryItemCard = memo(({
           <div className="font-medium mb-1 line-clamp-2">{item.prompt}</div>
           <div className="text-neutral-400 text-[10px]">
             {formatDate(item.createdAt)} • {!isVideo && item.size}
-            {isVideo && `${(item as any).duration}s`}
+            {isVideo && `${videoDuration}s`}
           </div>
         </TooltipContent>
       )}

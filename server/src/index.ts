@@ -794,14 +794,17 @@ app.post('/api/vision/accessibility', async (req, reply) => {
 });
 
 // ----------------- SORA: generate (and save to library) -----------------
-// Supported resolutions from API: (480, 480), (854, 480), (720, 720), (1280, 720), (1080, 1080), (1920, 1080)
+// Sora 2 preview supported resolutions (landscape, portrait, square)
 const SUPPORTED_VIDEO_RESOLUTIONS = [
-  { width: 480, height: 480 },
-  { width: 854, height: 480 },
-  { width: 720, height: 720 },
+  { width: 1920, height: 1080 },
+  { width: 1080, height: 1920 },
   { width: 1280, height: 720 },
+  { width: 720, height: 1280 },
+  { width: 854, height: 480 },
+  { width: 480, height: 854 },
   { width: 1080, height: 1080 },
-  { width: 1920, height: 1080 }
+  { width: 720, height: 720 },
+  { width: 480, height: 480 }
 ] as const;
 
 const SoraReq = z.object({
@@ -809,12 +812,12 @@ const SoraReq = z.object({
   width: z.number().int().refine(
     w => SUPPORTED_VIDEO_RESOLUTIONS.some(r => r.width === w),
     { message: 'Width must match a supported resolution' }
-  ).default(1080),
+  ).default(1280),
   height: z.number().int().refine(
     h => SUPPORTED_VIDEO_RESOLUTIONS.some(r => r.height === h),
     { message: 'Height must match a supported resolution' }
-  ).default(1080),
-  n_seconds: z.number().int().min(1).max(20).default(10),
+  ).default(720),
+  n_seconds: z.number().int().min(1, { message: 'Duration must be at least 1 second' }).max(20, { message: 'Duration must be 20 seconds or less' }).default(5),
   // Optional variants; API supports 1–5 variants depending on resolution
   n_variants: z.number().int().min(1).max(5).optional(),
   // Retrieval quality for content download (if supported by service)
@@ -845,7 +848,9 @@ app.post('/api/videos/sora/generate', async (req, reply) => {
     const base = `${AZ.endpoint.replace(/\/+$/, '')}/openai/v1`;
     const createUrl = `${base}/video/generations/jobs?api-version=${AZ.apiVersion}`;
     const refBlock = (body.reference_image_urls?.length ?? 0) > 0 ? `\n\n[Reference images]\n${body.reference_image_urls!.join('\n')}` : '';
-    const finalPrompt = `${body.prompt}${refBlock}`;
+    const finalPrompt = refBlock && !body.prompt.includes('[Reference images]')
+      ? `${body.prompt}${refBlock}`
+      : body.prompt;
 
     const created = await fetch(createUrl, {
       method: 'POST',
@@ -911,6 +916,205 @@ app.post('/api/videos/sora/generate', async (req, reply) => {
     return reply.status(400).send({ error: e.message || 'Sora generation failed' });
   }
 });
+
+// Image/video-to-video generation with inpainting support
+const InpaintItemSchema = z.object({
+  frame_index: z.number().int().min(0).default(0),
+  type: z.enum(['image', 'video']),
+  file_name: z.string().min(1),
+  crop_bounds: z.object({
+    left_fraction: z.number().min(0).max(1).default(0),
+    top_fraction: z.number().min(0).max(1).default(0),
+    right_fraction: z.number().min(0).max(1).default(1),
+    bottom_fraction: z.number().min(0).max(1).default(1)
+  }).optional()
+});
+
+app.post('/api/videos/sora/generate-with-media', async (req, reply) => {
+  try {
+    if (!AZ.endpoint) return reply.status(400).send({ error: 'Azure OpenAI endpoint not configured' });
+    if (!AZ.key && !AZ.token) return reply.status(400).send({ error: 'Azure OpenAI authentication not configured' });
+    if (!AZ.videoDeployment) return reply.status(400).send({ error: 'Missing AZURE_OPENAI_VIDEO_DEPLOYMENT' });
+
+    // Parse multipart form-data
+    const parts = await req.parts();
+    const fields: Record<string, string> = {};
+    const files: Array<{ fieldname: string; filename: string; buffer: Buffer; mimetype: string }> = [];
+
+    for await (const part of parts) {
+      if (part.type === 'file') {
+        const buffer = await part.toBuffer();
+        files.push({
+          fieldname: part.fieldname,
+          filename: part.filename,
+          buffer,
+          mimetype: part.mimetype
+        });
+      } else {
+        // @ts-ignore - part.value exists for fields
+        fields[part.fieldname] = part.value;
+      }
+    }
+
+    // Validate required fields
+    const prompt = fields.prompt;
+    if (!prompt) return reply.status(400).send({ error: 'Missing prompt field' });
+
+    const width = parseInt(fields.width || '1280', 10);
+    const height = parseInt(fields.height || '720', 10);
+    const n_seconds = parseInt(fields.n_seconds || '5', 10);
+    const n_variants = fields.n_variants ? parseInt(fields.n_variants, 10) : undefined;
+    const quality = fields.quality as 'high' | 'low' | undefined;
+
+    // Validate duration per preview spec (1-20 seconds)
+    if (Number.isNaN(n_seconds) || n_seconds < 1 || n_seconds > 20) {
+      return reply.status(400).send({
+        error: 'Duration must be between 1 and 20 seconds'
+      });
+    }
+
+    // Validate resolution
+    if (!SUPPORTED_VIDEO_RESOLUTIONS.some(r => r.width === width && r.height === height)) {
+      return reply.status(400).send({
+        error: `Resolution must be one of: ${SUPPORTED_VIDEO_RESOLUTIONS.map(r => `${r.width}x${r.height}`).join(', ')}`
+      });
+    }
+
+    // Parse inpaint_items if provided
+    let inpaintItems: z.infer<typeof InpaintItemSchema>[] = [];
+    if (fields.inpaint_items) {
+      try {
+        const parsed = JSON.parse(fields.inpaint_items);
+        inpaintItems = z.array(InpaintItemSchema).parse(parsed);
+      } catch (e: any) {
+        return reply.status(400).send({ error: `Invalid inpaint_items JSON: ${e.message}` });
+      }
+    }
+
+    // Validate that files match inpaint_items
+    if (inpaintItems.length > 0 && inpaintItems.length !== files.length) {
+      return reply.status(400).send({
+        error: `Number of files (${files.length}) must match number of inpaint_items (${inpaintItems.length})`
+      });
+    }
+
+    const base = `${AZ.endpoint.replace(/\/+$/, '')}/openai/v1`;
+    const createUrl = `${base}/video/generations/jobs?api-version=${AZ.apiVersion}`;
+
+    let created: Response;
+
+    if (files.length === 0) {
+      // Text-only generation (fallback to JSON)
+      created = await fetch(createUrl, {
+        method: 'POST',
+        headers: { ...soraHeaders(), 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify({
+          model: AZ.videoDeployment,
+          prompt,
+          width,
+          height,
+          n_seconds,
+          ...(n_variants ? { n_variants } : {})
+        })
+      });
+    } else {
+      // Multipart with inpainting
+      const FormData = (await import('formdata-node')).FormData;
+      const formData = new FormData();
+
+      // Add text fields
+      formData.append('prompt', prompt);
+      formData.append('width', String(width));
+      formData.append('height', String(height));
+      formData.append('n_seconds', String(n_seconds));
+      formData.append('model', AZ.videoDeployment);
+      if (n_variants) formData.append('n_variants', String(n_variants));
+
+      // Add inpaint_items as JSON string
+      if (inpaintItems.length > 0) {
+        formData.append('inpaint_items', JSON.stringify(inpaintItems));
+      }
+
+      // Add files
+      for (const file of files) {
+        // Convert Buffer to Uint8Array for Blob compatibility
+        const uint8Array = new Uint8Array(file.buffer);
+        formData.append('files', new Blob([uint8Array], { type: file.mimetype }), file.filename);
+      }
+
+      created = await fetch(createUrl, {
+        method: 'POST',
+        headers: soraHeaders(), // FormData sets Content-Type automatically
+        // @ts-ignore - FormData is compatible
+        body: formData
+      });
+    }
+
+    if (!created.ok) throw new Error(await created.text());
+    const job = await created.json() as any;
+    const jobId = job?.id;
+    if (!jobId) throw new Error('No job id returned');
+
+    // Poll for completion
+    const statusUrl = `${base}/video/generations/jobs/${jobId}?api-version=${AZ.apiVersion}`;
+    const started = Date.now();
+    let status = job?.status || 'queued';
+    let generations: any[] = job?.generations || [];
+
+    while (!['succeeded', 'failed', 'cancelled'].includes(status)) {
+      if (Date.now() - started > 6 * 60 * 1000) throw new Error('Timed out waiting for Sora job');
+      await new Promise(r => setTimeout(r, 5000));
+      const sRes = await fetch(statusUrl, { headers: { ...soraHeaders(), 'Accept': 'application/json' } });
+      if (!sRes.ok) throw new Error(await sRes.text());
+      const s = await sRes.json();
+      status = s?.status;
+      generations = s?.generations || [];
+    }
+
+    if (status !== 'succeeded') return reply.status(400).send({ error: `Job ${status}` });
+
+    const generationId = generations?.[0]?.id;
+    if (!generationId) throw new Error('No generation id');
+
+    const qualityParam = quality ? `&quality=${encodeURIComponent(quality)}` : '';
+    const contentUrl = `${base}/video/generations/${generationId}/content/video?api-version=${AZ.apiVersion}${qualityParam}`;
+    const vRes = await fetch(contentUrl, { headers: { ...soraHeaders(), 'Accept': 'video/mp4' } });
+    if (!vRes.ok) throw new Error(await vRes.text());
+    const ab = await vRes.arrayBuffer();
+    const b64 = Buffer.from(ab).toString('base64');
+
+    // Save to library
+    const id = crypto.randomUUID();
+    const filename = `${id}.mp4`;
+    await fs.writeFile(path.join(VID_DIR, filename), Buffer.from(b64, 'base64'));
+    const item: VideoItem = {
+      kind: 'video',
+      id,
+      filename,
+      url: `/static/videos/${filename}`,
+      prompt,
+      width,
+      height,
+      duration: n_seconds,
+      createdAt: new Date().toISOString()
+    };
+    const items = await readManifest();
+    items.unshift(item);
+    await writeManifest(items);
+
+    return reply.send({
+      job_id: jobId,
+      generation_id: generationId,
+      video_base64: b64,
+      content_type: 'video/mp4',
+      library_item: item
+    });
+  } catch (e: any) {
+    req.log.error(e);
+    return reply.status(400).send({ error: e.message || 'Sora generation with media failed' });
+  }
+});
+
 // Retrieve alternate quality content for an existing generation (no re-run)
 app.get('/api/videos/sora/content/:generationId', async (req, reply) => {
   const generationId = (req.params as any)?.generationId as string | undefined;

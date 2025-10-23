@@ -1,5 +1,16 @@
 import { cn } from './utils';
 
+type NavigatorWithNetwork = Navigator & {
+  connection?: {
+    saveData?: boolean;
+    effectiveType?: string;
+  };
+};
+
+type NavigatorWithMemory = Navigator & {
+  deviceMemory?: number;
+};
+
 /**
  * Returns motion-safe animation classes based on user preferences
  * Falls back to static styles when reduced motion is preferred
@@ -45,13 +56,15 @@ export function supportsComplexAnimations(): boolean {
   }
   
   // Check for low-end device indicators
-  const connection = (navigator as any).connection;
+  const navigatorWithNetwork = navigator as NavigatorWithNetwork;
+  const connection = navigatorWithNetwork.connection;
   if (connection?.saveData || connection?.effectiveType === 'slow-2g') {
     return false;
   }
   
   // Check device memory (if available)
-  const deviceMemory = (navigator as any).deviceMemory;
+  const navigatorWithMemory = navigator as NavigatorWithMemory;
+  const deviceMemory = navigatorWithMemory.deviceMemory;
   if (deviceMemory && deviceMemory < 4) {
     return false;
   }

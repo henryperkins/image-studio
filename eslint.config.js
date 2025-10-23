@@ -24,7 +24,7 @@ export default [
       }
     },
     rules: {
-      'semi': ['error', 'always'],
+      'semi': 'off',
       'quotes': ['error', 'single', { avoidEscape: true }],
       'comma-dangle': ['error', 'never'],
       'object-curly-spacing': ['error', 'always'],

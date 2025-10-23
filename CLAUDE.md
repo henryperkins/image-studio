@@ -45,7 +45,8 @@ Web (`/web`):
   - `/api/images/generate` - Generate images using Azure OpenAI gpt-image-1
   - `/api/images/edit` - Edit images with prompts and optional masks (Azure OpenAI v1 preview)
   - `/api/vision/describe` - Analyze images using Azure OpenAI GPT-4.1 vision
-  - `/api/videos/sora/generate` - Generate videos using Azure OpenAI Sora (preview)
+  - `/api/videos/sora/generate` - Generate videos using Azure OpenAI Sora 2 (text-to-video)
+  - `/api/videos/sora/generate-with-media` - Generate videos with image/video inputs (image-to-video, video-to-video)
   - `/api/videos/edit/trim` - Trim videos using FFmpeg (server-side)
   - `/api/library/media` - Unified library management (list/delete images and videos)
   - `/static/images/` - Serve generated images
@@ -101,7 +102,7 @@ The server requires Azure OpenAI environment variables (configured in `server/.e
 - `AZURE_OPENAI_API_KEY` or `AZURE_OPENAI_AUTH_TOKEN` (for authentication)
 - `AZURE_OPENAI_IMAGE_DEPLOYMENT` (deployment name for gpt-image-1)
 - `AZURE_OPENAI_IMAGE_BASE` (optional: base model family hint: `gpt-image-1` | `dall-e-3` | `dall-e-2`)
-- `AZURE_OPENAI_VIDEO_DEPLOYMENT` (deployment name for Sora/video)
+- `AZURE_OPENAI_VIDEO_DEPLOYMENT` (deployment name for Sora 2, e.g., "sora-2")
 - `AZURE_OPENAI_VISION_DEPLOYMENT` (for GPT-4.1 vision or GPT-5)
 - `AZURE_OPENAI_CHAT_API_VERSION` (for vision/chat completions, e.g., "2025-04-01-preview")
 - `AZURE_OPENAI_API_VERSION` (for v1 image/video endpoints; set to "preview")
@@ -130,25 +131,64 @@ For the new modular vision system with enhanced safety:
 
 - **File types**: Supports PNG and JPEG image formats, MP4 video format
 - **Image sizes**: 1024x1024, 1536x1024, 1024x1536
-- **Video constraints**: Sora generates up to 20 seconds, max 1920x1920 resolution
+- **Video constraints (Sora 2)**:
+  - Resolutions: 1920×1080, 1280×720, 854×480 (and their portrait counterparts), plus 1080×1080, 720×720, 480×480
+  - Duration: 1–20 seconds (default 5 seconds)
+  - Supports text-to-video, image-to-video, and video-to-video generation
+  - Audio generation included automatically
 - **Image editing**: Uses Azure OpenAI v1 preview `/images/edits` endpoint with multipart form data
 - **Video editing**: FFmpeg-based trimming with lossless copy codec when possible
 - **CORS**: Server configured for web client (configurable via CORS_ORIGIN env var)
 - **Error handling**: Zod validation with structured error responses
 - **Logging**: Fastify built-in logging for debugging
 
-### Sora (Video) v1 Preview Alignment
-- **Create job**: `POST {endpoint}/openai/v1/video/generations/jobs?api-version=preview` with JSON `{ model, prompt, width, height, n_seconds, n_variants? }`.
+### Sora 2 v1 API Alignment
+
+#### Text-to-Video Generation
+- **Create job**: `POST {endpoint}/openai/v1/video/generations/jobs?api-version=preview` with JSON:
+  ```json
+  {
+    "model": "sora-2",
+    "prompt": "Your video description",
+    "width": 1280,
+    "height": 720,
+    "n_seconds": 8,
+    "n_variants": 1
+  }
+  ```
 - **Poll job**: `GET {endpoint}/openai/v1/video/generations/jobs/{jobId}?api-version=preview` until `status = succeeded`.
 - **Get video**: `GET {endpoint}/openai/v1/video/generations/{generationId}/content/video?api-version=preview[&quality=high|low]`.
 - **Get thumbnail**: `GET {endpoint}/openai/v1/video/generations/{generationId}/content/thumbnail?api-version=preview`.
 - **List jobs**: `GET {endpoint}/openai/v1/video/generations/jobs?api-version=preview&limit=...` (+ before/after/statuses).
-- Server routes:
-  - `POST /api/videos/sora/generate` → creates job, polls, saves MP4 to library.
-  - `GET /api/videos/sora/content/:generationId[?quality=...]` → returns base64 video.
-  - `HEAD /api/videos/sora/content/:generationId[?quality=...]` → passthrough headers (size, type).
-  - `GET /api/videos/sora/thumbnail/:generationId` → returns base64 JPEG thumbnail.
-  - `GET /api/videos/sora/jobs` and `GET/DELETE /api/videos/sora/jobs/:jobId` → list/get/delete jobs.
+
+#### Image/Video-to-Video Generation (Inpainting)
+- **Create job with media**: `POST {endpoint}/openai/v1/video/generations/jobs?api-version=preview` as multipart/form-data:
+  - Form fields: `prompt`, `width`, `height`, `n_seconds`, `model`, `n_variants` (optional)
+  - `inpaint_items` (JSON string): Array of items specifying reference media
+  - `files`: One or more image/video files matching `inpaint_items`
+
+  **inpaint_items structure**:
+  ```json
+  [{
+    "frame_index": 0,
+    "type": "image",  // or "video"
+    "file_name": "reference.jpg",
+    "crop_bounds": {
+      "left_fraction": 0.0,
+      "top_fraction": 0.0,
+      "right_fraction": 1.0,
+      "bottom_fraction": 1.0
+    }
+  }]
+  ```
+
+#### Server Routes
+  - `POST /api/videos/sora/generate` → text-to-video: creates job, polls, saves MP4 to library
+  - `POST /api/videos/sora/generate-with-media` → image/video-to-video: multipart upload with inpainting
+  - `GET /api/videos/sora/content/:generationId[?quality=...]` → returns base64 video
+  - `HEAD /api/videos/sora/content/:generationId[?quality=...]` → passthrough headers (size, type)
+  - `GET /api/videos/sora/thumbnail/:generationId` → returns base64 JPEG thumbnail
+  - `GET /api/videos/sora/jobs` and `GET/DELETE /api/videos/sora/jobs/:jobId` → list/get/delete jobs
 
 ## UI/UX Design Patterns
 

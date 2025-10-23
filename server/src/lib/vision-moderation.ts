@@ -46,22 +46,35 @@ export async function moderateWithAzureContentSafety(
       return null;
     }
 
-    const data = await response.json();
+    interface AzureCategoryAnalysis {
+      category: string;
+      severity?: number;
+    }
+
+    interface AzureContentSafetyResponse {
+      categoriesAnalysis?: AzureCategoryAnalysis[];
+    }
+
+    const data: AzureContentSafetyResponse = await response.json();
+    const categories = data.categoriesAnalysis ?? [];
+
+    const categorySeverity = (categoryName: string): number =>
+      categories.find((entry) => entry.category === categoryName)?.severity ?? 0;
 
     // Map Azure Content Safety results to our format
     return {
-      safe: !data.categoriesAnalysis?.some((c: any) => c.severity > 2),
+      safe: !categories.some((entry) => (entry.severity ?? 0) > 2),
       flags: {
-        violence: data.categoriesAnalysis?.find((c: any) => c.category === 'Violence')?.severity > 2,
-        adult_content: data.categoriesAnalysis?.find((c: any) => c.category === 'Sexual')?.severity > 2,
-        hate_speech: data.categoriesAnalysis?.find((c: any) => c.category === 'Hate')?.severity > 2,
-        self_harm: data.categoriesAnalysis?.find((c: any) => c.category === 'SelfHarm')?.severity > 2,
+        violence: categorySeverity('Violence') > 2,
+        adult_content: categorySeverity('Sexual') > 2,
+        hate_speech: categorySeverity('Hate') > 2,
+        self_harm: categorySeverity('SelfHarm') > 2,
         illegal_activity: false,
         pii_visible: false
       },
-      severity: mapSeverity(data.categoriesAnalysis),
-      description: data.categoriesAnalysis?.map((c: any) => `${c.category}: ${c.severity}`).join(', ') || '',
-      recommended_action: determineAction(data.categoriesAnalysis)
+      severity: mapSeverity(categories),
+      description: categories.map((entry) => `${entry.category}: ${entry.severity ?? 0}`).join(', ') || '',
+      recommended_action: determineAction(categories)
     };
   } catch (error) {
     console.warn('Azure Content Safety error:', error);
@@ -224,8 +237,8 @@ export async function moderateContent(
 }
 
 // Field-level redaction (not text-level)
-export function redactPIIInObject<T = any>(obj: T, _paths: string[] = []): T {
-  const result = JSON.parse(JSON.stringify(obj)); // Deep clone
+export function redactPIIInObject<T>(obj: T, _paths: string[] = []): T {
+  const result = JSON.parse(JSON.stringify(obj)) as unknown; // Deep clone
 
   const piiPatterns = [
     { pattern: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g, replacement: '[EMAIL_REDACTED]' },
@@ -243,45 +256,47 @@ export function redactPIIInObject<T = any>(obj: T, _paths: string[] = []): T {
     'suggested_prompt'
   ];
 
-  function redactField(obj: any, field: string) {
-    if (typeof obj[field] === 'string') {
-      let text = obj[field];
-      for (const { pattern, replacement } of piiPatterns) {
-        text = text.replace(pattern, replacement);
-      }
-      obj[field] = text;
-    } else if (Array.isArray(obj[field])) {
-      obj[field] = obj[field].map((item: any) => {
-        if (typeof item === 'string') {
-          let text = item;
-          for (const { pattern, replacement } of piiPatterns) {
-            text = text.replace(pattern, replacement);
-          }
-          return text;
-        }
-        return item;
-      });
-    }
-  }
+  const applyPatterns = (text: string): string => {
+    return piiPatterns.reduce((acc, { pattern, replacement }) => acc.replace(pattern, replacement), text);
+  };
 
-  function traverse(obj: any) {
-    for (const key in obj) {
+  const redactField = (target: Record<string, unknown>, field: string): void => {
+    const value = target[field];
+    if (typeof value === 'string') {
+      target[field] = applyPatterns(value);
+    } else if (Array.isArray(value)) {
+      target[field] = value.map((item) => (typeof item === 'string' ? applyPatterns(item) : item));
+    }
+  };
+
+  const traverse = (value: unknown): void => {
+    if (Array.isArray(value)) {
+      value.forEach(traverse);
+      return;
+    }
+    if (typeof value !== 'object' || value === null) {
+      return;
+    }
+
+    const record = value as Record<string, unknown>;
+    for (const key of Object.keys(record)) {
       if (textFields.includes(key)) {
-        redactField(obj, key);
-      } else if (typeof obj[key] === 'object' && obj[key] !== null) {
-        traverse(obj[key]);
+        redactField(record, key);
+      } else {
+        traverse(record[key]);
       }
     }
-  }
+  };
 
   traverse(result);
-  return result;
+  return result as T;
 }
 
 // Helper functions
-function mapSeverity(categoriesAnalysis: any[]): 'none' | 'low' | 'medium' | 'high' | 'critical' {
+function mapSeverity(categoriesAnalysis: Array<{ severity?: number }> | undefined): 'none' | 'low' | 'medium' | 'high' | 'critical' {
   if (!categoriesAnalysis?.length) return 'none';
-  const maxSeverity = Math.max(...categoriesAnalysis.map((c: any) => c.severity || 0));
+  const severities = categoriesAnalysis.map((category) => category.severity ?? 0);
+  const maxSeverity = Math.max(...severities);
   if (maxSeverity >= 6) return 'critical';
   if (maxSeverity >= 4) return 'high';
   if (maxSeverity >= 2) return 'medium';
@@ -289,9 +304,10 @@ function mapSeverity(categoriesAnalysis: any[]): 'none' | 'low' | 'medium' | 'hi
   return 'none';
 }
 
-function determineAction(categoriesAnalysis: any[]): 'allow' | 'warn' | 'block' {
+function determineAction(categoriesAnalysis: Array<{ severity?: number }> | undefined): 'allow' | 'warn' | 'block' {
   if (!categoriesAnalysis?.length) return 'allow';
-  const maxSeverity = Math.max(...categoriesAnalysis.map((c: any) => c.severity || 0));
+  const severities = categoriesAnalysis.map((category) => category.severity ?? 0);
+  const maxSeverity = Math.max(...severities);
   if (maxSeverity >= 4) return 'block';
   if (maxSeverity >= 2) return 'warn';
   return 'allow';

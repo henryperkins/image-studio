@@ -53,6 +53,22 @@ const LibraryPanelComponent = function LibraryPanel({ handleAction, onOpenEditor
     disabled: false
   });
 
+  const handleItemSelect = useCallback((id: string, isSelected: boolean) => {
+    const item = library.find(i => i.id === id);
+    if (item && !isVideoItem(item)) {
+      setSelected(prev => (isSelected ? [...prev, id] : prev.filter(x => x !== id)));
+    }
+  }, [library, setSelected]);
+
+  const handleGridView = useCallback((item: LibraryItem) => {
+    if (isVideoItem(item)) return;
+    handleAction('view', item);
+  }, [handleAction]);
+
+  const handleListView = useCallback((item: LibraryItem) => {
+    handleAction('view', item);
+  }, [handleAction]);
+
   return (
     <Card
       ref={panelRef}
@@ -127,17 +143,9 @@ const LibraryPanelComponent = function LibraryPanel({ handleAction, onOpenEditor
             <VirtualizedLibraryGrid
               items={sortedFilteredLibrary}
               selectedIds={selected}
-              onSelect={useCallback((id: string, isSelected: boolean) => {
-                const item = library.find(i => i.id === id);
-                if (item && !isVideoItem(item)) {
-                  setSelected(prev => (isSelected ? [...prev, id] : prev.filter(x => x !== id)));
-                }
-              }, [library, setSelected])}
+              onSelect={handleItemSelect}
               onAction={handleAction}
-              onView={useCallback((item: LibraryItem) => {
-                if (isVideoItem(item)) return;
-                handleAction('view', item);
-              }, [handleAction])}
+              onView={handleGridView}
               baseUrl={API_BASE_URL}
               onVisibleChange={setVisibleIds}
             />
@@ -145,14 +153,9 @@ const LibraryPanelComponent = function LibraryPanel({ handleAction, onOpenEditor
             <LibraryListView
               items={sortedFilteredLibrary}
               selectedIds={selected}
-              onSelect={useCallback((id: string, isSelected: boolean) => {
-                const item = library.find(i => i.id === id);
-                if (item && !isVideoItem(item)) {
-                  setSelected(prev => (isSelected ? [...prev, id] : prev.filter(x => x !== id)));
-                }
-              }, [library, setSelected])}
+              onSelect={handleItemSelect}
               onAction={handleAction}
-              onView={useCallback((item: LibraryItem) => handleAction('view', item), [handleAction])}
+              onView={handleListView}
               baseUrl={API_BASE_URL}
             />
           )}

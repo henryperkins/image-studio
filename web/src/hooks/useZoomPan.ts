@@ -56,7 +56,7 @@ export function useZoomPan({ minScale = 1, maxScale = 6, step = 0.2 }: Options =
       });
     };
     el.addEventListener('wheel', onWheel, { passive: false });
-    return () => el.removeEventListener('wheel', onWheel as any);
+    return () => el.removeEventListener('wheel', onWheel);
   }, [minScale, maxScale, step]);
 
   const reset = () => { setScale(1); setPos({ x: 0, y: 0 }); };
@@ -68,4 +68,3 @@ export function useZoomPan({ minScale = 1, maxScale = 6, step = 0.2 }: Options =
     reset
   };
 }
-

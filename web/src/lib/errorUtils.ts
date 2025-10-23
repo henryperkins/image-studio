@@ -7,8 +7,18 @@ export interface ProcessedError {
   detailedMessage: string;
 }
 
-export function processApiError(error: any): ProcessedError {
-  const errorMsg = error.message || 'Operation failed';
+const getMessage = (error: unknown): string => {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+  if (typeof error === 'string' && error.length > 0) {
+    return error;
+  }
+  return 'Operation failed';
+};
+
+export function processApiError(error: unknown): ProcessedError {
+  const errorMsg = getMessage(error);
   
   const isRateLimit = errorMsg.toLowerCase().includes('rate') || 
                       errorMsg.toLowerCase().includes('limit');
@@ -47,7 +57,7 @@ export async function retryWithBackoff<T>(
   maxRetries: number = 3,
   initialDelay: number = 1000
 ): Promise<T> {
-  let lastError: any;
+  let lastError: unknown;
   
   for (let i = 0; i < maxRetries; i++) {
     try {

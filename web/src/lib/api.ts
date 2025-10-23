@@ -32,6 +32,12 @@ function getApiBaseUrl() {
   // 3) Smart defaults based on current host
   const host = window.location.hostname;
 
+  // Validate hostname exists
+  if (!host || host.trim() === '') {
+    console.error('❌ Invalid hostname detected, falling back to localhost');
+    return 'http://localhost:8787';
+  }
+
   // In production builds, prefer same-origin API to work on public URLs
   if (meta.env && meta.env.DEV === false) {
     const sameOrigin = window.location.origin;
@@ -83,7 +89,18 @@ function withTimeout(ms: number, externalSignal?: AbortSignal) {
 
 type RequestInitWithTimeout = RequestInit & { timeoutMs?: number }
 
+// Circuit breaker to prevent browser freeze from excessive failed requests
+let consecutiveFailures = 0;
+let circuitBreakerUntil = 0;
+const MAX_CONSECUTIVE_FAILURES = 5;
+const CIRCUIT_BREAKER_DURATION = 10000; // 10 seconds
+
 async function fetchJson(input: RequestInfo, init: RequestInitWithTimeout = {}) {
+  // Check circuit breaker
+  if (Date.now() < circuitBreakerUntil) {
+    throw new Error('Circuit breaker active: Too many failed requests. Please check server connection.');
+  }
+
   const { timeoutMs = 300000, signal: externalSignal, ...rest } = init
   const { signal, cancel } = withTimeout(timeoutMs, externalSignal)
 
@@ -97,19 +114,35 @@ async function fetchJson(input: RequestInfo, init: RequestInitWithTimeout = {}) 
     if (!r.ok) {
       const text = await r.text().catch(() => r.statusText);
       console.error(`❌ API Error (${r.status}): ${text}`);
+      consecutiveFailures++;
+      if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
+        circuitBreakerUntil = Date.now() + CIRCUIT_BREAKER_DURATION;
+        console.error(`🔴 Circuit breaker activated after ${MAX_CONSECUTIVE_FAILURES} failures. Pausing requests for ${CIRCUIT_BREAKER_DURATION/1000}s`);
+      }
       throw new Error(text || `HTTP ${r.status}`);
     }
     const ct = r.headers.get('content-type') || ''
     const result = ct.includes('application/json') ? await r.json() : await r.text()
+    consecutiveFailures = 0; // Reset on success
     if (meta.env?.DEV) console.warn('✅ API Response received')
     return result
   } catch (error: unknown) {
     const err = error as Error;
     if (err.name === 'AbortError') {
       console.error(`⏱️ Request timeout after ${timeoutMs}ms`);
+      consecutiveFailures++;
+      if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
+        circuitBreakerUntil = Date.now() + CIRCUIT_BREAKER_DURATION;
+        console.error(`🔴 Circuit breaker activated after ${MAX_CONSECUTIVE_FAILURES} failures. Pausing requests for ${CIRCUIT_BREAKER_DURATION/1000}s`);
+      }
       throw new Error(`Request timeout after ${timeoutMs/1000}s. The server may be unreachable.`);
     }
     console.error('🔌 Network error:', err);
+    consecutiveFailures++;
+    if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
+      circuitBreakerUntil = Date.now() + CIRCUIT_BREAKER_DURATION;
+      console.error(`🔴 Circuit breaker activated after ${MAX_CONSECUTIVE_FAILURES} failures. Pausing requests for ${CIRCUIT_BREAKER_DURATION/1000}s`);
+    }
     throw error;
   } finally {
     cancel()
@@ -178,6 +211,9 @@ export async function savePromptSuggestion(suggestion: Omit<PromptSuggestion, 'i
 
 import { apiCache } from './apiCache';
 
+type LibraryListResponse = { items?: LibraryItem[] };
+type GeneratedVideoPayload = { video_base64: string; generation_id?: string; content_type: string };
+
 export async function listLibrary(opts: { signal?: AbortSignal; timeoutMs?: number } = {}): Promise<LibraryItem[]> {
   const cacheKey = 'library:items';
 
@@ -187,10 +223,11 @@ export async function listLibrary(opts: { signal?: AbortSignal; timeoutMs?: numb
     return cached;
   }
 
-  const data = (await fetchJson(
+  const response = await fetchJson(
     `${API_BASE_URL}/api/library/media`,
     { method: 'GET', timeoutMs: opts.timeoutMs ?? 15000, signal: opts.signal }
-  ) as any).items as LibraryItem[]
+  ) as LibraryListResponse;
+  const data = response.items ?? [];
 
   // Cache the result
   apiCache.set(cacheKey, data);
@@ -213,12 +250,12 @@ export async function uploadLibraryImages(files: File[]): Promise<LibraryItem[]>
   for (const f of files) form.append('file', f);
   const r = await fetch(`${API_BASE_URL}/api/library/upload`, { method: 'POST', body: form });
   if (!r.ok) throw new Error(await r.text());
-  const j = await r.json();
+  const j = await r.json() as LibraryListResponse;
 
   // Clear cache when new items are uploaded
   apiCache.delete('library:items');
 
-  return (j.items || []) as LibraryItem[];
+  return j.items ?? [];
 }
 
 export async function generateImage(
@@ -322,12 +359,16 @@ export async function describeImagesByIds(ids: string[], detail: 'auto'|'low'|'h
 }
 
 // Enhanced vision analysis with structured output
-export async function analyzeImages(ids: string[], options: VisionAnalysisParams = {}): Promise<StructuredVisionResult> {
+type AnalyzeImagesOptions = VisionAnalysisParams & { signal?: AbortSignal; timeoutMs?: number };
+
+export async function analyzeImages(ids: string[], options: AnalyzeImagesOptions = {}): Promise<StructuredVisionResult> {
+  const { signal, timeoutMs, ...payload } = options;
   const r = await fetchJson(`${API_BASE_URL}/api/vision/analyze`, {
     method: 'POST',
     headers: { 'Content-Type':'application/json' },
-    body: JSON.stringify({ library_ids: ids, ...options }),
-    timeoutMs: 300000
+    body: JSON.stringify({ library_ids: ids, ...payload }),
+    timeoutMs: timeoutMs ?? 300000,
+    signal
   });
   return r as StructuredVisionResult;
 }
@@ -486,13 +527,13 @@ export async function generateVideoWithProgress(
   const total = Number(res.headers.get('Content-Length') || 0);
 
   // If streaming is not available, fall back to standard json() (no progress)
-  const body: ReadableStream<Uint8Array> | null = (res as any).body ?? null;
-  if (!body || typeof (body as ReadableStream<Uint8Array>).getReader !== 'function') {
+  const body = res.body;
+  if (!body || typeof body.getReader !== 'function') {
     const data = await res.json();
     return { data, bytesRead: 0, total };
   }
 
-  const reader = (body as ReadableStream<Uint8Array>).getReader();
+  const reader = body.getReader();
   let received = 0;
   const chunks: Uint8Array[] = [];
 
@@ -520,7 +561,7 @@ export async function generateVideoWithProgress(
         video_base64: b64Match[1],
         generation_id: idMatch ? idMatch[1] : undefined,
         content_type: ctMatch ? ctMatch[1] : 'video/mp4'
-      } as any;
+      } satisfies GeneratedVideoPayload;
     } else {
       // Briefly yield before heavy parse to keep the main thread responsive
       await new Promise<void>(requestAnimationFrame);
@@ -565,6 +606,56 @@ export async function listSoraJobs(params: { limit?: number; before?: string; af
 export async function getSoraJob(jobId: string) {
   const r = await fetchJson(`${API_BASE_URL}/api/videos/sora/jobs/${encodeURIComponent(jobId)}`, { headers: { 'Accept':'application/json' } });
   return r as { id: string; status: string; generations?: Array<{ id: string }>; [k: string]: unknown };
+}
+
+/**
+ * Generate video with reference images or videos (image-to-video / video-to-video)
+ */
+export type InpaintItem = {
+  frame_index?: number;
+  type: 'image' | 'video';
+  file_name: string;
+  crop_bounds?: {
+    left_fraction?: number;
+    top_fraction?: number;
+    right_fraction?: number;
+    bottom_fraction?: number;
+  };
+};
+
+export async function generateVideoWithMedia(
+  prompt: string,
+  width: number,
+  height: number,
+  n_seconds: number,
+  files: File[],
+  inpaintItems: InpaintItem[],
+  options: { n_variants?: number; quality?: 'high' | 'low' } = {}
+) {
+  const formData = new FormData();
+  formData.append('prompt', prompt);
+  formData.append('width', String(width));
+  formData.append('height', String(height));
+  formData.append('n_seconds', String(n_seconds));
+
+  if (options.n_variants) formData.append('n_variants', String(options.n_variants));
+  if (options.quality) formData.append('quality', options.quality);
+
+  if (inpaintItems.length > 0) {
+    formData.append('inpaint_items', JSON.stringify(inpaintItems));
+  }
+
+  for (const file of files) {
+    formData.append('files', file);
+  }
+
+  const r = await fetch(`${API_BASE_URL}/api/videos/sora/generate-with-media`, {
+    method: 'POST',
+    body: formData
+  });
+
+  if (!r.ok) throw new Error(await r.text());
+  return await r.json();
 }
 
 export async function deleteSoraJob(jobId: string) {

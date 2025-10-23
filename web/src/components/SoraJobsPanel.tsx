@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import { Button } from './ui/button';
 import { Skeleton } from './ui/skeleton';
 import { Card, CardContent } from './ui/card';
@@ -10,6 +10,12 @@ type Props = {
   onOpenGeneration?: (generationId: string) => Promise<void> | void
 }
 
+const getErrorMessage = (err: unknown, fallback: string): string => {
+  if (err instanceof Error && err.message) return err.message;
+  if (typeof err === 'string' && err.length > 0) return err;
+  return fallback;
+};
+
 export default function SoraJobsPanel({ onOpenGeneration }: Props) {
   const { showToast } = useToast();
   const [loading, setLoading] = useState(true);
@@ -17,18 +23,22 @@ export default function SoraJobsPanel({ onOpenGeneration }: Props) {
   const [expanded, setExpanded] = useState<Record<string, { loading: boolean; gens: string[]; thumbs: Record<string, string> }>>({});
   const [error, setError] = useState<string | null>(null);
 
-  const refresh = async () => {
+  const refresh = useCallback(async () => {
     setLoading(true); setError(null);
     try {
       const res = await listSoraJobs({ limit: 10 });
-      const arr = (res.jobs ?? res.data ?? []) as SoraJob[];
-      setJobs(arr);
-    } catch (e: any) {
-      setError(e.message || 'Failed to load jobs');
+      const nextJobs = Array.isArray(res.jobs)
+        ? res.jobs
+        : Array.isArray(res.data)
+          ? res.data
+        : [];
+      setJobs(nextJobs);
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Failed to load jobs'));
     } finally { setLoading(false); }
-  };
+  }, []);
 
-  useEffect(() => { refresh(); }, []);
+  useEffect(() => { refresh(); }, [refresh]);
 
   const hasJobs = useMemo(() => (jobs?.length ?? 0) > 0, [jobs]);
 
@@ -51,8 +61,8 @@ export default function SoraJobsPanel({ onOpenGeneration }: Props) {
         } catch { /* ignore per-gen errors */ }
       }
       setExpanded(prev => ({ ...prev, [job.id]: { loading: false, gens, thumbs } }));
-    } catch (e: any) {
-      showToast(e.message || 'Failed to load job details', 'error');
+    } catch (err: unknown) {
+      showToast(getErrorMessage(err, 'Failed to load job details'), 'error');
       setExpanded(prev => ({ ...prev, [job.id]: { loading: false, gens: [], thumbs: {} } }));
     }
   }
@@ -63,8 +73,8 @@ export default function SoraJobsPanel({ onOpenGeneration }: Props) {
       setJobs(prev => prev.filter(j => j.id !== jobId));
       setExpanded(prev => { const n = { ...prev }; delete n[jobId]; return n; });
       showToast('Job deleted', 'success');
-    } catch (e: any) {
-      showToast(e.message || 'Failed to delete job', 'error');
+    } catch (err: unknown) {
+      showToast(getErrorMessage(err, 'Failed to delete job'), 'error');
     }
   }
 

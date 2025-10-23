@@ -1,5 +1,5 @@
 // Comprehensive prompt architecture for vision analysis
-import { DescriptionParams, VideoParams } from '../types/vision.js';
+import { DescriptionParams, VideoParams, Frame } from '../types/vision.js';
 
 // System prompt - stable foundation with safety and accessibility
 export const SYSTEM_PROMPT = `You are an AI vision specialist. Produce accurate, inclusive, and WCAG-compliant descriptions that are safe and useful.
@@ -51,7 +51,7 @@ export function createImageUserMessage(params: DescriptionParams): string {
   return message;
 }
 
-export function createVideoUserMessage(frames: any[], params: VideoParams): string {
+export function createVideoUserMessage(frames: Frame[], params: VideoParams): string {
   const frameInfo = frames.map((f, i) => `Frame ${i+1} @ ${f.timestamp}s`).join('\n');
   
   return `Analyze this video sequence across ${frames.length} keyframes:

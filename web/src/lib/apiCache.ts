@@ -6,7 +6,7 @@ interface CacheEntry<T> {
 }
 
 class ApiCache {
-  private cache = new Map<string, CacheEntry<any>>();
+  private cache = new Map<string, CacheEntry<unknown>>();
   private defaultTTL = 5 * 60 * 1000; // 5 minutes
 
   set<T>(key: string, data: T, ttl: number = this.defaultTTL): void {
@@ -18,7 +18,7 @@ class ApiCache {
   }
 
   get<T>(key: string): T | null {
-    const entry = this.cache.get(key);
+    const entry = this.cache.get(key) as CacheEntry<T> | undefined;
     if (!entry) return null;
 
     const now = Date.now();
@@ -46,11 +46,11 @@ class ApiCache {
 export const apiCache = new ApiCache();
 
 // Debounce utility
-export function debounce<T extends (...args: any[]) => any>(
+export function debounce<T extends (...args: unknown[]) => unknown>(
   func: T,
   wait: number
 ): (...args: Parameters<T>) => void {
-  let timeout: NodeJS.Timeout | null = null;
+  let timeout: ReturnType<typeof setTimeout> | null = null;
 
   return (...args: Parameters<T>) => {
     if (timeout) {

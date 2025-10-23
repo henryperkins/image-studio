@@ -50,11 +50,19 @@ COPY --from=builder /app/server/dist ./server/dist
 # Create data directories
 RUN mkdir -p /app/server/data/images /app/server/data/videos
 
+# Create non-root user
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S nodejs -u 1001 -G nodejs && \
+    chown -R nodejs:nodejs /app
+
 # Set environment
 ENV NODE_ENV=production
 ENV PORT=8787
 
 WORKDIR /app/server
+
+# Switch to non-root user
+USER nodejs
 
 EXPOSE 8787
 

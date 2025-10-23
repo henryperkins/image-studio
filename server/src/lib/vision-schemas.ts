@@ -1,5 +1,6 @@
 // Strict JSON schemas for Azure OpenAI vision analysis
 import { StructuredDescriptionSchema as _StructuredDescriptionSchema, VideoAnalysisSchema as _VideoAnalysisSchema } from '@image-studio/shared';
+import { StructuredDescription, StructuredVisionResult } from '../types/vision.js';
 
 export const IMAGE_ANALYSIS_SCHEMA = {
   type: 'object',
@@ -178,28 +179,39 @@ export const VIDEO_ANALYSIS_SCHEMA = {
 };
 
 // Backwards compatibility mapper
-export function mapToLegacyFormat(result: any): any {
+export function mapToLegacyFormat(
+  result: StructuredDescription & Record<string, unknown>
+): StructuredVisionResult {
   return {
     metadata: {
-      language: result.language,
-      confidence: result.uncertainty_notes?.length > 2 ? 'low' :
-                  result.uncertainty_notes?.length > 0 ? 'medium' : 'high',
+      language: (result as { language?: string }).language ?? 'en',
+      confidence: Array.isArray((result as { uncertainty_notes?: unknown[] }).uncertainty_notes) &&
+        (result as { uncertainty_notes?: unknown[] }).uncertainty_notes!.length > 2
+        ? 'low'
+        : Array.isArray((result as { uncertainty_notes?: unknown[] }).uncertainty_notes) &&
+          (result as { uncertainty_notes?: unknown[] }).uncertainty_notes!.length > 0
+          ? 'medium'
+          : 'high',
       content_type: 'other',
-      sensitive_content: result.content_warnings?.length > 0,
-      processing_notes: [...(result.content_warnings || []), ...(result.uncertainty_notes || [])]
+      sensitive_content: Array.isArray((result as { content_warnings?: unknown[] }).content_warnings) &&
+        (result as { content_warnings?: unknown[] }).content_warnings!.length > 0,
+      processing_notes: [
+        ...((result as { content_warnings?: string[] }).content_warnings ?? []),
+        ...((result as { uncertainty_notes?: string[] }).uncertainty_notes ?? [])
+      ]
     },
     accessibility: {
-      alt_text: result.short_caption,
-      long_description: result.long_description,
+      alt_text: (result as { short_caption?: string }).short_caption ?? '',
+      long_description: (result as { long_description?: string }).long_description ?? '',
       reading_level: 8,
       color_accessibility: {
         relies_on_color: false,
         color_blind_safe: true
       }
     },
-    content: result.content,
-    generation_guidance: result.generation_guidance,
-    safety_flags: result.safety_flags,
-    uncertainty_notes: result.uncertainty_notes
+    content: (result as { content: StructuredVisionResult['content'] }).content,
+    generation_guidance: (result as { generation_guidance: StructuredVisionResult['generation_guidance'] }).generation_guidance,
+    safety_flags: (result as { safety_flags: StructuredVisionResult['safety_flags'] }).safety_flags,
+    uncertainty_notes: (result as { uncertainty_notes?: string[] }).uncertainty_notes ?? []
   };
 }

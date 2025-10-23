@@ -86,12 +86,11 @@ interface CompareItemProps {
   label: string;
 }
 
-function hasSize(item: any): item is { size: number | string } {
-  return typeof item === 'object' && item !== null && 'size' in item && (typeof item.size === 'number' || typeof item.size === 'string');
-}
+const isImageLibraryItem = (item: LibraryItem): item is Extract<LibraryItem, { kind: 'image' }> => item.kind === 'image';
 
 function CompareItem({ item, isVideo, baseUrl, label }: CompareItemProps) {
   const mediaUrl = `${baseUrl.replace(/\/+$/, '')}/${item.url.replace(/^\/+/, '')}`;
+  const imageItem = isImageLibraryItem(item) ? item : null;
 
   return (
     <div className="flex flex-col h-full">
@@ -156,15 +155,15 @@ function CompareItem({ item, isVideo, baseUrl, label }: CompareItemProps) {
               </span>
             )}
 
-            {!isVideo && hasSize(item) && (
+            {imageItem && (
               <span>
-                Size: {item.size}
+                Size: {imageItem.size}
               </span>
             )}
 
-            {!isVideo && 'format' in item && (
+            {imageItem && (
               <span>
-                Format: {item.format?.toUpperCase?.()}
+                Format: {imageItem.format.toUpperCase()}
               </span>
             )}
           </div>

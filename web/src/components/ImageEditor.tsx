@@ -17,11 +17,74 @@ import {
 
 const FALLBACK_IMAGE_SIZE = '1024x1024';
 
+type ImageLibraryItem = Extract<LibraryItem, { kind: 'image' }>;
+type ImageFormat = ImageLibraryItem['format'];
+type ImageSize = ImageLibraryItem['size'];
+type ImageQuality = 'auto' | 'low' | 'medium' | 'high';
+type ImageBackground = 'transparent' | 'opaque' | 'auto';
+
+interface ImageEditorPreset {
+  prompt?: string;
+  size?: ImageSize;
+  format?: ImageFormat;
+  background?: ImageBackground;
+  quality?: ImageQuality;
+  brush?: number;
+  outputCompression?: number;
+}
+
+const formatOptions: readonly ImageFormat[] = ['png', 'jpeg', 'webp'];
+const sizeOptions: readonly ImageSize[] = ['auto', '1024x1024', '1536x1024', '1024x1536', '1792x1024', '1024x1792'];
+const qualityOptions: readonly ImageQuality[] = ['auto', 'low', 'medium', 'high'];
+const backgroundOptions: readonly ImageBackground[] = ['transparent', 'opaque', 'auto'];
+
 type Props = {
-  item: LibraryItem & { kind: 'image' };
+  item: ImageLibraryItem;
   onClose: () => void;
   onEdited: (newId: string) => void;
   baseUrl: string;
+};
+
+const isImageFormat = (value: string): value is ImageFormat =>
+  formatOptions.includes(value as ImageFormat);
+
+const isImageSize = (value: string): value is ImageSize =>
+  sizeOptions.includes(value as ImageSize);
+
+const isImageQuality = (value: string): value is ImageQuality =>
+  qualityOptions.includes(value as ImageQuality);
+
+const isImageBackground = (value: string): value is ImageBackground =>
+  backgroundOptions.includes(value as ImageBackground);
+
+const parsePreset = (raw: string): ImageEditorPreset | null => {
+  try {
+    const value: unknown = JSON.parse(raw);
+    if (!value || typeof value !== 'object') {
+      return null;
+    }
+
+    const preset: ImageEditorPreset = {};
+    const record = value as Record<string, unknown>;
+
+    if (typeof record.prompt === 'string') preset.prompt = record.prompt;
+    if (typeof record.brush === 'number') preset.brush = record.brush;
+    if (typeof record.outputCompression === 'number') preset.outputCompression = record.outputCompression;
+    if (typeof record.size === 'string' && isImageSize(record.size)) preset.size = record.size;
+    if (typeof record.format === 'string' && isImageFormat(record.format)) preset.format = record.format;
+    if (typeof record.background === 'string' && isImageBackground(record.background)) preset.background = record.background;
+    if (typeof record.quality === 'string' && isImageQuality(record.quality)) preset.quality = record.quality;
+
+    return preset;
+  } catch {
+    return null;
+  }
+};
+
+const getErrorMessage = (error: unknown): string => {
+  if (error instanceof Error) return error.message;
+  if (typeof error === 'string') return error;
+  return 'Edit failed';
 };
 
 export default function ImageEditor({ item, onClose, onEdited, baseUrl }: Props) {
@@ -32,36 +95,59 @@ export default function ImageEditor({ item, onClose, onEdited, baseUrl }: Props)
   const [drawing, setDrawing] = useState(false);
   const [prompt, setPrompt] = useState('');
   const [busy, setBusy] = useState(false);
-  const [size, setSize] = useState(item.size);
-  const [format, setFormat] = useState<'png' | 'jpeg' | 'webp'>(item.format as any);
+  const [size, setSize] = useState<ImageSize>(item.size);
+  const [format, setFormat] = useState<ImageFormat>(item.format);
   // API enhancements
-  const [quality, setQuality] = useState<'auto' | 'low' | 'medium' | 'high'>('high');
-  const [background, setBackground] = useState<'transparent' | 'opaque' | 'auto'>('opaque');
+  const [quality, setQuality] = useState<ImageQuality>('high');
+  const [background, setBackground] = useState<ImageBackground>('opaque');
   const [outputCompression, setOutputCompression] = useState<number>(100);
   // Added: track whether user has drawn and last pointer position for smooth strokes
   const [hasMask, setHasMask] = useState(false);
   const lastPt = useRef<{ x: number; y: number } | null>(null);
   const { showToast } = useToast();
 
+  const handleFormatChange = (value: string) => {
+    if (isImageFormat(value)) {
+      setFormat(value);
+    }
+  };
+
+  const handleSizeChange = (value: string) => {
+    if (isImageSize(value)) {
+      setSize(value);
+    }
+  };
+
+  const handleQualityChange = (value: string) => {
+    if (isImageQuality(value)) {
+      setQuality(value);
+    }
+  };
+
+  const handleBackgroundChange = (value: string) => {
+    if (isImageBackground(value)) {
+      setBackground(value);
+    }
+  };
+
   // Initialize mask canvas as opaque (white). Transparent pixels will be areas to change.
   useEffect(() => {
     // Apply preset if present (from Playbooks)
-    try {
-      const raw = localStorage.getItem('IMAGE_EDITOR_PRESET');
-      if (raw) {
-        const p = JSON.parse(raw) as Partial<{ prompt: string; size: any; format: any; background: any; quality: any; brush: number; outputCompression: number }>;
-        // Avoid capturing `prompt` by using a functional updater
-        const presetPrompt = p.prompt;
+    const raw = localStorage.getItem('IMAGE_EDITOR_PRESET');
+    if (raw) {
+      const preset = parsePreset(raw);
+      if (preset) {
+        const presetPrompt = preset.prompt;
         if (presetPrompt) setPrompt(prev => prev || presetPrompt);
-        if (p.size) setSize(p.size as any);
-        if (p.format) setFormat(p.format as any);
-        if (p.background) setBackground(p.background as any);
-        if (p.quality) setQuality(p.quality as any);
-        if (typeof p.outputCompression === 'number') setOutputCompression(p.outputCompression);
-        if (typeof p.brush === 'number') setBrush(p.brush);
-        localStorage.removeItem('IMAGE_EDITOR_PRESET');
+        if (preset.size) setSize(preset.size);
+        if (preset.format) setFormat(preset.format);
+        if (preset.background) setBackground(preset.background);
+        if (preset.quality) setQuality(preset.quality);
+        if (typeof preset.outputCompression === 'number') setOutputCompression(preset.outputCompression);
+        if (typeof preset.brush === 'number') setBrush(preset.brush);
       }
-    } catch { }
+      localStorage.removeItem('IMAGE_EDITOR_PRESET');
+    }
     // In Dialog portal, canvases may not be mounted on the very first effect tick
     const c = canvasRef.current;
     const p = previewRef.current;
@@ -101,7 +187,7 @@ export default function ImageEditor({ item, onClose, onEdited, baseUrl }: Props)
       lastPt.current = null;
     };
     if (img.complete) sync(); else img.onload = sync;
-    return () => { (img as HTMLImageElement).onload = null; };
+    return () => { img.onload = null; };
   }, []);
 
   // Compute canvas-space coordinates from a pointer event
@@ -163,7 +249,7 @@ export default function ImageEditor({ item, onClose, onEdited, baseUrl }: Props)
       // Use toBlob (async, off-main-thread) rather than toDataURL (sync, can freeze)
       let maskPng: string | undefined = undefined;
       if (hasMask) {
-        const blob: Blob | null = await new Promise(resolve => canvasRef.current!.toBlob(resolve, 'image/png'))
+        const blob: Blob | null = await new Promise(resolve => canvasRef.current!.toBlob(resolve, 'image/png'));
         if (blob) {
           maskPng = await blobToDataURL(blob)
         }
@@ -177,8 +263,8 @@ export default function ImageEditor({ item, onClose, onEdited, baseUrl }: Props)
       });
       onEdited(res.library_item.id);
       showToast('Image edited and saved', 'success');
-    } catch (e) {
-      showToast((e as any).message || 'Edit failed', 'error');
+    } catch (error: unknown) {
+      showToast(getErrorMessage(error), 'error');
     } finally { setBusy(false); }
   }
 
@@ -204,10 +290,10 @@ export default function ImageEditor({ item, onClose, onEdited, baseUrl }: Props)
                 className="absolute inset-0 w-full h-full cursor-crosshair"
                 // Prevent touch scrolling while drawing
                 style={{ touchAction: 'none' }}
-                onPointerDown={(e) => { setDrawing(true); (e.currentTarget as HTMLCanvasElement).setPointerCapture(e.pointerId); e.preventDefault(); drawFromEvent(e, true); }}
+                onPointerDown={(e) => { setDrawing(true); e.currentTarget.setPointerCapture(e.pointerId); e.preventDefault(); drawFromEvent(e, true); }}
                 onPointerMove={(e) => { if (drawing) { e.preventDefault(); drawFromEvent(e); } }}
-                onPointerUp={(e) => { setDrawing(false); lastPt.current = null; try { (e.currentTarget as HTMLCanvasElement).releasePointerCapture(e.pointerId); } catch { } }}
-                onPointerCancel={(e) => { setDrawing(false); lastPt.current = null; try { (e.currentTarget as HTMLCanvasElement).releasePointerCapture(e.pointerId); } catch { } }}
+                onPointerUp={(e) => { setDrawing(false); lastPt.current = null; try { e.currentTarget.releasePointerCapture(e.pointerId); } catch { } }}
+                onPointerCancel={(e) => { setDrawing(false); lastPt.current = null; try { e.currentTarget.releasePointerCapture(e.pointerId); } catch { } }}
               />
             </div>
 
@@ -244,7 +330,7 @@ export default function ImageEditor({ item, onClose, onEdited, baseUrl }: Props)
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="format-select">Format</Label>
-                  <Select value={format} onValueChange={(v) => setFormat(v as any)}>
+                  <Select value={format} onValueChange={handleFormatChange}>
                     <SelectTrigger id="format-select">
                       <SelectValue />
                     </SelectTrigger>
@@ -257,7 +343,7 @@ export default function ImageEditor({ item, onClose, onEdited, baseUrl }: Props)
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="size-select">Size</Label>
-                  <Select value={size} onValueChange={(v) => setSize(v as any)}>
+                  <Select value={size} onValueChange={handleSizeChange}>
                     <SelectTrigger id="size-select">
                       <SelectValue />
                     </SelectTrigger>
@@ -271,7 +357,7 @@ export default function ImageEditor({ item, onClose, onEdited, baseUrl }: Props)
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="quality-select">Quality</Label>
-                  <Select value={quality} onValueChange={(v) => setQuality(v as any)}>
+                  <Select value={quality} onValueChange={handleQualityChange}>
                     <SelectTrigger id="quality-select">
                       <SelectValue />
                     </SelectTrigger>
@@ -286,7 +372,7 @@ export default function ImageEditor({ item, onClose, onEdited, baseUrl }: Props)
                 {(format === 'png' || format === 'webp') && (
                   <div className="space-y-2 col-span-2">
                     <Label htmlFor="background-select">Background (PNG/WEBP)</Label>
-                    <Select value={background} onValueChange={(v) => setBackground(v as any)}>
+                    <Select value={background} onValueChange={handleBackgroundChange}>
                       <SelectTrigger id="background-select">
                         <SelectValue />
                       </SelectTrigger>

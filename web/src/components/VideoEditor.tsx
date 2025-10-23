@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import {
   LibraryItem, VideoItem, ImageItem, isVideoItem,
   trimVideo, cropVideo, resizeVideo, speedVideo, muteVideo, volumeVideo,
@@ -74,18 +74,25 @@ export default function VideoEditor({ item, onClose, onEdited, baseUrl }: Props)
 
   useEffect(() => { listLibrary({ timeoutMs: 15000 }).then(setLibrary).catch(()=>{}); }, []);
 
-  async function run<T>(fn:()=>Promise<T>) {
+  async function run<T extends { library_item: { id: string } }>(fn: () => Promise<T>) {
     setBusy(true); 
     setErr(null);
     try {
-      const res:any = await fn();
-      onEdited(res.library_item.id);
-    } catch (e:any) {
-      setErr(e.message || 'Edit failed');
+      const result = await fn();
+      onEdited(result.library_item.id);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Edit failed';
+      setErr(message);
     } finally { 
       setBusy(false); 
     }
   }
+
+  const handleFitChange = useCallback((value: string) => {
+    if (value === 'contain' || value === 'cover' || value === 'stretch') {
+      setFit(value);
+    }
+  }, []);
 
   return (
     <Dialog open onOpenChange={(open)=>{ if(!open) onClose(); }}>
@@ -156,7 +163,7 @@ export default function VideoEditor({ item, onClose, onEdited, baseUrl }: Props)
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="fit-select">Fit</Label>
-                      <Select value={fit} onValueChange={(v) => setFit(v as any)}>
+                      <Select value={fit} onValueChange={handleFitChange}>
                         <SelectTrigger id="fit-select">
                           <SelectValue />
                         </SelectTrigger>

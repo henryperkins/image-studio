@@ -31,14 +31,14 @@ const PIN_KEY = 'promptSuggestions:pins:v1';
 const FREQ_KEY = 'promptSuggestions:freqs:v1';
 
 // Validation helper
-function isValidSuggestion(item: any): item is PromptSuggestion {
+function isValidSuggestion(value: unknown): value is PromptSuggestion {
+  if (!value || typeof value !== 'object') return false;
+  const candidate = value as Partial<PromptSuggestion>;
   return (
-    item &&
-    typeof item === 'object' &&
-    typeof item.id === 'string' &&
-    typeof item.text === 'string' &&
-    typeof item.createdAt === 'string' &&
-    typeof item.dedupeKey === 'string'
+    typeof candidate.id === 'string' &&
+    typeof candidate.text === 'string' &&
+    typeof candidate.createdAt === 'string' &&
+    typeof candidate.dedupeKey === 'string'
   );
 }
 
@@ -96,7 +96,8 @@ export const PromptSuggestionsProvider: React.FC<{ children: React.ReactNode }> 
       }
     } catch (e) {
       console.error('Failed to load prompt suggestions', e);
-      setError(e as Error);
+      const error = e instanceof Error ? e : new Error('Failed to load prompt suggestions');
+      setError(error);
       // Clear corrupted data
       localStorage.removeItem(STORAGE_KEY);
       localStorage.removeItem(PIN_KEY);
@@ -107,7 +108,7 @@ export const PromptSuggestionsProvider: React.FC<{ children: React.ReactNode }> 
   }, []);
 
   // Debounced save function
-  const debouncedSave = useCallback((key: string, data: any) => {
+  const debouncedSave = useCallback((key: string, data: unknown) => {
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current);
     }

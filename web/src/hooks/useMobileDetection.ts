@@ -13,12 +13,12 @@ interface MobileDetection {
 export function useMobileDetection(): MobileDetection {
   const [detection, setDetection] = useState<MobileDetection>(() => {
     const userAgent = navigator.userAgent;
-    const isIOS = /iPad|iPhone|iPod/.test(userAgent) && !(window as any).MSStream;
+    const isIOS = /iPad|iPhone|iPod/.test(userAgent) && !('MSStream' in window);
     const isAndroid = /Android/.test(userAgent);
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent);
     const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-    const isPWA = window.matchMedia('(display-mode: standalone)').matches || 
-                  (window.navigator as any).standalone === true;
+    const navigatorWithStandalone = navigator as Navigator & { standalone?: boolean };
+    const isPWA = window.matchMedia('(display-mode: standalone)').matches || navigatorWithStandalone.standalone === true;
     const hasReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     
     return {
@@ -81,7 +81,19 @@ export function triggerHaptic(type: 'light' | 'medium' | 'heavy' = 'light') {
   }
   
   // iOS Haptic Feedback API (if available in WebKit)
-  if ((window as any).webkit?.messageHandlers?.haptic) {
-    (window as any).webkit.messageHandlers.haptic.postMessage(type);
+  type WebkitHapticWindow = Window & {
+    webkit?: {
+      messageHandlers?: {
+        haptic?: {
+          postMessage: (payload: string) => void;
+        };
+      };
+    };
+  };
+
+  const webkitWindow = window as WebkitHapticWindow;
+  const hapticHandler = webkitWindow.webkit?.messageHandlers?.haptic;
+  if (hapticHandler) {
+    hapticHandler.postMessage(type);
   }
 }

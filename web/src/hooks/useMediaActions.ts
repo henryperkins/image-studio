@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { LibraryItem, deleteLibraryItem, analyzeImages, isVideoItem } from '../lib/api';
+import { LibraryItem, deleteLibraryItem, analyzeImages, isVideoItem, type StructuredVisionResult } from '../lib/api';
 import { useToast } from '../contexts/ToastContext';
 import { usePromptSuggestions } from '../contexts/PromptSuggestionsContext';
 
@@ -17,6 +17,22 @@ const ERROR_MESSAGES = {
   copyPrompt: 'Failed to copy prompt',
   duplicate: 'Duplicate feature coming soon'
 } as const;
+
+type PromptVariation = string | { text?: unknown };
+
+const extractVariations = (guidance: StructuredVisionResult['generation_guidance']): string[] => {
+  const candidate = (guidance as StructuredVisionResult['generation_guidance'] & { variations?: PromptVariation[] }).variations;
+  if (!Array.isArray(candidate)) return [];
+
+  return candidate.reduce<string[]>((acc, variation) => {
+    if (typeof variation === 'string') {
+      acc.push(variation);
+    } else if (variation && typeof variation === 'object' && typeof variation.text === 'string') {
+      acc.push(variation.text);
+    }
+    return acc;
+  }, []);
+};
 
 interface UseMediaActionsProps {
   onRefresh: () => Promise<void>;
@@ -111,7 +127,7 @@ export function useMediaActions({
         detail: 'detailed',
         tone: 'creative',
         signal: controller.signal
-      } as any);
+      });
       
       if (result.generation_guidance?.suggested_prompt) {
         await addSuggestion({
@@ -123,19 +139,19 @@ export function useMediaActions({
         });
         
         // Add variations if available
-        if (result.generation_guidance.variations) {
-          for (const variation of result.generation_guidance.variations) {
-            await addSuggestion({
-              text: variation,
-              sourceModel: 'gpt-4.1',
-              origin: 'remix',
-              tags: result.content.primary_subjects || [],
-              videoId: item.id
-            });
-          }
+        const variations = extractVariations(result.generation_guidance);
+        for (const variation of variations) {
+          await addSuggestion({
+            text: variation,
+            sourceModel: 'gpt-4.1',
+            origin: 'remix',
+            tags: result.content.primary_subjects || [],
+            videoId: item.id
+          });
         }
         
-        showToast(`Analysis complete! ${result.generation_guidance.variations?.length || 1} suggestions added`, 'success');
+        const totalSuggestions = 1 + variations.length;
+        showToast(`Analysis complete! ${totalSuggestions} suggestion${totalSuggestions > 1 ? 's' : ''} added`, 'success');
       }
     } catch (error) {
       // Don't show error if request was aborted

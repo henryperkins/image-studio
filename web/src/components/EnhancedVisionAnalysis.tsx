@@ -83,6 +83,12 @@ export default function EnhancedVisionAnalysis({
     safety: ['content_safety', 'age_appropriateness', 'sensitive_content']
   };
 
+  const getErrorMessage = (error: unknown): string => {
+    if (error instanceof Error) return error.message;
+    if (typeof error === 'string') return error;
+    return 'Analysis failed';
+  };
+
   const toggleSection = (section: string) => {
     setExpandedSections((prev) => ({
       ...prev,
@@ -148,8 +154,8 @@ export default function EnhancedVisionAnalysis({
       }
 
       showToast(`Analysis completed with ${analysisResult.metadata.confidence} confidence`, 'success');
-    } catch (err: any) {
-      const errorMessage = err.message || 'Analysis failed';
+    } catch (err: unknown) {
+      const errorMessage = getErrorMessage(err);
       setError(errorMessage);
       showToast(errorMessage, 'error');
     } finally {
@@ -175,9 +181,10 @@ export default function EnhancedVisionAnalysis({
         tags: []
       });
       showToast(onPromptGenerated ? 'Sora prompt inserted' : 'Sora prompt added to sidebar', 'success');
-    } catch (err: any) {
-      setError(err.message || 'Failed to generate Sora prompt');
-      showToast(err.message || 'Failed to generate Sora prompt', 'error');
+    } catch (err: unknown) {
+      const message = getErrorMessage(err);
+      setError(message);
+      showToast(message, 'error');
     }
   };
 
@@ -187,9 +194,10 @@ export default function EnhancedVisionAnalysis({
       setAccessibilityResult(accessibilityData);
       setDisplayMode('accessibility');
       showToast('Accessibility analysis completed', 'success');
-    } catch (err: any) {
-      setError(err.message);
-      showToast(err.message, 'error');
+    } catch (err: unknown) {
+      const message = getErrorMessage(err);
+      setError(message);
+      showToast(message, 'error');
     }
   };
 
@@ -204,9 +212,10 @@ export default function EnhancedVisionAnalysis({
       } else {
         showToast('Content passed safety checks', 'success');
       }
-    } catch (err: any) {
-      setError(err.message);
-      showToast(err.message, 'error');
+    } catch (err: unknown) {
+      const message = getErrorMessage(err);
+      setError(message);
+      showToast(message, 'error');
     }
   };
 
@@ -284,7 +293,7 @@ export default function EnhancedVisionAnalysis({
               {mode !== 'sora' && (
                 <div>
                   <label className="block text-sm font-medium mb-2">Audience</label>
-                  <Select value={params.audience as any} onValueChange={(v) => setParams(prev => ({ ...prev, audience: v as any }))}>
+                  <Select value={params.audience ?? 'general'} onValueChange={(v) => setParams(prev => ({ ...prev, audience: v as VisionAnalysisParams['audience'] }))}>
                     <SelectTrigger id="audience-select"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="general">General Public</SelectItem>
@@ -298,7 +307,7 @@ export default function EnhancedVisionAnalysis({
 
               <div>
                 <label className="block text-sm font-medium mb-2">Detail</label>
-                <Select value={params.detail as any} onValueChange={(v) => setParams(prev => ({ ...prev, detail: v as any }))}>
+                <Select value={params.detail ?? 'standard'} onValueChange={(v) => setParams(prev => ({ ...prev, detail: v as VisionAnalysisParams['detail'] }))}>
                   <SelectTrigger id="detail-select"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="brief">Brief</SelectItem>
@@ -313,7 +322,7 @@ export default function EnhancedVisionAnalysis({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium mb-2">Tone</label>
-                <Select value={params.tone as any} onValueChange={(v) => setParams(prev => ({ ...prev, tone: v as any }))}>
+                <Select value={params.tone ?? 'casual'} onValueChange={(v) => setParams(prev => ({ ...prev, tone: v as VisionAnalysisParams['tone'] }))}>
                   <SelectTrigger id="tone-select"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="casual">Casual</SelectItem>

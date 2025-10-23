@@ -24,8 +24,14 @@ export default tseslint.config(
       '@typescript-eslint/explicit-function-return-type': 'off',
       '@typescript-eslint/explicit-module-boundary-types': 'off',
       '@typescript-eslint/no-explicit-any': 'warn',
+      '@typescript-eslint/ban-ts-comment': ['warn', {
+        'ts-expect-error': 'allow-with-description',
+        'ts-ignore': false,
+        'ts-nocheck': false,
+        'ts-check': false
+      }],
       'no-console': ['warn', { allow: ['warn', 'error'] }],
-      'semi': ['error', 'always'],
+      'semi': 'off',
       'quotes': ['error', 'single', { avoidEscape: true }],
       'comma-dangle': ['error', 'never'],
       'object-curly-spacing': ['error', 'always']

@@ -62,7 +62,7 @@ const STORAGE_KEYS = {
 const ITEMS_PER_PAGE = 12;
 
 export const LibraryProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [isPending, startTransition] = useTransition();
+  const [_isPending, startTransition] = useTransition();
   // Core state
   const [library, setLibrary] = useState<LibraryItem[]>([]);
   const [loading, setLoading] = useState(true);

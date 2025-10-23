@@ -1,5 +1,5 @@
 import { useMemo, useState, useRef, useEffect } from 'react';
-import { analyzeImages, generateVideoWithProgress, getSoraVideoContent } from '../lib/api';
+import { analyzeImages, generateVideoWithProgress, getSoraVideoContent, type StructuredVisionResult } from '../lib/api';
 import { base64ToBlob } from '@/lib/base64';
 import { X } from 'lucide-react';
 import SoraJobsPanel from './SoraJobsPanel';
@@ -11,13 +11,12 @@ import { Progress } from './ui/progress';
 import { Button } from './ui/button';
 import { Textarea } from './ui/textarea';
 import { Label } from './ui/label';
-import { Input } from './ui/input';
 import { Card, CardContent } from './ui/card';
 import { Switch } from './ui/switch';
 import { ScrollArea } from './ui/scroll-area';
 import { Checkbox } from './ui/checkbox';
 import AnalysisViewer from './AnalysisViewer';
-import SoraPromptDisplay from './SoraPromptDisplay';
+import SoraPromptDisplay, { type SoraPromptData } from './SoraPromptDisplay';
 import {
   Select,
   SelectContent,
@@ -25,6 +24,58 @@ import {
   SelectTrigger,
   SelectValue
 } from './ui/select';
+import { useLibrary } from '@/contexts/LibraryContext';
+
+const RESOLUTION_OPTIONS = [
+  { label: 'Landscape 1920×1080', width: 1920, height: 1080 },
+  { label: 'Portrait 1080×1920', width: 1080, height: 1920 },
+  { label: 'Landscape 1280×720', width: 1280, height: 720 },
+  { label: 'Portrait 720×1280', width: 720, height: 1280 },
+  { label: 'Landscape 854×480', width: 854, height: 480 },
+  { label: 'Portrait 480×854', width: 480, height: 854 },
+  { label: 'Square 1080×1080', width: 1080, height: 1080 },
+  { label: 'Square 720×720', width: 720, height: 720 },
+  { label: 'Square 480×480', width: 480, height: 480 }
+];
+
+const QUICK_RESOLUTION_PRESET_KEYS = new Set(['1920x1080', '1280x720', '1080x1920', '1080x1080']);
+const QUICK_RESOLUTION_PRESETS = RESOLUTION_OPTIONS.filter(res => QUICK_RESOLUTION_PRESET_KEYS.has(`${res.width}x${res.height}`));
+
+const DURATION_OPTIONS = Array.from({ length: 20 }, (_, i) => i + 1);
+
+type TechnicalParameters = StructuredVisionResult['generation_guidance']['technical_parameters'];
+type ExtendedTechnicalParameters = TechnicalParameters & {
+  camera_movement?: unknown;
+  recommended_duration?: unknown;
+};
+
+const extractCameraTechnique = (parameters: TechnicalParameters, fallback?: string): string | undefined => {
+  const extended = parameters as ExtendedTechnicalParameters;
+  const value = extended.camera_movement;
+  if (typeof value === 'string' && value.trim().length > 0) {
+    return value;
+  }
+  return fallback;
+};
+
+const extractDurationRecommendation = (parameters: TechnicalParameters, fallback?: string): string | undefined => {
+  const extended = parameters as ExtendedTechnicalParameters;
+  const value = extended.recommended_duration;
+  if (typeof value === 'string' && value.trim().length > 0) {
+    return value;
+  }
+  return fallback;
+};
+
+const getErrorMessage = (error: unknown, fallback = 'Operation failed'): string => {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+  if (typeof error === 'string' && error.length > 0) {
+    return error;
+  }
+  return fallback;
+};
 
 export default function SoraCreator({
   selectedIds = [] as string[],
@@ -41,12 +92,13 @@ export default function SoraCreator({
   setPrompt: React.Dispatch<React.SetStateAction<string>>;
   promptInputRef?: React.RefObject<HTMLTextAreaElement | null>;
 }) {
-  const [width, setWidth] = useState(1080);
-  const [height, setHeight] = useState(1080);
-  const [seconds, setSeconds] = useState(10);
+  const defaultResolution = RESOLUTION_OPTIONS.find(r => r.width === 1280 && r.height === 720) ?? RESOLUTION_OPTIONS[0];
+  const [width, setWidth] = useState(defaultResolution.width);
+  const [height, setHeight] = useState(defaultResolution.height);
+  const [seconds, setSeconds] = useState(5);
   const [quality, setQuality] = useState<'high' | 'low'>('high');
   const [aspectLocked, setAspectLocked] = useState(true);
-  const [_aspectRatio, setAspectRatio] = useState(1);
+  const [_aspectRatio, setAspectRatio] = useState(defaultResolution.width / defaultResolution.height);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string|null>(null);
   const [retryCount, setRetryCount] = useState(0);
@@ -55,7 +107,7 @@ export default function SoraCreator({
   const [currentQuality, setCurrentQuality] = useState<'high' | 'low'>('high');
   const [fetchingQuality, setFetchingQuality] = useState(false);
   const [analysis, setAnalysis] = useState<string>('');
-  const [analysisData, setAnalysisData] = useState<any>(null);
+  const [analysisData, setAnalysisData] = useState<SoraPromptData | null>(null);
   const [progress, setProgress] = useState(0);
   const [stage, setStage] = useState<'idle'|'submitting'|'generating'|'downloading'|'finalizing'>('idle');
   const [analyzingImages, setAnalyzingImages] = useState(false);
@@ -63,6 +115,7 @@ export default function SoraCreator({
   const videoRef = useRef<HTMLVideoElement>(null);
   const videoDataRef = useRef<string|null>(null);
   const { showToast } = useToast();
+  const { refreshLibrary } = useLibrary();
 
   // Simple stepper state
   const currentStep = useMemo(() => {
@@ -99,6 +152,10 @@ export default function SoraCreator({
         audience: 'general'
       });
       
+      const technicalParameters = result.generation_guidance.technical_parameters;
+      const cameraTechnique = extractCameraTechnique(technicalParameters);
+      const durationRecommendation = extractDurationRecommendation(technicalParameters);
+
       // Store structured data for new display component
       setAnalysisData({
         suggested_prompt: result.generation_guidance.suggested_prompt,
@@ -108,16 +165,16 @@ export default function SoraCreator({
         motion_elements: result.metadata.processing_notes
           .filter((note: string) => note.includes('motion') || note.includes('movement'))
           .slice(0, 3),
-        camera_technique: (result.generation_guidance.technical_parameters as any)?.camera_movement,
-        duration_recommendation: (result.generation_guidance.technical_parameters as any)?.recommended_duration
+        camera_technique: cameraTechnique,
+        duration_recommendation: durationRecommendation
       });
       
       // Keep legacy format for backward compatibility
       const description = `${result.content.scene_description}\n\nSuggested prompt: ${result.generation_guidance.suggested_prompt}`;
       setAnalysis(description);
       showToast('Images analyzed successfully!', 'success');
-    } catch (e:any) {
-      const errorMsg = e.message || 'Analyze failed';
+    } catch (error: unknown) {
+      const errorMsg = getErrorMessage(error, 'Analyze failed');
       setError(errorMsg);
       showToast(errorMsg, 'error');
     } finally {
@@ -137,6 +194,10 @@ export default function SoraCreator({
         audience: 'technical'
       });
       
+      const technicalParameters = result.generation_guidance.technical_parameters;
+      const cameraTechnique = extractCameraTechnique(technicalParameters, 'Slow push in with shallow depth of field');
+      const durationRecommendation = extractDurationRecommendation(technicalParameters, '10-15 seconds');
+
       // Store enhanced structured data
       setAnalysisData({
         suggested_prompt: result.generation_guidance.suggested_prompt,
@@ -144,18 +205,16 @@ export default function SoraCreator({
         motion_elements: result.metadata.processing_notes
           .filter((note: string) => note.includes('motion') || note.includes('movement'))
           .slice(0, 5),
-        camera_technique: (result.generation_guidance.technical_parameters as any)?.camera_movement ||
-                         'Slow push in with shallow depth of field',
+        camera_technique: cameraTechnique,
         style_notes: result.generation_guidance.style_keywords?.join(', '),
-        duration_recommendation: (result.generation_guidance.technical_parameters as any)?.recommended_duration ||
-                                '10-15 seconds'
+        duration_recommendation: durationRecommendation
       });
       
       // Auto-insert the prompt
       setPrompt(prev => prev + (prev ? '\n\n' : '') + result.generation_guidance.suggested_prompt);
       showToast('Advanced Sora prompt generated!', 'success');
-    } catch (e: any) {
-      const errorMsg = e.message || 'Enhanced analysis failed';
+    } catch (error: unknown) {
+      const errorMsg = getErrorMessage(error, 'Enhanced analysis failed');
       setError(errorMsg);
       showToast(errorMsg, 'error');
     } finally {
@@ -216,9 +275,12 @@ export default function SoraCreator({
       setVideoUrl(blobUrl);
       setProgress(100);
       setRetryCount(0);
+      refreshLibrary().catch(() => {
+        // Ignore refresh errors; existing library UI already exposes manual refresh
+      });
       showToast('Video generated successfully!', 'success');
-    } catch (e:any) {
-      const { detailedMessage } = processApiError(e);
+    } catch (error: unknown) {
+      const { detailedMessage } = processApiError(error);
       setError(detailedMessage);
       if (isRetry) {
         setRetryCount(prev => prev + 1);
@@ -251,15 +313,15 @@ export default function SoraCreator({
       setGenerationId(generationId);
       setCurrentQuality('high');
       showToast('Opened generation', 'success');
-    } catch (e: any) {
-      showToast(e.message || 'Failed to open generation', 'error');
+    } catch (error: unknown) {
+      showToast(getErrorMessage(error, 'Failed to open generation'), 'error');
     }
   }
 
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-medium">Create Video (Sora on Azure)</h2>
+        <h2 className="text-lg font-medium">Create Video (Sora 2 on Azure)</h2>
         <div className="flex items-center gap-2 text-xs">
           <span className="text-neutral-400">Enhanced Analysis</span>
           <Switch
@@ -440,22 +502,17 @@ export default function SoraCreator({
       )}
 
       <div className="space-y-2">
-        <div className="flex flex-col sm:flex-row gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => { setWidth(1080); setHeight(1080); setAspectRatio(1); }}
-          >Square 1080×1080</Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => { setWidth(1920); setHeight(1080); setAspectRatio(16/9); }}
-          >Landscape 1920×1080</Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => { setWidth(1280); setHeight(720); setAspectRatio(16/9); }}
-          >HD 1280×720</Button>
+        <div className="flex flex-col sm:flex-row gap-2 flex-wrap">
+          {QUICK_RESOLUTION_PRESETS.map(preset => (
+            <Button
+              key={`${preset.width}x${preset.height}`}
+              variant="outline"
+              size="sm"
+              onClick={() => { setWidth(preset.width); setHeight(preset.height); setAspectRatio(preset.width / preset.height); }}
+            >
+              {preset.label}
+            </Button>
+          ))}
         </div>
         
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -474,12 +531,11 @@ export default function SoraCreator({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="480x480">480×480 (Square)</SelectItem>
-                <SelectItem value="854x480">854×480 (Wide)</SelectItem>
-                <SelectItem value="720x720">720×720 (Square)</SelectItem>
-                <SelectItem value="1280x720">1280×720 (HD)</SelectItem>
-                <SelectItem value="1080x1080">1080×1080 (Square HD)</SelectItem>
-                <SelectItem value="1920x1080">1920×1080 (Full HD)</SelectItem>
+                {RESOLUTION_OPTIONS.map(option => (
+                  <SelectItem key={`${option.width}x${option.height}`} value={`${option.width}x${option.height}`}>
+                    {option.label}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -488,16 +544,23 @@ export default function SoraCreator({
             <Label htmlFor="aspect-lock" className="text-xs text-muted-foreground">Lock aspect ratio</Label>
           </div>
           <div className="space-y-2 sm:col-span-2 lg:col-span-1">
-            <Label htmlFor="duration-input">Duration (s)</Label>
-            <Input 
-              id="duration-input"
-              type="number" 
-              min={1} 
-              max={20} 
-              value={seconds} 
-              onChange={e=>setSeconds(+e.target.value||10)} 
-            />
-            <p className="text-xs text-muted-foreground">Max 20s, up to 1920×1920</p>
+            <Label htmlFor="duration-select">Duration</Label>
+            <Select
+              value={String(seconds)}
+              onValueChange={v => setSeconds(Number(v))}
+            >
+              <SelectTrigger id="duration-select">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {DURATION_OPTIONS.map(value => (
+                  <SelectItem key={value} value={String(value)}>
+                    {value === 1 ? '1 second' : `${value} seconds`}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">Azure Sora preview supports 1–20 second clips</p>
           </div>
           <div className="space-y-2">
             <Label htmlFor="quality-select">Quality</Label>
@@ -595,8 +658,8 @@ export default function SoraCreator({
                       videoDataRef.current = url;
                       setVideoUrl(url);
                       setCurrentQuality('high');
-                    } catch (e:any) {
-                      showToast(e.message || 'Failed to fetch high quality', 'error');
+                    } catch (error: unknown) {
+                      showToast(getErrorMessage(error, 'Failed to fetch high quality'), 'error');
                     } finally {
                       setFetchingQuality(false);
                     }
@@ -620,8 +683,8 @@ export default function SoraCreator({
                       videoDataRef.current = url;
                       setVideoUrl(url);
                       setCurrentQuality('low');
-                    } catch (e:any) {
-                      showToast(e.message || 'Failed to fetch low quality', 'error');
+                    } catch (error: unknown) {
+                      showToast(getErrorMessage(error, 'Failed to fetch low quality'), 'error');
                     } finally {
                       setFetchingQuality(false);
                     }

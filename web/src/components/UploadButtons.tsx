@@ -12,6 +12,11 @@ export default function UploadButtons({ onUploaded, onOpenEditor }: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [mode, setMode] = useState<'library' | 'edit'>('library');
   const { showToast } = useToast();
+  const getErrorMessage = (error: unknown, fallback: string): string => {
+    if (error instanceof Error && error.message) return error.message;
+    if (typeof error === 'string' && error.length > 0) return error;
+    return fallback;
+  };
 
   async function handleFiles(files: FileList | null) {
     if (!files || files.length === 0) return;
@@ -20,8 +25,8 @@ export default function UploadButtons({ onUploaded, onOpenEditor }: Props) {
       onUploaded(items);
       showToast(`Uploaded ${items.length} image${items.length>1?'s':''}`, 'success');
       if (mode === 'edit' && items[0]) onOpenEditor(items[0].id);
-    } catch (e: any) {
-      showToast(e.message || 'Upload failed', 'error');
+    } catch (error: unknown) {
+      showToast(getErrorMessage(error, 'Upload failed'), 'error');
     } finally {
       if (fileRef.current) fileRef.current.value = '';
     }
@@ -35,4 +40,3 @@ export default function UploadButtons({ onUploaded, onOpenEditor }: Props) {
     </div>
   );
 }
-

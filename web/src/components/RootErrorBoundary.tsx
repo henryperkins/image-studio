@@ -2,17 +2,16 @@ import React from 'react';
 
 type Props = { children: React.ReactNode }
 
-type State = { hasError: boolean; error?: any }
+type State = { hasError: boolean; error?: Error }
 
 export default class RootErrorBoundary extends React.Component<Props, State> {
   state: State = { hasError: false };
 
-  static getDerivedStateFromError(error: any): State {
+  static getDerivedStateFromError(error: Error): State {
     return { hasError: true, error };
   }
 
-  componentDidCatch(error: any, errorInfo: any) {
-
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     console.error('RootErrorBoundary caught error:', error, errorInfo);
   }
 
@@ -28,4 +27,3 @@ export default class RootErrorBoundary extends React.Component<Props, State> {
     return this.props.children;
   }
 }
-

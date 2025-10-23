@@ -1,5 +1,5 @@
 // Enhanced prompt architecture for vision analysis with improved Sora capabilities
-import { DescriptionParams, VideoParams } from '../types/vision.js';
+import { DescriptionParams, VideoParams, Frame } from '../types/vision.js';
 
 // System prompt - stable foundation with safety, accessibility, and Sora optimization
 export const SYSTEM_PROMPT = `You are an AI vision specialist with expertise in cinematic video generation. Produce accurate, inclusive, and WCAG-compliant descriptions optimized for video synthesis.
@@ -61,7 +61,7 @@ export function createImageUserMessage(params: DescriptionParams): string {
   return message;
 }
 
-export function createVideoUserMessage(frames: any[], params: VideoParams): string {
+export function createVideoUserMessage(frames: Frame[], params: VideoParams): string {
   const frameInfo = frames.map((f, i) => `Frame ${i+1} @ ${f.timestamp}s`).join('\n');
   
   return `Analyze this video sequence across ${frames.length} keyframes:
@@ -331,7 +331,7 @@ export function optimizePromptForTokens(basePrompt: string, maxTokens: number): 
 
 // New helper for prompt chaining across multiple analyses
 export function createProgressiveAnalysisPrompt(
-  previousAnalysis: any, 
+  previousAnalysis: unknown, 
   params: DescriptionParams
 ): string {
   return `Building on previous analysis, refine the video generation approach:
